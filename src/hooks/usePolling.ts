@@ -36,11 +36,6 @@ export function usePolling<T>({
       if (stoppedRef.current) return;
       attemptRef.current++;
 
-      if (document.hidden) {
-        timerRef.current = setTimeout(tick, interval);
-        return;
-      }
-
       try {
         const data = await fetcher();
         const shouldStop = onData(data);
@@ -57,9 +52,21 @@ export function usePolling<T>({
       timerRef.current = setTimeout(tick, interval);
     }
 
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        clearTimeout(timerRef.current);
+      } else if (!stoppedRef.current && attemptRef.current < maxAttempts) {
+        tick();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     tick();
 
-    return () => stop();
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      stop();
+    };
   }, [enabled, fetcher, onData, interval, maxAttempts, onTimeout, stop]);
 
   return { stop };
