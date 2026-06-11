@@ -1,0 +1,66 @@
+import { useEffect, useRef, useCallback } from "react";
+
+interface UsePollingOptions<T> {
+  fetcher: () => Promise<T>;
+  onData: (data: T) => boolean | void;
+  interval?: number;
+  maxAttempts?: number;
+  onTimeout?: () => void;
+  enabled?: boolean;
+}
+
+export function usePolling<T>({
+  fetcher,
+  onData,
+  interval = 2000,
+  maxAttempts = 90,
+  onTimeout,
+  enabled = true,
+}: UsePollingOptions<T>) {
+  const attemptRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const stoppedRef = useRef(false);
+
+  const stop = useCallback(() => {
+    stoppedRef.current = true;
+    clearTimeout(timerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    stoppedRef.current = false;
+    attemptRef.current = 0;
+
+    async function tick() {
+      if (stoppedRef.current) return;
+      attemptRef.current++;
+
+      if (document.hidden) {
+        timerRef.current = setTimeout(tick, interval);
+        return;
+      }
+
+      try {
+        const data = await fetcher();
+        const shouldStop = onData(data);
+        if (shouldStop) return;
+      } catch {
+        // keep polling on network error
+      }
+
+      if (attemptRef.current >= maxAttempts) {
+        onTimeout?.();
+        return;
+      }
+
+      timerRef.current = setTimeout(tick, interval);
+    }
+
+    tick();
+
+    return () => stop();
+  }, [enabled, fetcher, onData, interval, maxAttempts, onTimeout, stop]);
+
+  return { stop };
+}
