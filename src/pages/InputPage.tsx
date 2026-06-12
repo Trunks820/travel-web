@@ -1,166 +1,401 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { CitySelect } from "@/components/input/CitySelect";
-import { DaysSlider } from "@/components/input/DaysSlider";
-import { PeopleCounter } from "@/components/input/PeopleCounter";
-import { PaceSelect } from "@/components/input/PaceSelect";
-import { PreferenceTags } from "@/components/input/PreferenceTags";
-import { AvoidTags } from "@/components/input/AvoidTags";
-import { NotesInput } from "@/components/input/NotesInput";
-import { useTripStore } from "@/stores/tripStore";
-import { submitTrip, ApiRequestError } from "@/services/api";
-import type { TripFormData } from "@/types/form";
-import { DEFAULT_FORM } from "@/types/form";
-import { CloudDecor } from "@/components/layout/CloudDecor";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MultiCitySelect } from '../components/input/MultiCitySelect';
+import { DateRangeInput } from '../components/input/DateRangeInput';
+import { BudgetSlider } from '../components/input/BudgetSlider';
+import { RotatingBackground, useRotatingBackground, cityNameOfImage } from '../components/input/RotatingBackground';
+import { submitTrip, ApiRequestError } from '../services/api';
 
-interface FormErrors {
-  to_city?: string;
-  submit?: string;
+const FEATURES = [
+  {
+    icon: 'fas fa-robot',
+    color: 'bg-cyan-500',
+    title: 'AI 智能推荐',
+    desc: '基于大模型与偏好分析，生成个性化行程',
+  },
+  {
+    icon: 'fas fa-map-marked-alt',
+    color: 'bg-teal-500',
+    title: '行程高效合理',
+    desc: '景点路线优化，节省时间不走回头路',
+  },
+  {
+    icon: 'fas fa-heart',
+    color: 'bg-orange-400',
+    title: '体验地道精彩',
+    desc: '发现小众玩法，深入当地文化体验',
+  },
+  {
+    icon: 'fas fa-shield-alt',
+    color: 'bg-blue-400',
+    title: '实时动态调整',
+    desc: '天气、交通变化实时感知，行程灵活调整',
+  },
+];
+
+const PREFERENCE_OPTIONS = [
+  { label: '自然风光', icon: 'fas fa-mountain' },
+  { label: '历史文化', icon: 'fas fa-university' },
+  { label: '美食探索', icon: 'fas fa-utensils' },
+  { label: '亲子家庭', icon: 'fas fa-child' },
+  { label: '购物逛街', icon: 'fas fa-shopping-bag' },
+];
+
+function FeatureItem({ icon, color, title, desc }: (typeof FEATURES)[number]) {
+  return (
+    <div className="flex items-start space-x-4">
+      <div className={`${color} w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0`}>
+        <i className={icon}></i>
+      </div>
+      <div>
+        <h3 className="font-bold text-gray-800">{title}</h3>
+        <p className="text-gray-500 text-sm">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function PreferenceBtn({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm transition-all border ${
+          active
+            ? 'bg-cyan-50 border-cyan-400 text-cyan-600'
+            : 'bg-white border-gray-100 text-gray-600 hover:border-gray-300'
+        }`}
+      >
+        <i className={`${icon} ${active ? 'text-cyan-500' : 'text-gray-400'}`}></i>
+        <span>{label}</span>
+      </button>
+      {active && (
+        <div className="absolute -top-1 -right-1 bg-cyan-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] border-2 border-white pointer-events-none">
+          <i className="fas fa-check"></i>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function isoDateAfter(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().slice(0, 10);
 }
 
 export default function InputPage() {
   const navigate = useNavigate();
-  const setFormData = useTripStore((s) => s.setFormData);
-  const setJob = useTripStore((s) => s.setJob);
-
-  const [form, setForm] = useState<TripFormData>({ ...DEFAULT_FORM });
-  const [pace, setPace] = useState("moderate");
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [cities, setCities] = useState<string[]>(['东京 Tokyo', '京都 Kyoto']);
+  const [multiCity, setMultiCity] = useState(true);
+  const [startDate, setStartDate] = useState(() => isoDateAfter(7));
+  const [endDate, setEndDate] = useState(() => isoDateAfter(13));
+  const [preferences, setPreferences] = useState<string[]>(['自然风光']);
+  const [pace, setPace] = useState(60);
+  const [budget, setBudget] = useState<[number, number]>([1000, 5000]);
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  function updateField<K extends keyof TripFormData>(
-    key: K,
-    value: TripFormData[K],
-  ) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    if (key === "to_city") setErrors((prev) => ({ ...prev, to_city: undefined }));
-  }
+  const togglePreference = (pref: string) => {
+    setPreferences(prev =>
+      prev.includes(pref) ? prev.filter(p => p !== pref) : [...prev, pref]
+    );
+  };
 
-  function validate(): boolean {
-    const next: FormErrors = {};
-    if (!form.to_city) next.to_city = "请选择目的地";
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  }
+  const { current: bgImage, incoming: bgIncoming } = useRotatingBackground(cities);
+  const polaroidImage = bgImage;
+  const polaroidCity = cityNameOfImage(bgImage);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validate() || submitting) return;
-
-    const finalForm: TripFormData = {
-      ...form,
-      preferences:
-        pace === "relaxed"
-          ? [...form.preferences.filter((p) => p !== "轻松"), "轻松"]
-          : form.preferences.filter((p) => p !== "轻松"),
-    };
+  const handleSubmit = async () => {
+    if (submitting) return;
+    if (cities.length === 0) {
+      setSubmitError('请至少选择一个目的地');
+      return;
+    }
+    const days = Math.max(
+      1,
+      Math.round(
+        (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000
+      ) + 1
+    );
 
     setSubmitting(true);
-    setErrors((prev) => ({ ...prev, submit: undefined }));
-
+    setSubmitError(null);
     try {
-      setFormData(finalForm);
-      const { job_id } = await submitTrip(finalForm);
-      setJob(job_id, "QUEUED", null);
-      navigate(`/planning/${job_id}`);
+      const res = await submitTrip({
+        to_city: cities[0],
+        days,
+        people_count: 1,
+        preferences,
+        avoid: [],
+        notes: [notes, `节奏:${pace}`, `预算:¥${budget[0]}-¥${budget[1]}`]
+          .filter(Boolean)
+          .join('；'),
+      });
+      navigate(`/planning/${res.job_id}`);
     } catch (err) {
-      const message =
-        err instanceof ApiRequestError
-          ? err.message
-          : "提交失败，请稍后重试";
-      setErrors((prev) => ({ ...prev, submit: message }));
-    } finally {
+      setSubmitError(
+        err instanceof ApiRequestError ? err.message : '提交失败，请稍后重试'
+      );
       setSubmitting(false);
     }
-  }
+  };
 
   return (
-    <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-10 lg:flex-row lg:items-start lg:gap-16">
-      <CloudDecor intensity="normal" />
+    <div className="relative min-h-screen -mt-14 pt-14">
+      {/* 固定背景图（随目的地/定时轮换） */}
+      <RotatingBackground current={bgImage} incoming={bgIncoming} />
 
-      {/* Hero — 桌面端左侧，移动端顶部 */}
-      <div className="w-full shrink-0 text-center animate-fade-in lg:sticky lg:top-24 lg:w-[380px] lg:text-left">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-primary-800 sm:text-3xl lg:text-4xl">
-          规划你的
-          <span className="bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent">
-            完美旅行
-          </span>
-        </h1>
-        <p className="mt-3 text-sand-500 lg:text-base">
-          AI 驱动 · 个性化定制 · 智能行程规划
-        </p>
-
-        {/* 卖点列表 — 仅桌面端显示 */}
-        <ul className="mt-8 hidden space-y-5 lg:block">
-          {[
-            { icon: "🗺️", title: "智能行程规划", desc: "根据你的偏好生成多套方案，轻松对比选择" },
-            { icon: "⏱️", title: "节奏自由把控", desc: "从轻松到紧凑，AI 帮你合理安排每一天" },
-            { icon: "📍", title: "实时地图导览", desc: "每个景点清晰标注，通勤路线一目了然" },
-          ].map((item) => (
-            <li key={item.title} className="flex items-start gap-3.5">
-              <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-lg shadow-sm">
-                {item.icon}
+      {/* 主体内容 */}
+      <main className="relative z-10 max-w-[1400px] mx-auto pt-16 pb-24 px-8 grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-12 items-start">
+        {/* 左侧：品牌与特性 */}
+        <div className="pt-12">
+          <div className="mb-12">
+            <h1 className="text-4xl xl:text-5xl font-bold text-gray-800 leading-tight mb-4">
+              <span className="relative inline-block">
+                AI 智能规划
+                <span className="absolute -top-4 -right-6 text-2xl text-orange-400">✦</span>
               </span>
-              <div>
-                <p className="text-sm font-semibold text-primary-800">{item.title}</p>
-                <p className="mt-0.5 text-sm text-sand-500">{item.desc}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+              <br />
+              <span className="text-[#008080]">更懂你的每一次旅行</span>
+            </h1>
+            <p className="text-xl text-gray-600">云途 YunTu · 让旅行更简单，更美好</p>
+          </div>
 
-      {/* 表单 */}
-      <form
-        onSubmit={handleSubmit}
-        className="card w-full max-w-form space-y-7 p-6 sm:p-8 animate-slide-up lg:max-w-none"
-      >
-        <CitySelect
-          value={form.to_city}
-          onChange={(v) => updateField("to_city", v)}
-          error={errors.to_city}
-        />
+          <div className="space-y-8">
+            {FEATURES.map(f => (
+              <FeatureItem key={f.title} {...f} />
+            ))}
+          </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <DaysSlider
-            value={form.days}
-            onChange={(v) => updateField("days", v)}
-          />
-          <PeopleCounter
-            value={form.people_count}
-            onChange={(v) => updateField("people_count", v)}
-          />
+          <div className="mt-20 relative inline-block">
+            <p className="signature-font text-4xl text-[#008080] opacity-80 transform -rotate-6">
+              探索世界，遇见更好的自己
+            </p>
+            <span className="absolute -top-4 -right-12 text-cyan-300 text-2xl">✦</span>
+          </div>
         </div>
 
-        <PaceSelect value={pace} onChange={setPace} />
+        {/* 右侧：表单卡片 */}
+        <div className="glass-card rounded-3xl p-8 relative overflow-hidden">
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                <span className="text-orange-400 mr-2">✦</span>
+                生成你的专属行程
+              </h2>
+              <p className="text-gray-500 text-sm mt-1">
+                告诉我们你的喜好，AI 为你量身打造完美旅程
+              </p>
+            </div>
+            <button
+              type="button"
+              className="flex items-center space-x-1 text-gray-400 hover:text-gray-600 text-sm border border-gray-200 px-3 py-1.5 rounded-lg transition-all shrink-0"
+            >
+              <i className="far fa-lightbulb"></i>
+              <span>行程灵感</span>
+            </button>
+          </div>
 
-        <PreferenceTags
-          value={form.preferences}
-          onChange={(v) => updateField("preferences", v)}
-        />
+          <div className="space-y-6">
+            {/* 目的地 */}
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <label className="text-gray-700 font-bold flex items-center text-sm">
+                  <i className="fas fa-map-marker-alt text-cyan-500 mr-2"></i> 目的地
+                </label>
+                <label className="flex items-center text-xs text-gray-500 cursor-pointer">
+                  <span>多地旅行</span>
+                  <input
+                    type="checkbox"
+                    checked={multiCity}
+                    onChange={e => setMultiCity(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-4 bg-gray-200 peer-checked:bg-[#008080] rounded-full ml-2 relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></div>
+                </label>
+              </div>
+              <MultiCitySelect value={cities} onChange={setCities} />
+            </div>
 
-        <AvoidTags
-          value={form.avoid}
-          onChange={(v) => updateField("avoid", v)}
-        />
+            {/* 旅行时间 */}
+            <div>
+              <label className="text-gray-700 font-bold flex items-center text-sm mb-3">
+                <i className="far fa-calendar-alt text-cyan-500 mr-2"></i> 旅行时间
+              </label>
+              <DateRangeInput
+                startDate={startDate}
+                endDate={endDate}
+                onStartChange={setStartDate}
+                onEndChange={setEndDate}
+              />
+            </div>
 
-        <NotesInput
-          value={form.notes}
-          onChange={(v) => updateField("notes", v)}
-        />
+            {/* 旅行偏好 */}
+            <div>
+              <label className="text-gray-700 font-bold flex items-center text-sm mb-3">
+                <i className="far fa-id-card text-cyan-500 mr-2"></i> 旅行偏好
+                <span className="font-normal text-gray-400 ml-1">(可选多选)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {PREFERENCE_OPTIONS.map(({ label, icon }) => (
+                  <PreferenceBtn
+                    key={label}
+                    icon={icon}
+                    label={label}
+                    active={preferences.includes(label)}
+                    onClick={() => togglePreference(label)}
+                  />
+                ))}
+              </div>
+            </div>
 
-        {errors.submit && (
-          <div className="error-banner">{errors.submit}</div>
-        )}
+            {/* 节奏偏好 */}
+            <div>
+              <div className="flex items-center mb-3">
+                <label className="text-gray-700 font-bold flex items-center text-sm">
+                  <i className="fas fa-walking text-cyan-500 mr-2"></i> 节奏偏好
+                </label>
+                <span className="text-xs text-gray-400 ml-3 font-normal">
+                  想要多紧凑的行程安排？
+                </span>
+              </div>
+              <div className="flex items-center space-x-4 px-2">
+                <div className="text-gray-400 flex flex-col items-center shrink-0">
+                  <i className="fas fa-umbrella-beach text-sm mb-1"></i>
+                  <span className="text-[10px]">轻松悠闲</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={pace}
+                  onChange={e => setPace(Number(e.target.value))}
+                  className="custom-slider flex-1"
+                  style={{
+                    background: `linear-gradient(to right, #fb923c 0%, #fb923c ${pace}%, #f3f4f6 ${pace}%, #f3f4f6 100%)`,
+                  }}
+                />
+                <div className="text-gray-400 flex flex-col items-center shrink-0">
+                  <i className="fas fa-running text-sm mb-1"></i>
+                  <span className="text-[10px]">紧凑充实</span>
+                </div>
+              </div>
+            </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="btn-primary w-full"
-        >
-          {submitting ? "正在提交..." : "开始规划"}
-        </button>
-      </form>
+            {/* 预算范围 */}
+            <div>
+              <div className="flex items-center mb-3">
+                <label className="text-gray-700 font-bold flex items-center text-sm">
+                  <i className="far fa-money-bill-alt text-cyan-500 mr-2"></i> 预算范围
+                  <span className="font-normal text-gray-400 ml-1">(人均)</span>
+                </label>
+                <span className="text-xs text-gray-300 ml-3 font-normal">不含往返大交通</span>
+              </div>
+              <div className="px-2">
+                <BudgetSlider min={1000} max={12000} onChange={setBudget} />
+              </div>
+            </div>
+
+            {/* 特殊需求 */}
+            <div>
+              <div className="flex items-center mb-3 flex-wrap">
+                <label className="text-gray-700 font-bold flex items-center text-sm">
+                  <i className="far fa-comment-dots text-cyan-500 mr-2"></i> 特殊需求
+                  <span className="font-normal text-gray-400 ml-1">(选填)</span>
+                </label>
+                <span className="text-xs text-gray-300 ml-3 font-normal">
+                  例如：无障碍设施、素食、宠物友好等
+                </span>
+              </div>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 min-h-[60px] resize-none"
+                placeholder="请输入你的特殊需求..."
+              ></textarea>
+            </div>
+
+            {/* 生成按钮 */}
+            {submitError && (
+              <p className="text-sm text-red-500 text-center">{submitError}</p>
+            )}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-orange-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {submitting ? (
+                <>
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                  <span>正在提交...</span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-magic"></i>
+                  <span>生成专属行程</span>
+                </>
+              )}
+            </button>
+
+            <div className="text-center text-[10px] text-gray-400 flex items-center justify-center space-x-1 pt-2">
+              <i className="fas fa-shield-alt"></i>
+              <span>信息安全保障 · 仅用于行程规划</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* 右下角拍立得装饰 */}
+      <div className="fixed bottom-12 right-12 z-20 pointer-events-none hidden xl:block">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#00a29a] rounded-full opacity-60 blur-sm -z-10"></div>
+
+        <div className="relative transform rotate-6">
+          <div className="bg-white p-3 pb-12 polaroid-shadow rounded-sm w-48">
+            <div
+              className="aspect-square bg-cover bg-center transition-[background-image] duration-700"
+              style={{ backgroundImage: `url('${polaroidImage}')` }}
+            ></div>
+            <div className="mt-4 signature-font text-2xl text-gray-400 text-center opacity-60">
+              {polaroidCity ?? 'YunTu'}
+            </div>
+          </div>
+        </div>
+
+        {/* 纸飞机虚线轨迹 */}
+        <div className="absolute -top-32 -left-20 pointer-events-none opacity-40">
+          <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10 180C40 160 100 170 140 100C160 60 140 30 180 10"
+              stroke="#008080"
+              strokeWidth="1.5"
+              strokeDasharray="6 6"
+            />
+            <path d="M180 10L165 15M180 10L175 25" stroke="#008080" strokeWidth="1.5" />
+            <circle cx="180" cy="10" r="2" fill="#008080" />
+          </svg>
+          <div className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2">
+            <i className="fas fa-paper-plane text-orange-400 transform -rotate-12"></i>
+          </div>
+        </div>
+      </div>
+
+      {/* 漂浮光晕 */}
+      <div className="fixed top-1/3 -right-20 w-64 h-64 bg-cyan-400/20 rounded-full blur-3xl z-0 pointer-events-none"></div>
+      <div className="fixed top-20 left-20 w-96 h-96 bg-orange-200/20 rounded-full blur-3xl z-0 pointer-events-none"></div>
     </div>
   );
 }

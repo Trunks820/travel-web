@@ -8,7 +8,7 @@
     font-family: system-ui, "Noto Sans SC", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #edf2f5;
+    background-color: #ffffff;
     color: #1c3640;
   }
 
@@ -18,6 +18,52 @@
 }
 
 @layer components {
+  .signature-font {
+    font-family: "Zhi Mang Xing", "STKaiti", "KaiTi", "楷体", cursive;
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  }
+
+  .polaroid-shadow {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  }
+
+  .custom-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    outline: none;
+  }
+
+  .custom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #f97316;
+    cursor: pointer;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  }
+
+  .custom-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #f97316;
+    cursor: pointer;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+  }
+
   .btn-primary {
     @apply rounded-xl bg-accent-500 px-6 py-3 text-sm font-semibold text-white
       transition-all duration-200 hover:bg-accent-600 hover:shadow-md
@@ -93,6 +139,14 @@
   .animate-slide-up-delay-2 {
     animation: slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.16s both;
   }
+
+  .animate-skeleton {
+    animation: skeleton 1.5s ease-in-out infinite;
+  }
+
+  .animate-bg-fade-in {
+    animation: fadeIn 1.5s ease-in-out both;
+  }
 }
 
 @keyframes fadeIn {
@@ -110,11 +164,18 @@
   to { transform: translate(30px, -20px) scale(1.05); }
 }
 
+@keyframes skeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
   .animate-slide-up-delay-1,
-  .animate-slide-up-delay-2 {
+  .animate-slide-up-delay-2,
+  .animate-skeleton,
+  .animate-bg-fade-in {
     animation: none !important;
   }
 }

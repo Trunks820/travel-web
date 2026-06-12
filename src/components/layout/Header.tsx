@@ -1,46 +1,65 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from 'react-router-dom';
 
 const NAV_ITEMS = [
-  { to: "/", label: "规划旅行" },
+  { path: '/', label: 'AI 行程规划' },
+  { path: '/destinations', label: '目的地' },
+  { path: '/inspiration', label: '旅行灵感' },
+  { path: '/trips', label: '我的行程' },
+  { path: '/membership', label: '会员中心' },
 ];
 
-export function Header() {
-  const { pathname } = useLocation();
+export default function Header() {
+  const location = useLocation();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-primary-100/50 bg-white/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 shadow-sm">
-            <svg className="h-4.5 w-4.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </span>
-          <span className="font-display text-base font-bold tracking-tight text-primary-800">
-            云途<span className="ml-1 text-xs font-medium text-sand-400">YunTu</span>
-          </span>
-        </Link>
+    <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
+      <div className="flex items-center justify-between px-8 py-2">
+        <div className="flex items-center space-x-8">
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2">
+            <img src="/logo.png" alt="Logo" className="h-10 w-auto rounded-full" />
+            <span className="text-2xl font-bold text-gray-800 tracking-tight">
+              云途 <span className="text-[#008080] font-normal">YunTu</span>
+            </span>
+          </Link>
 
-        <nav className="flex items-center gap-1">
-          {NAV_ITEMS.map((item) => {
-            const active = pathname === item.to;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-primary-50 text-primary-700"
-                    : "text-sand-500 hover:bg-primary-50/60 hover:text-primary-600"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+          {/* 导航菜单 */}
+          <nav className="hidden lg:flex items-center space-x-8 text-gray-600 font-medium">
+            {NAV_ITEMS.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={
+                    isActive
+                      ? 'text-[#008080] border-b-2 border-[#008080] pb-1'
+                      : 'hover:text-gray-900 transition-colors'
+                  }
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* 右侧操作 */}
+        <div className="flex items-center space-x-6">
+          <button className="bg-orange-50 text-orange-500 px-4 py-1.5 rounded-full text-sm font-medium flex items-center hover:bg-orange-100 transition-colors">
+            <span className="mr-2 text-xs">✦</span> 升级会员
+          </button>
+          <button className="flex items-center space-x-1 text-gray-600 text-sm">
+            <i className="fas fa-globe"></i>
+            <span>中文</span>
+            <i className="fas fa-chevron-down text-[10px]"></i>
+          </button>
+          <img
+            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felicia"
+            alt="用户"
+            className="w-9 h-9 rounded-full border-2 border-white shadow-sm"
+          />
+        </div>
       </div>
     </header>
   );
