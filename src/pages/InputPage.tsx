@@ -9,25 +9,25 @@ import { submitTrip, ApiRequestError } from '../services/api';
 const FEATURES = [
   {
     icon: 'fas fa-robot',
-    color: 'bg-cyan-500',
+    color: 'bg-primary-500',
     title: 'AI 智能推荐',
     desc: '基于大模型与偏好分析，生成个性化行程',
   },
   {
     icon: 'fas fa-map-marked-alt',
-    color: 'bg-teal-500',
+    color: 'bg-primary-400',
     title: '行程高效合理',
     desc: '景点路线优化，节省时间不走回头路',
   },
   {
     icon: 'fas fa-heart',
-    color: 'bg-orange-400',
+    color: 'bg-accent-400',
     title: '体验地道精彩',
     desc: '发现小众玩法，深入当地文化体验',
   },
   {
     icon: 'fas fa-shield-alt',
-    color: 'bg-blue-400',
+    color: 'bg-primary-600',
     title: '实时动态调整',
     desc: '天气、交通变化实时感知，行程灵活调整',
   },
@@ -45,7 +45,7 @@ function FeatureItem({ icon, color, title, desc }: (typeof FEATURES)[number]) {
   return (
     <div className="flex items-start space-x-4">
       <div className={`${color} w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0`}>
-        <i className={icon}></i>
+        <i className={icon} aria-hidden="true"></i>
       </div>
       <div>
         <h3 className="font-bold text-gray-800">{title}</h3>
@@ -71,18 +71,19 @@ function PreferenceBtn({
       <button
         type="button"
         onClick={onClick}
-        className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm transition-all border ${
+        aria-pressed={active}
+        className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
           active
-            ? 'bg-cyan-50 border-cyan-400 text-cyan-600'
+            ? 'bg-primary-50 border-primary-400 text-primary-600'
             : 'bg-white border-gray-100 text-gray-600 hover:border-gray-300'
         }`}
       >
-        <i className={`${icon} ${active ? 'text-cyan-500' : 'text-gray-400'}`}></i>
+        <i className={`${icon} ${active ? 'text-primary-500' : 'text-gray-400'}`} aria-hidden="true"></i>
         <span>{label}</span>
       </button>
       {active && (
-        <div className="absolute -top-1 -right-1 bg-cyan-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] border-2 border-white pointer-events-none">
-          <i className="fas fa-check"></i>
+        <div className="absolute -top-1 -right-1 bg-primary-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] border-2 border-white pointer-events-none">
+          <i className="fas fa-check" aria-hidden="true"></i>
         </div>
       )}
     </div>
@@ -161,15 +162,15 @@ export default function InputPage() {
       {/* 主体内容 */}
       <main className="relative z-10 max-w-[1400px] mx-auto pt-16 pb-24 px-8 grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-12 items-start">
         {/* 左侧：品牌与特性 */}
-        <div className="pt-12">
+        <div className="pt-12 animate-slide-up">
           <div className="mb-12">
             <h1 className="text-4xl xl:text-5xl font-bold text-gray-800 leading-tight mb-4">
               <span className="relative inline-block">
                 AI 智能规划
-                <span className="absolute -top-4 -right-6 text-2xl text-orange-400">✦</span>
+                <span className="absolute -top-4 -right-6 text-2xl text-accent-400" aria-hidden="true">✦</span>
               </span>
               <br />
-              <span className="text-[#008080]">更懂你的每一次旅行</span>
+              <span className="text-primary-500">更懂你的每一次旅行</span>
             </h1>
             <p className="text-xl text-gray-600">云途 YunTu · 让旅行更简单，更美好</p>
           </div>
@@ -181,19 +182,19 @@ export default function InputPage() {
           </div>
 
           <div className="mt-20 relative inline-block">
-            <p className="signature-font text-4xl text-[#008080] opacity-80 transform -rotate-6">
+            <p className="signature-font text-4xl text-primary-500 opacity-80 transform -rotate-6">
               探索世界，遇见更好的自己
             </p>
-            <span className="absolute -top-4 -right-12 text-cyan-300 text-2xl">✦</span>
+            <span className="absolute -top-4 -right-12 text-primary-200 text-2xl" aria-hidden="true">✦</span>
           </div>
         </div>
 
         {/* 右侧：表单卡片 */}
-        <div className="glass-card rounded-3xl p-8 relative overflow-hidden">
+        <div className="glass-card rounded-3xl p-8 relative overflow-hidden animate-slide-up-delay-1">
           <div className="flex justify-between items-start mb-8">
             <div>
               <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                <span className="text-orange-400 mr-2">✦</span>
+                <span className="text-accent-400 mr-2" aria-hidden="true">✦</span>
                 生成你的专属行程
               </h2>
               <p className="text-gray-500 text-sm mt-1">
@@ -202,9 +203,9 @@ export default function InputPage() {
             </div>
             <button
               type="button"
-              className="flex items-center space-x-1 text-gray-400 hover:text-gray-600 text-sm border border-gray-200 px-3 py-1.5 rounded-lg transition-all shrink-0"
+              className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 text-sm border border-gray-200 px-3 py-1.5 rounded-lg transition-colors shrink-0"
             >
-              <i className="far fa-lightbulb"></i>
+              <i className="far fa-lightbulb" aria-hidden="true"></i>
               <span>行程灵感</span>
             </button>
           </div>
@@ -214,7 +215,7 @@ export default function InputPage() {
             <div>
               <div className="flex justify-between items-center mb-3">
                 <label className="text-gray-700 font-bold flex items-center text-sm">
-                  <i className="fas fa-map-marker-alt text-cyan-500 mr-2"></i> 目的地
+                  <i className="fas fa-map-marker-alt text-primary-500 mr-2" aria-hidden="true"></i> 目的地
                 </label>
                 <label className="flex items-center text-xs text-gray-500 cursor-pointer">
                   <span>多地旅行</span>
@@ -224,7 +225,7 @@ export default function InputPage() {
                     onChange={e => setMultiCity(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-8 h-4 bg-gray-200 peer-checked:bg-[#008080] rounded-full ml-2 relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></div>
+                  <div className="w-8 h-4 bg-gray-200 peer-checked:bg-primary-500 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-300 rounded-full ml-2 relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></div>
                 </label>
               </div>
               <MultiCitySelect value={cities} onChange={setCities} />
@@ -233,7 +234,7 @@ export default function InputPage() {
             {/* 旅行时间 */}
             <div>
               <label className="text-gray-700 font-bold flex items-center text-sm mb-3">
-                <i className="far fa-calendar-alt text-cyan-500 mr-2"></i> 旅行时间
+                <i className="far fa-calendar-alt text-primary-500 mr-2" aria-hidden="true"></i> 旅行时间
               </label>
               <DateRangeInput
                 startDate={startDate}
@@ -246,7 +247,7 @@ export default function InputPage() {
             {/* 旅行偏好 */}
             <div>
               <label className="text-gray-700 font-bold flex items-center text-sm mb-3">
-                <i className="far fa-id-card text-cyan-500 mr-2"></i> 旅行偏好
+                <i className="far fa-id-card text-primary-500 mr-2" aria-hidden="true"></i> 旅行偏好
                 <span className="font-normal text-gray-400 ml-1">(可选多选)</span>
               </label>
               <div className="flex flex-wrap gap-2">
@@ -265,15 +266,15 @@ export default function InputPage() {
             {/* 节奏偏好 */}
             <div>
               <div className="flex items-center mb-3">
-                <label className="text-gray-700 font-bold flex items-center text-sm">
-                  <i className="fas fa-walking text-cyan-500 mr-2"></i> 节奏偏好
+                <label className="text-gray-700 font-bold flex items-center text-sm" id="pace-label">
+                  <i className="fas fa-walking text-primary-500 mr-2" aria-hidden="true"></i> 节奏偏好
                 </label>
                 <span className="text-xs text-gray-400 ml-3 font-normal">
                   想要多紧凑的行程安排？
                 </span>
               </div>
               <div className="flex items-center space-x-4 px-2">
-                <div className="text-gray-400 flex flex-col items-center shrink-0">
+                <div className="text-gray-500 flex flex-col items-center shrink-0" aria-hidden="true">
                   <i className="fas fa-umbrella-beach text-sm mb-1"></i>
                   <span className="text-[10px]">轻松悠闲</span>
                 </div>
@@ -283,12 +284,14 @@ export default function InputPage() {
                   max="100"
                   value={pace}
                   onChange={e => setPace(Number(e.target.value))}
+                  aria-labelledby="pace-label"
+                  aria-valuetext={pace < 34 ? '轻松悠闲' : pace < 67 ? '适中' : '紧凑充实'}
                   className="custom-slider flex-1"
                   style={{
                     background: `linear-gradient(to right, #fb923c 0%, #fb923c ${pace}%, #f3f4f6 ${pace}%, #f3f4f6 100%)`,
                   }}
                 />
-                <div className="text-gray-400 flex flex-col items-center shrink-0">
+                <div className="text-gray-500 flex flex-col items-center shrink-0" aria-hidden="true">
                   <i className="fas fa-running text-sm mb-1"></i>
                   <span className="text-[10px]">紧凑充实</span>
                 </div>
@@ -298,32 +301,33 @@ export default function InputPage() {
             {/* 预算范围 */}
             <div>
               <div className="flex items-center mb-3">
-                <label className="text-gray-700 font-bold flex items-center text-sm">
-                  <i className="far fa-money-bill-alt text-cyan-500 mr-2"></i> 预算范围
+                <label className="text-gray-700 font-bold flex items-center text-sm" id="budget-label">
+                  <i className="far fa-money-bill-alt text-primary-500 mr-2" aria-hidden="true"></i> 预算范围
                   <span className="font-normal text-gray-400 ml-1">(人均)</span>
                 </label>
-                <span className="text-xs text-gray-300 ml-3 font-normal">不含往返大交通</span>
+                <span className="text-xs text-gray-400 ml-3 font-normal">不含往返大交通</span>
               </div>
               <div className="px-2">
-                <BudgetSlider min={1000} max={12000} onChange={setBudget} />
+                <BudgetSlider min={1000} max={12000} onChange={setBudget} labelId="budget-label" />
               </div>
             </div>
 
             {/* 特殊需求 */}
             <div>
               <div className="flex items-center mb-3 flex-wrap">
-                <label className="text-gray-700 font-bold flex items-center text-sm">
-                  <i className="far fa-comment-dots text-cyan-500 mr-2"></i> 特殊需求
+                <label className="text-gray-700 font-bold flex items-center text-sm" htmlFor="trip-notes">
+                  <i className="far fa-comment-dots text-primary-500 mr-2" aria-hidden="true"></i> 特殊需求
                   <span className="font-normal text-gray-400 ml-1">(选填)</span>
                 </label>
-                <span className="text-xs text-gray-300 ml-3 font-normal">
+                <span className="text-xs text-gray-400 ml-3 font-normal">
                   例如：无障碍设施、素食、宠物友好等
                 </span>
               </div>
               <textarea
+                id="trip-notes"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-teal-500 min-h-[60px] resize-none"
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[60px] resize-none"
                 placeholder="请输入你的特殊需求..."
               ></textarea>
             </div>
@@ -336,7 +340,7 @@ export default function InputPage() {
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-orange-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full bg-accent-500 hover:bg-accent-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-accent-200 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
             >
               {submitting ? (
                 <>
@@ -345,14 +349,14 @@ export default function InputPage() {
                 </>
               ) : (
                 <>
-                  <i className="fas fa-magic"></i>
+                  <i className="fas fa-magic" aria-hidden="true"></i>
                   <span>生成专属行程</span>
                 </>
               )}
             </button>
 
-            <div className="text-center text-[10px] text-gray-400 flex items-center justify-center space-x-1 pt-2">
-              <i className="fas fa-shield-alt"></i>
+            <div className="text-center text-xs text-gray-500 flex items-center justify-center space-x-1 pt-2">
+              <i className="fas fa-shield-alt" aria-hidden="true"></i>
               <span>信息安全保障 · 仅用于行程规划</span>
             </div>
           </div>
@@ -360,8 +364,8 @@ export default function InputPage() {
       </main>
 
       {/* 右下角拍立得装饰 */}
-      <div className="fixed bottom-12 right-12 z-20 pointer-events-none hidden xl:block">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#00a29a] rounded-full opacity-60 blur-sm -z-10"></div>
+      <div className="fixed bottom-12 right-12 z-20 pointer-events-none hidden xl:block" aria-hidden="true">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary-400 rounded-full opacity-60 blur-sm -z-10"></div>
 
         <div className="relative transform rotate-6">
           <div className="bg-white p-3 pb-12 polaroid-shadow rounded-sm w-48">
@@ -388,14 +392,14 @@ export default function InputPage() {
             <circle cx="180" cy="10" r="2" fill="#008080" />
           </svg>
           <div className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2">
-            <i className="fas fa-paper-plane text-orange-400 transform -rotate-12"></i>
+            <i className="fas fa-paper-plane text-accent-400 transform -rotate-12"></i>
           </div>
         </div>
       </div>
 
       {/* 漂浮光晕 */}
-      <div className="fixed top-1/3 -right-20 w-64 h-64 bg-cyan-400/20 rounded-full blur-3xl z-0 pointer-events-none"></div>
-      <div className="fixed top-20 left-20 w-96 h-96 bg-orange-200/20 rounded-full blur-3xl z-0 pointer-events-none"></div>
+      <div className="fixed top-1/3 -right-20 w-64 h-64 bg-primary-300/20 rounded-full blur-3xl z-0 pointer-events-none"></div>
+      <div className="fixed top-20 left-20 w-96 h-96 bg-accent-200/20 rounded-full blur-3xl z-0 pointer-events-none"></div>
     </div>
   );
 }

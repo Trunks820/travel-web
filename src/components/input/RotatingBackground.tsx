@@ -93,6 +93,17 @@ export function useRotatingBackground(cities: string[]) {
   currentRef.current = current;
 
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // 减少动态模式下不轮换，仅在城市图池变化时换一次
+      if (!pool.includes(currentRef.current)) {
+        const url = pool[0];
+        const img = new Image();
+        img.onload = () => setCurrent(url);
+        img.src = url;
+      }
+      return;
+    }
+
     let cancelled = false;
     let idx = 0;
 

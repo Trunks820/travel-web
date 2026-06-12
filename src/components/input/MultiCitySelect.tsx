@@ -28,15 +28,15 @@ export function MultiCitySelect({ value, onChange, error }: MultiCitySelectProps
             key={city}
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm ${
               idx === 0
-                ? 'bg-[#008080] text-white'
-                : 'bg-[#f0f9f9] text-gray-700 border border-[#e0f2f2]'
+                ? 'bg-primary-500 text-white'
+                : 'bg-primary-50 text-gray-700 border border-primary-100'
             }`}
           >
             <span>{city}</span>
             <button
               type="button"
               onClick={() => removeCity(city)}
-              className={`text-xs transition-opacity ${
+              className={`text-xs transition-opacity p-1 -m-1 ${
                 idx === 0 ? 'opacity-80 hover:opacity-100' : 'text-gray-400 hover:text-gray-600'
               }`}
               aria-label={`移除 ${city}`}
@@ -48,7 +48,7 @@ export function MultiCitySelect({ value, onChange, error }: MultiCitySelectProps
         {value.length < 5 && (
           <button
             type="button"
-            className="flex items-center px-4 py-2 rounded-lg text-sm border border-dashed border-gray-300 text-gray-400 hover:border-teal-500 hover:text-teal-500 transition-colors"
+            className="flex items-center px-4 py-2 rounded-lg text-sm border border-dashed border-gray-300 text-gray-500 hover:border-primary-500 hover:text-primary-500 transition-colors"
           >
             + 添加城市
           </button>

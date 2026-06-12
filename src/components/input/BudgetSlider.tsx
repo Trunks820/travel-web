@@ -4,11 +4,12 @@ interface BudgetSliderProps {
   min?: number;
   max?: number;
   onChange: (range: [number, number]) => void;
+  labelId?: string;
 }
 
 const TICKS = [1000, 3000, 5000, 8000, 12000];
 
-export function BudgetSlider({ min = 1000, max = 12000, onChange }: BudgetSliderProps) {
+export function BudgetSlider({ min = 1000, max = 12000, onChange, labelId }: BudgetSliderProps) {
   const [value, setValue] = useState(5000);
 
   const handleChange = (newVal: number) => {
@@ -31,6 +32,8 @@ export function BudgetSlider({ min = 1000, max = 12000, onChange }: BudgetSlider
         step={100}
         value={value}
         onChange={(e) => handleChange(Number(e.target.value))}
+        aria-labelledby={labelId}
+        aria-valuetext={`人均 ¥${value.toLocaleString()}`}
         className="custom-slider"
         style={{
           background: `linear-gradient(to right, #fb923c 0%, #fb923c ${percent}%, #f3f4f6 ${percent}%, #f3f4f6 100%)`,
@@ -40,8 +43,8 @@ export function BudgetSlider({ min = 1000, max = 12000, onChange }: BudgetSlider
         {TICKS.map((tick) => (
           <span
             key={tick}
-            className={`text-[10px] ${
-              tick === nearestTick ? "text-orange-500 font-bold" : "text-gray-400"
+            className={`text-xs ${
+              tick === nearestTick ? "text-accent-600 font-bold" : "text-gray-500"
             }`}
           >
             ¥ {tick.toLocaleString()}{tick === 12000 ? "+" : ""}
