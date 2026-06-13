@@ -79,13 +79,14 @@ export function cityNameOfImage(url: string): string | null {
   return match ? (FOLDER_TO_CITY_NAME[match[1]] ?? null) : null;
 }
 
-export function useRotatingBackground(cities: string[]) {
+export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' | 'static' = 'shuffle') {
   const pool = useMemo(() => {
     const cityPool = resolveCityPool(cities);
     if (cityPool.length > 0) return cityPool;
+    if (fallbackMode === 'static') return [FALLBACK_IMAGE];
     return shuffle([FALLBACK_IMAGE, ...ALL_IMAGES]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cities.join('|')]);
+  }, [cities.join('|'), fallbackMode]);
 
   const [current, setCurrent] = useState(FALLBACK_IMAGE);
   const [incoming, setIncoming] = useState<string | null>(null);

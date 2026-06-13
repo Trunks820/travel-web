@@ -1,16 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ProgressSteps } from "@/components/planning/ProgressSteps";
+import { ProgressTimeline } from "@/components/planning/ProgressTimeline";
+import { BoardingPass } from "@/components/planning/BoardingPass";
+import {
+  RotatingBackground,
+  useRotatingBackground,
+} from "@/components/input/RotatingBackground";
 import { useTripStore } from "@/stores/tripStore";
 import { pollJobStatus, ApiRequestError } from "@/services/api";
 import { usePolling } from "@/hooks/usePolling";
 import type { StageCode, JobResponse } from "@/types/trip";
-import { CloudDecor } from "@/components/layout/CloudDecor";
 
 export default function PlanningPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const setJob = useTripStore((s) => s.setJob);
+  const formData = useTripStore((s) => s.formData);
+
+  const destination = formData?.to_city ?? "目的地";
+  const { current: bgImage, incoming: bgIncoming } = useRotatingBackground(
+    destination ? [destination] : [],
+    "static",
+  );
 
   const [stageCode, setStageCode] = useState<StageCode | null>(null);
   const [failed, setFailed] = useState(false);
@@ -27,7 +38,9 @@ export default function PlanningPage() {
       }
 
       if (data.status === "COMPLETED" && data.result_record_id) {
-        navigate(`/result/${data.result_record_id}`, { replace: true });
+        navigate(`/result/${data.result_record_id}?job_id=${jobId}`, {
+          replace: true,
+        });
         return true;
       }
 
@@ -67,7 +80,9 @@ export default function PlanningPage() {
     try {
       const data = await pollJobStatus(jobId);
       if (data.status === "COMPLETED" && data.result_record_id) {
-        navigate(`/result/${data.result_record_id}`, { replace: true });
+        navigate(`/result/${data.result_record_id}?job_id=${jobId}`, {
+          replace: true,
+        });
       }
     } catch (err) {
       const msg = err instanceof ApiRequestError ? err.message : "查询失败";
@@ -75,47 +90,72 @@ export default function PlanningPage() {
     }
   }
 
-  return (
-    <div className="relative mx-auto max-w-sm text-center">
-      <CloudDecor intensity="light" />
-      <div className="card mx-auto w-full max-w-md px-6 py-10 sm:px-12 animate-slide-up">
-        <h1 className="mb-2 font-display text-2xl font-bold text-primary-800">
-          {failed ? "生成失败" : timedOut ? "生成时间较长" : "正在生成旅行方案"}
-        </h1>
-        <p className="mb-8 text-sm text-sand-500">
-          {failed
-            ? "很抱歉，方案生成出了问题"
-            : timedOut
-              ? "请稍后刷新查看结果"
-              : "AI 正在为你规划专属旅行方案，请稍候..."}
-        </p>
+  const title = failed
+    ? "这次规划没能完成"
+    : timedOut
+      ? "生成时间比预期长"
+      : `正在规划你的 ${destination} 之旅`;
 
-        <div className="inline-block text-left">
-          <ProgressSteps currentCode={stageCode} failed={failed} />
+  return (
+    <div className="relative min-h-screen -mt-14 pt-14">
+      <RotatingBackground current={bgImage} incoming={bgIncoming} />
+      {/* 均匀白色蒙版，保证双栏内容可读 */}
+      <div className="fixed inset-0 z-0 bg-white/55 pointer-events-none" />
+
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-3.5rem)] max-w-6xl grid-cols-1 items-center gap-12 px-8 py-12 lg:grid-cols-2">
+        {/* 左：进度 */}
+        <div className="animate-slide-up">
+          <h1 className="mb-2 text-3xl font-bold text-gray-800 xl:text-4xl">{title}</h1>
+          <p className="mb-10 text-sm text-gray-600">
+            {failed
+              ? "可以调整需求后重新规划"
+              : timedOut
+                ? "请稍后刷新查看，或重新规划"
+                : "AI 旅行管家正在逐步定制，通常需要 30-90 秒"}
+          </p>
+
+          <ProgressTimeline currentCode={stageCode} failed={failed} />
+
+          {errorMessage && (
+            <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </p>
+          )}
+
+          {(failed || timedOut) && (
+            <div className="mt-8 flex gap-3">
+              <button
+                onClick={handleRetry}
+                className="rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
+              >
+                重新规划
+              </button>
+              {timedOut && (
+                <button
+                  onClick={handleRefresh}
+                  className="rounded-xl border border-primary-200 bg-white px-6 py-3 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
+                >
+                  刷新查看
+                </button>
+              )}
+            </div>
+          )}
+
+          {!failed && !timedOut && (
+            <p className="mt-10 flex items-center gap-1.5 text-xs text-gray-500">
+              <i className="fas fa-shield-alt" aria-hidden="true" />
+              请勿关闭页面 · 完成后自动跳转
+            </p>
+          )}
         </div>
 
-        {errorMessage && (
-          <div className="error-banner mt-6">{errorMessage}</div>
-        )}
-
-        {(failed || timedOut) && (
-          <div className="mt-6 flex justify-center gap-3">
-            <button onClick={handleRetry} className="btn-primary">
-              重新规划
-            </button>
-            {timedOut && (
-              <button onClick={handleRefresh} className="btn-secondary">
-                刷新查看
-              </button>
-            )}
-          </div>
-        )}
-
-        {!failed && !timedOut && (
-          <p className="mt-8 text-xs text-sand-400">
-            通常需要 30-90 秒，请勿关闭页面
+        {/* 右：登机牌 */}
+        <div className="flex flex-col items-center justify-center animate-slide-up-delay-1">
+          <BoardingPass city={destination} formData={formData} />
+          <p className="signature-font mt-8 -rotate-3 text-2xl text-primary-500 opacity-80">
+            {failed ? "下次一定顺利" : "好行程值得稍等片刻"}
           </p>
-        )}
+        </div>
       </div>
     </div>
   );

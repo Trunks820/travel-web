@@ -5,6 +5,7 @@ import { DateRangeInput } from '../components/input/DateRangeInput';
 import { BudgetSlider } from '../components/input/BudgetSlider';
 import { RotatingBackground, useRotatingBackground, cityNameOfImage } from '../components/input/RotatingBackground';
 import { submitTrip, ApiRequestError } from '../services/api';
+import { useTripStore } from '../stores/tripStore';
 
 const FEATURES = [
   {
@@ -101,6 +102,7 @@ function isoDateAfter(daysFromNow: number): string {
 
 export default function InputPage() {
   const navigate = useNavigate();
+  const setFormData = useTripStore((s) => s.setFormData);
   const [cities, setCities] = useState<string[]>(['重庆']);
   const [multiCity, setMultiCity] = useState(false);
   const [startDate, setStartDate] = useState(() => isoDateAfter(7));
@@ -142,22 +144,24 @@ export default function InputPage() {
 
     setSubmitting(true);
     setSubmitError(null);
+    const formData = {
+      to_city: cities[0],
+      days,
+      people_count: 1,
+      preferences,
+      avoid: [],
+      notes: [
+        multiCity && cities.length > 1 ? `多城市：${cities.join('、')}` : '',
+        notes,
+        `节奏:${pace}`,
+        `预算:人均¥${budget[0]}-¥${budget[1]}`,
+      ]
+        .filter(Boolean)
+        .join('；'),
+    };
+    setFormData(formData);
     try {
-      const res = await submitTrip({
-        to_city: cities[0],
-        days,
-        people_count: 1,
-        preferences,
-        avoid: [],
-        notes: [
-          multiCity && cities.length > 1 ? `多城市：${cities.join('、')}` : '',
-          notes,
-          `节奏:${pace}`,
-          `预算:人均¥${budget[0]}-¥${budget[1]}`,
-        ]
-          .filter(Boolean)
-          .join('；'),
-      });
+      const res = await submitTrip(formData);
       navigate(`/planning/${res.job_id}`);
     } catch (err) {
       setSubmitError(

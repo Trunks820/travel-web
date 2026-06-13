@@ -155,6 +155,19 @@
   .animate-bg-fade-in {
     animation: fadeIn 1.5s ease-in-out both;
   }
+
+  .loading-dots::after {
+    content: "";
+    animation: loadingDots 1.4s steps(4, end) infinite;
+  }
+}
+
+@keyframes loadingDots {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+  100% { content: ""; }
 }
 
 @keyframes fadeIn {
