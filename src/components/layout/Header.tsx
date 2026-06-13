@@ -17,7 +17,7 @@ export default function Header() {
         <div className="flex items-center space-x-8">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <img src="/logo.png" alt="云途 YunTu" className="h-10 w-auto rounded-full" />
+            <img src="/logo.svg" alt="云途 YunTu" className="h-9 w-9" />
             <span className="text-2xl font-bold text-gray-800 tracking-tight">
               云途 <span className="text-primary-500 font-normal">YunTu</span>
             </span>

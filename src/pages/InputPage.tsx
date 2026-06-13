@@ -401,12 +401,12 @@ export default function InputPage() {
           <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
               d="M10 180C40 160 100 170 140 100C160 60 140 30 180 10"
-              stroke="#008080"
+              stroke="#0f766e"
               strokeWidth="1.5"
               strokeDasharray="6 6"
             />
-            <path d="M180 10L165 15M180 10L175 25" stroke="#008080" strokeWidth="1.5" />
-            <circle cx="180" cy="10" r="2" fill="#008080" />
+            <path d="M180 10L165 15M180 10L175 25" stroke="#0f766e" strokeWidth="1.5" />
+            <circle cx="180" cy="10" r="2" fill="#0f766e" />
           </svg>
           <div className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2">
             <i className="fas fa-paper-plane text-accent-400 transform -rotate-12"></i>

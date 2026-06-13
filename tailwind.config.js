@@ -5,16 +5,16 @@ export default {
     extend: {
       colors: {
         primary: {
-          50: "#e6f2f2",
-          100: "#cce6e6",
-          200: "#99cccc",
-          300: "#66b3b3",
-          400: "#339999",
-          500: "#008080",
-          600: "#006666",
-          700: "#004d4d",
-          800: "#003333",
-          900: "#001a1a",
+          50: "#eef9f7",
+          100: "#d2efeb",
+          200: "#a7ded7",
+          300: "#6ec6bb",
+          400: "#1d9e91",
+          500: "#0f766e",
+          600: "#0c625b",
+          700: "#0a4f49",
+          800: "#073d39",
+          900: "#052b28",
         },
         accent: {
           50: "#fff7ed",
@@ -45,9 +45,9 @@ export default {
         "2xl": "20px",
       },
       boxShadow: {
-        soft: "0 2px 16px -2px rgba(0, 128, 128, 0.08)",
-        card: "0 4px 24px -4px rgba(0, 128, 128, 0.10)",
-        "card-hover": "0 8px 32px -4px rgba(0, 128, 128, 0.15)",
+        soft: "0 2px 16px -2px rgba(15, 118, 110, 0.08)",
+        card: "0 4px 24px -4px rgba(15, 118, 110, 0.10)",
+        "card-hover": "0 8px 32px -4px rgba(15, 118, 110, 0.15)",
       },
       fontFamily: {
         display: ['"Satoshi"', "system-ui", '"Noto Sans SC"', "sans-serif"],
