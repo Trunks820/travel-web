@@ -1,4 +1,5 @@
 import type { TripPlace } from "@/types/trip";
+import { categoryIcon, isAnchorRole } from "@/constants/places";
 
 interface PlaceItemProps {
   place: TripPlace;
@@ -8,20 +9,10 @@ interface PlaceItemProps {
   onClick?: () => void;
 }
 
-const CATEGORY_ICON: Record<string, string> = {
-  landmark: "🏛️",
-  food: "🍜",
-  scenic: "🌿",
-  culture: "🎭",
-  shopping: "🛍️",
-  nightlife: "🌃",
-};
-
 export function PlaceItem({ place, index, isActive, isLast, onClick }: PlaceItemProps) {
   return (
     <div
-      onClick={onClick}
-      className={`relative flex cursor-pointer items-start gap-3 rounded-xl p-3 transition-all duration-150 ${
+      className={`relative flex items-start gap-3 rounded-xl p-3 transition-all duration-150 ${
         isActive
           ? "bg-primary-50 ring-1 ring-primary-200"
           : "hover:bg-primary-50/50"
@@ -31,7 +22,7 @@ export function PlaceItem({ place, index, isActive, isLast, onClick }: PlaceItem
       <div className="relative flex flex-col items-center">
         <span
           className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm ${
-            place.role === "anchor"
+            isAnchorRole(place.role)
               ? "bg-gradient-to-br from-primary-500 to-primary-600"
               : "bg-sand-400"
           }`}
@@ -45,10 +36,13 @@ export function PlaceItem({ place, index, isActive, isLast, onClick }: PlaceItem
 
       <div className="min-w-0 flex-1 pb-1">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm">{CATEGORY_ICON[place.category] ?? "📍"}</span>
-          <span className="truncate text-sm font-semibold text-primary-800">
+          <span className="text-sm">{categoryIcon(place.category)}</span>
+          <button
+            onClick={onClick}
+            className="truncate text-left text-sm font-semibold text-primary-800 transition-colors hover:text-primary-600"
+          >
             {place.name}
-          </span>
+          </button>
           {place.optional && (
             <span className="shrink-0 rounded-md bg-sand-100 px-1.5 py-0.5 text-[10px] text-sand-500">
               可选

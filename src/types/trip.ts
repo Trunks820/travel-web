@@ -3,7 +3,8 @@
 export type PaceLevel = "RELAXED" | "MODERATE" | "INTENSIVE";
 export type CommuteStatus = "WITHIN_LIMIT" | "OVER_LIMIT";
 export type CommuteMode = "walking" | "transit" | "taxi";
-export type PlaceRole = "anchor" | "filler";
+/** 后端 role 取值较多（anchor_activity/secondary_activity/meal_stop/photo_stop/optional_stop…），保留为开放字符串 */
+export type PlaceRole = string;
 export type JobStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
 export type StageCode = "ANALYZING" | "PLANNING" | "COMPOSING" | "FINALIZING";
 
@@ -45,6 +46,7 @@ export interface CommuteLeg {
   mode: CommuteMode;
   duration_minutes: number;
   distance_meters: number;
+  encoded_polyline?: string;
 }
 
 export interface TripDay {

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import AMapLoader from "@amap/amap-jsapi-loader";
 import type { TripDay } from "@/types/trip";
+import { decodePolyline } from "@/utils/polyline";
+import { isAnchorRole } from "@/constants/places";
 
 interface MapViewProps {
   day: TripDay;
@@ -9,9 +11,9 @@ interface MapViewProps {
 }
 
 const MODE_COLOR: Record<string, string> = {
-  walking: "#1a8a9a",
-  transit: "#3daeba",
-  taxi: "#e8854a",
+  walking: "#0f766e",
+  transit: "#1d9e91",
+  taxi: "#f97316",
 };
 
 export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
@@ -22,6 +24,7 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const polylinesRef = useRef<any[]>([]);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,9 +49,13 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
         updateMarkers(AMap, map, day, activePlaceId, onMarkerClick, markersRef);
         updatePolylines(AMap, map, day, polylinesRef);
         fitView(map);
+        setLoading(false);
       })
       .catch(() => {
-        if (!destroyed) setError(true);
+        if (!destroyed) {
+          setError(true);
+          setLoading(false);
+        }
       });
 
     return () => {
@@ -78,6 +85,11 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
 
   return (
     <div className="card relative h-full w-full overflow-hidden">
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-primary-50/50">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-200 border-t-primary-500" />
+        </div>
+      )}
       <div ref={containerRef} className="h-full w-full" />
       <div className="absolute right-2 top-2 rounded-lg bg-white/80 px-2.5 py-1 text-[10px] text-sand-500 backdrop-blur-sm">
         路线顺序示意图
@@ -92,8 +104,8 @@ function updateMarkers(AMap: any, map: any, day: TripDay, activePlaceId: number 
     if (!place.longitude || !place.latitude) return;
 
     const isActive = place.place_id === activePlaceId;
-    const isAnchor = place.role === "anchor";
-    const bg = isActive ? "#1a6b7a" : isAnchor ? "#1a8a9a" : "#9a8672";
+    const isAnchor = isAnchorRole(place.role);
+    const bg = isActive ? "#0c625b" : isAnchor ? "#0f766e" : "#9a8672";
 
     const marker = new AMap.Marker({
       position: [place.longitude, place.latitude],
@@ -114,16 +126,33 @@ function updatePolylines(AMap: any, map: any, day: TripDay, polylinesRef: React.
     const to = day.places.find((p) => p.place_id === leg.to_place_id);
     if (!from?.longitude || !to?.longitude) return;
 
-    const polyline = new AMap.Polyline({
-      path: [
+    let path: [number, number][];
+    let strokeStyle: "solid" | "dashed" = "dashed";
+
+    if (leg.encoded_polyline) {
+      try {
+        path = decodePolyline(leg.encoded_polyline);
+        strokeStyle = "solid";
+      } catch {
+        path = [
+          [from.longitude, from.latitude],
+          [to.longitude, to.latitude],
+        ];
+      }
+    } else {
+      path = [
         [from.longitude, from.latitude],
         [to.longitude, to.latitude],
-      ],
+      ];
+    }
+
+    const polyline = new AMap.Polyline({
+      path,
       strokeColor: MODE_COLOR[leg.mode] ?? "#94a3b8",
-      strokeWeight: 3,
-      strokeStyle: "dashed",
-      strokeOpacity: 0.7,
-      strokeDasharray: [8, 4],
+      strokeWeight: strokeStyle === "solid" ? 4 : 3,
+      strokeStyle,
+      strokeOpacity: strokeStyle === "solid" ? 0.8 : 0.7,
+      strokeDasharray: strokeStyle === "dashed" ? [8, 4] : undefined,
     });
 
     map.add(polyline);
@@ -141,5 +170,7 @@ function clearOverlays(markersRef: React.MutableRefObject<any[]>, polylinesRef: 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function fitView(map: any) {
-  setTimeout(() => map.setFitView(null, false, [40, 40, 40, 40]), 100);
+  setTimeout(() => {
+    map.setFitView(null, false, [40, 40, 40, 40], 300);
+  }, 100);
 }

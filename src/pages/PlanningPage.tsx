@@ -60,8 +60,8 @@ export default function PlanningPage() {
   const { stop } = usePolling({
     fetcher,
     onData,
-    interval: 2000,
-    maxAttempts: 90,
+    interval: 2500,
+    maxAttempts: 144,
     onTimeout,
     enabled: !!jobId && !failed && !timedOut,
   });

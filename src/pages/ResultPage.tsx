@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PlanSummaryCard } from "@/components/result/PlanSummaryCard";
 import { ResultSkeleton } from "@/components/skeleton/ResultSkeleton";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
 import type { TripResult } from "@/types/trip";
-import { CloudDecor } from "@/components/layout/CloudDecor";
 
 export default function ResultPage() {
   const { resultId } = useParams<{ resultId: string }>();
+  const [searchParams] = useSearchParams();
+  const jobId = searchParams.get("job_id");
+  const jobQuery = jobId ? `?job_id=${encodeURIComponent(jobId)}` : "";
   const navigate = useNavigate();
   const storeResult = useTripStore((s) => s.result);
   const setResult = useTripStore((s) => s.setResult);
@@ -21,7 +23,7 @@ export default function ResultPage() {
     if (result || !resultId) return;
 
     setLoading(true);
-    fetchResult(resultId)
+    fetchResult(resultId, jobId ?? "")
       .then((data) => {
         setLocal(data);
         setResult(data);
@@ -32,16 +34,16 @@ export default function ResultPage() {
         );
       })
       .finally(() => setLoading(false));
-  }, [resultId, result, setResult]);
+  }, [resultId, jobId, result, setResult]);
 
   useEffect(() => {
     if (!result) return;
     if (result.plans.length === 1) {
-      navigate(`/plan/${resultId}/${result.plans[0].plan_id}`, {
+      navigate(`/plan/${resultId}/${result.plans[0].plan_id}${jobQuery}`, {
         replace: true,
       });
     }
-  }, [result, resultId, navigate]);
+  }, [result, resultId, navigate, jobQuery]);
 
   if (loading) return <ResultSkeleton />;
 
@@ -70,26 +72,27 @@ export default function ResultPage() {
   }
 
   return (
-    <div className="relative mx-auto max-w-5xl">
-      <CloudDecor intensity="light" />
-
+    <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-8">
       {/* 信息摘要条 */}
-      <div className="mb-8 animate-fade-in">
-        <h1 className="font-display text-center text-2xl font-bold tracking-tight text-primary-800 sm:text-3xl">
-          为你生成了 {result.plans.length} 个方案
-        </h1>
-        <div className="mx-auto mt-4 flex max-w-lg flex-wrap items-center justify-center gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-medium text-primary-700 shadow-sm backdrop-blur-sm">
+      <div className="mb-8 text-center animate-fade-in">
+        <div className="inline-flex items-center gap-2 mb-4">
+          <span className="text-3xl">✨</span>
+          <h1 className="font-display text-3xl font-bold text-primary-800">
+            为你生成了 <span className="text-accent-600">{result.plans.length}</span> 个方案
+          </h1>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-medium text-primary-700 shadow-sm">
             📍 {result.city.name}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-medium text-primary-700 shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-medium text-primary-700 shadow-sm">
             📅 {result.request.days}天
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-medium text-primary-700 shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-medium text-primary-700 shadow-sm">
             👥 {result.request.people_count}人
           </span>
           {result.request.preferences.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-1.5 text-sm font-medium text-primary-700 shadow-sm backdrop-blur-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-medium text-primary-700 shadow-sm">
               🏷️ {result.request.preferences.join("、")}
             </span>
           )}
@@ -97,18 +100,19 @@ export default function ResultPage() {
       </div>
 
       {/* 方案卡片 */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 animate-slide-up">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 animate-slide-up">
         {result.plans.map((plan, i) => (
           <PlanSummaryCard
             key={plan.plan_id}
             plan={plan}
             recommended={i === 0}
-            onClick={() => navigate(`/plan/${resultId}/${plan.plan_id}`)}
+            onClick={() => navigate(`/plan/${resultId}/${plan.plan_id}${jobQuery}`)}
           />
         ))}
       </div>
 
-      <div className="mt-10 text-center">
+      <div className="mt-12 text-center">
+        <p className="text-sm text-sand-400 mb-4">💡 以上方案均由 AI 智能生成，您可以调整偏好后重新规划</p>
         <button
           onClick={() => navigate("/")}
           className="text-sm text-sand-500 underline-offset-2 transition-colors hover:text-primary-600 hover:underline"
