@@ -22,15 +22,16 @@ export const PACE_OPTIONS = [
   { value: "moderate", label: "适中" },
 ] as const;
 
+// 与 hermes-travel 后端首批 10 城（City Gate ACTIVE/GRAY）保持一致
 export const SUPPORTED_CITIES = [
+  "北京",
+  "上海",
   "重庆",
   "成都",
-  "武汉",
-  "南京",
   "杭州",
-  "洛阳",
-  "福州",
-  "郑州",
-  "长沙",
   "西安",
+  "南京",
+  "长沙",
+  "青岛",
+  "桂林",
 ] as const;

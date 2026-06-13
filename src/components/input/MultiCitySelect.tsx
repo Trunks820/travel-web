@@ -1,23 +1,47 @@
+import { useEffect, useRef, useState } from "react";
 import { SUPPORTED_CITIES } from "@/constants/preferences";
 
 interface MultiCitySelectProps {
   value: string[];
   onChange: (cities: string[]) => void;
+  multiCity?: boolean;
   error?: string;
 }
 
-const HOT_CITIES = ["大阪", "北海道", "冲绳", "首尔", "台北", "新加坡"];
+const HOT_CITIES = ["重庆", "成都", "杭州", "西安", "长沙", "桂林"];
+const MAX_CITIES = 5;
 
-export function MultiCitySelect({ value, onChange, error }: MultiCitySelectProps) {
-  function addCity(city: string) {
-    if (!value.includes(city)) {
-      onChange([...value, city]);
+export function MultiCitySelect({ value, onChange, multiCity = true, error }: MultiCitySelectProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
     }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [pickerOpen]);
+
+  function addCity(city: string) {
+    if (multiCity) {
+      if (!value.includes(city) && value.length < MAX_CITIES) {
+        onChange([...value, city]);
+      }
+    } else {
+      onChange([city]);
+    }
+    setPickerOpen(false);
   }
 
   function removeCity(city: string) {
     onChange(value.filter((c) => c !== city));
   }
+
+  const available = SUPPORTED_CITIES.filter((c) => !value.includes(c));
 
   return (
     <div className="space-y-2.5">
@@ -45,31 +69,57 @@ export function MultiCitySelect({ value, onChange, error }: MultiCitySelectProps
             </button>
           </div>
         ))}
-        {value.length < 5 && (
-          <button
-            type="button"
-            className="flex items-center px-4 py-2 rounded-lg text-sm border border-dashed border-gray-300 text-gray-500 hover:border-primary-500 hover:text-primary-500 transition-colors"
-          >
-            + 添加城市
-          </button>
+
+        {(multiCity ? value.length < MAX_CITIES : true) && available.length > 0 && (
+          <div className="relative" ref={pickerRef}>
+            <button
+              type="button"
+              onClick={() => setPickerOpen((o) => !o)}
+              aria-expanded={pickerOpen}
+              aria-haspopup="listbox"
+              className="flex items-center px-4 py-2 rounded-lg text-sm border border-dashed border-gray-300 text-gray-500 hover:border-primary-500 hover:text-primary-500 transition-colors"
+            >
+              {multiCity ? '+ 添加城市' : value.length > 0 ? '更换城市' : '+ 选择城市'}
+            </button>
+            {pickerOpen && (
+              <div
+                role="listbox"
+                className="absolute top-full left-0 mt-2 z-30 w-64 bg-white rounded-xl border border-gray-100 shadow-card p-3"
+              >
+                <p className="text-xs text-gray-400 mb-2">当前支持以下城市：</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {available.map((city) => (
+                    <button
+                      key={city}
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      onClick={() => addCity(city)}
+                      className="rounded-lg px-2 py-1.5 text-sm text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition-colors text-center"
+                    >
+                      {city}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
       {/* 热门目的地快选 */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-gray-400">热门目的地：</span>
-        {(HOT_CITIES.length > 0 ? HOT_CITIES : SUPPORTED_CITIES.slice(0, 6))
-          .filter((c) => !value.includes(c))
-          .map((city) => (
-            <button
-              key={city}
-              type="button"
-              onClick={() => addCity(city)}
-              className="rounded-md bg-gray-50 border border-gray-150 px-2.5 py-1 text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50/50 transition-colors"
-            >
-              {city}
-            </button>
-          ))}
+        {HOT_CITIES.filter((c) => !value.includes(c)).map((city) => (
+          <button
+            key={city}
+            type="button"
+            onClick={() => addCity(city)}
+            className="rounded-md bg-gray-50 border border-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50/50 transition-colors"
+          >
+            {city}
+          </button>
+        ))}
       </div>
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>

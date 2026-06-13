@@ -35,10 +35,13 @@ const FEATURES = [
 
 const PREFERENCE_OPTIONS = [
   { label: '自然风光', icon: 'fas fa-mountain' },
-  { label: '历史文化', icon: 'fas fa-university' },
-  { label: '美食探索', icon: 'fas fa-utensils' },
-  { label: '亲子家庭', icon: 'fas fa-child' },
-  { label: '购物逛街', icon: 'fas fa-shopping-bag' },
+  { label: '文化历史', icon: 'fas fa-university' },
+  { label: '美食', icon: 'fas fa-utensils' },
+  { label: '亲子', icon: 'fas fa-child' },
+  { label: '购物', icon: 'fas fa-shopping-bag' },
+  { label: 'citywalk', icon: 'fas fa-walking' },
+  { label: '拍照', icon: 'fas fa-camera' },
+  { label: '夜景', icon: 'fas fa-moon' },
 ];
 
 function FeatureItem({ icon, color, title, desc }: (typeof FEATURES)[number]) {
@@ -98,8 +101,8 @@ function isoDateAfter(daysFromNow: number): string {
 
 export default function InputPage() {
   const navigate = useNavigate();
-  const [cities, setCities] = useState<string[]>(['东京 Tokyo', '京都 Kyoto']);
-  const [multiCity, setMultiCity] = useState(true);
+  const [cities, setCities] = useState<string[]>(['重庆']);
+  const [multiCity, setMultiCity] = useState(false);
   const [startDate, setStartDate] = useState(() => isoDateAfter(7));
   const [endDate, setEndDate] = useState(() => isoDateAfter(13));
   const [preferences, setPreferences] = useState<string[]>(['自然风光']);
@@ -108,6 +111,7 @@ export default function InputPage() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [cityError, setCityError] = useState<string | undefined>(undefined);
 
   const togglePreference = (pref: string) => {
     setPreferences(prev =>
@@ -121,16 +125,20 @@ export default function InputPage() {
 
   const handleSubmit = async () => {
     if (submitting) return;
+
     if (cities.length === 0) {
-      setSubmitError('请至少选择一个目的地');
+      setCityError('请至少选择一个目的地');
       return;
     }
-    const days = Math.max(
-      1,
-      Math.round(
-        (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000
-      ) + 1
-    );
+    setCityError(undefined);
+
+    const dayMs =
+      new Date(endDate).getTime() - new Date(startDate).getTime();
+    if (!startDate || !endDate || isNaN(dayMs) || dayMs < 0) {
+      setSubmitError('请选择有效的旅行时间（返程不能早于出发）');
+      return;
+    }
+    const days = Math.min(7, Math.round(dayMs / 86400000) + 1);
 
     setSubmitting(true);
     setSubmitError(null);
@@ -141,7 +149,12 @@ export default function InputPage() {
         people_count: 1,
         preferences,
         avoid: [],
-        notes: [notes, `节奏:${pace}`, `预算:¥${budget[0]}-¥${budget[1]}`]
+        notes: [
+          multiCity && cities.length > 1 ? `多城市：${cities.join('、')}` : '',
+          notes,
+          `节奏:${pace}`,
+          `预算:人均¥${budget[0]}-¥${budget[1]}`,
+        ]
           .filter(Boolean)
           .join('；'),
       });
@@ -222,13 +235,17 @@ export default function InputPage() {
                   <input
                     type="checkbox"
                     checked={multiCity}
-                    onChange={e => setMultiCity(e.target.checked)}
+                    onChange={e => {
+                      const on = e.target.checked;
+                      setMultiCity(on);
+                      if (!on && cities.length > 1) setCities([cities[0]]);
+                    }}
                     className="sr-only peer"
                   />
                   <div className="w-8 h-4 bg-gray-200 peer-checked:bg-primary-500 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-300 rounded-full ml-2 relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></div>
                 </label>
               </div>
-              <MultiCitySelect value={cities} onChange={setCities} />
+              <MultiCitySelect value={cities} onChange={setCities} multiCity={multiCity} error={cityError} />
             </div>
 
             {/* 旅行时间 */}
