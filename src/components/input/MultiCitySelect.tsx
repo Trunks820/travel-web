@@ -8,7 +8,8 @@ interface MultiCitySelectProps {
   error?: string;
 }
 
-const HOT_CITIES = ["重庆", "成都", "杭州", "西安", "长沙", "桂林"];
+// 热门目的地 = 后端已跑通内容的 10 城，复用 SUPPORTED_CITIES 单一数据源
+const HOT_CITIES = SUPPORTED_CITIES;
 const MAX_CITIES = 5;
 
 export function MultiCitySelect({ value, onChange, multiCity = true, error }: MultiCitySelectProps) {
