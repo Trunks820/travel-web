@@ -36,6 +36,13 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
       return;
     }
 
+    // 新版高德 Web JS API 需要安全密钥配对（本地明文，上线改后端代理）
+    const security = import.meta.env.VITE_AMAP_SECURITY;
+    if (security) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any)._AMapSecurityConfig = { securityJsCode: security };
+    }
+
     AMapLoader.load({ key, version: "2.0" })
       .then((AMap) => {
         if (destroyed || !containerRef.current) return;
