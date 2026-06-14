@@ -1,15 +1,24 @@
-import { Link, useLocation } from 'react-router-dom';
-
-const NAV_ITEMS = [
-  { path: '/', label: 'AI 行程规划' },
-  { path: '/destinations', label: '目的地' },
-  { path: '/inspiration', label: '旅行灵感' },
-  { path: '/trips', label: '我的行程' },
-  { path: '/membership', label: '会员中心' },
-];
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTripStore } from '@/stores/tripStore';
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const result = useTripStore((s) => s.result);
+  const currentJobId = useTripStore((s) => s.currentJobId);
+
+  // 「目的地」= 当前结果页：有结果跳结果页，否则回首页填表
+  const goDestination = () => {
+    if (result) {
+      const q = currentJobId ? `?job_id=${encodeURIComponent(currentJobId)}` : '';
+      navigate(`/result/${result.result_id}${q}`);
+    } else {
+      navigate('/');
+    }
+  };
+
+  const onHome = location.pathname === '/';
+  const onResult = location.pathname.startsWith('/result') || location.pathname.startsWith('/plan');
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
@@ -25,30 +34,32 @@ export default function Header() {
 
           {/* 导航菜单 */}
           <nav className="hidden lg:flex items-center space-x-8 text-gray-600 font-medium">
-            {NAV_ITEMS.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={
-                    isActive
-                      ? 'text-primary-500 border-b-2 border-primary-500 pb-1'
-                      : 'hover:text-gray-900 transition-colors'
-                  }
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
+            <Link
+              to="/"
+              className={
+                onHome
+                  ? 'text-primary-500 border-b-2 border-primary-500 pb-1'
+                  : 'hover:text-gray-900 transition-colors'
+              }
+            >
+              AI 行程规划
+            </Link>
+            <button
+              type="button"
+              onClick={goDestination}
+              className={
+                onResult
+                  ? 'text-primary-500 border-b-2 border-primary-500 pb-1'
+                  : 'hover:text-gray-900 transition-colors'
+              }
+            >
+              目的地
+            </button>
           </nav>
         </div>
 
-        {/* 右侧操作 */}
+        {/* 右侧操作（语言 + 头像，未来接入登录态） */}
         <div className="flex items-center space-x-6">
-          <button className="bg-accent-50 text-accent-500 px-4 py-1.5 rounded-full text-sm font-medium flex items-center hover:bg-accent-100 transition-colors">
-            <span className="mr-2 text-xs" aria-hidden="true">✦</span> 升级会员
-          </button>
           <button className="flex items-center space-x-1 text-gray-600 text-sm">
             <i className="fas fa-globe" aria-hidden="true"></i>
             <span>中文</span>

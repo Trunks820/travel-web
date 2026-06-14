@@ -1,56 +1,98 @@
 import type { TripPlan } from "@/types/trip";
-import { PaceIndicator } from "./PaceIndicator";
 
 interface PlanSummaryCardProps {
   plan: TripPlan;
+  image: string;
   recommended?: boolean;
   onClick: () => void;
 }
 
-export function PlanSummaryCard({ plan, recommended, onClick }: PlanSummaryCardProps) {
+const PACE_LABEL: Record<string, string> = {
+  RELAXED: "轻松",
+  MODERATE: "适中",
+  INTENSIVE: "紧凑",
+};
+
+const TAG_TONES = [
+  "bg-accent-50 text-accent-500",
+  "bg-blue-50 text-blue-500",
+  "bg-primary-50 text-primary-600",
+  "bg-purple-50 text-purple-500",
+];
+
+export function PlanSummaryCard({ plan, image, recommended, onClick }: PlanSummaryCardProps) {
+  const paceText = PACE_LABEL[plan.pace.level] ?? "适中";
+  const hours = Math.floor(plan.pace.total_commute_minutes / 60);
+  const mins = plan.pace.total_commute_minutes % 60;
+  const commuteText = hours > 0 ? `${hours}小时${mins}分钟` : `${mins}分钟`;
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="card-interactive group relative w-full p-6 text-left"
-    >
-      {recommended && (
-        <span className="absolute -top-2.5 left-5 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-accent-500 to-accent-400 px-3 py-0.5 text-xs font-semibold text-white shadow-sm">
-          <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.3l2 4.1 4.5.7-3.3 3.2.8 4.4L8 11.4l-4 2.3.8-4.4-3.3-3.2 4.5-.7z" /></svg>
-          推荐
-        </span>
-      )}
+    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-card">
+      {/* 封面图 */}
+      <div className="relative h-56 overflow-hidden">
+        <img src={image} alt={plan.title} className="h-full w-full object-cover" />
+        {recommended && (
+          <div className="absolute left-4 top-4 flex items-center rounded-full bg-accent-500 px-3 py-1 text-sm font-bold text-white shadow-md">
+            <i className="fas fa-thumbs-up mr-1.5" aria-hidden="true" /> 推荐
+          </div>
+        )}
+      </div>
 
-      <h3 className="font-display text-lg font-bold text-primary-800 transition-colors group-hover:text-primary-600">
-        {plan.title}
-      </h3>
-      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-sand-500">
-        {plan.summary}
-      </p>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {plan.tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary-600"
+      <div className="flex flex-1 flex-col p-6">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="text-xl font-bold text-gray-800">{plan.title}</h3>
+          <button
+            type="button"
+            onClick={onClick}
+            aria-label="查看详情"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-400 transition-colors hover:border-primary-300 hover:text-primary-600"
           >
-            {tag}
-          </span>
-        ))}
+            <i className="fas fa-chevron-right text-xs" aria-hidden="true" />
+          </button>
+        </div>
+
+        <p className="mb-4 line-clamp-2 text-sm leading-relaxed text-gray-500">{plan.summary}</p>
+
+        <div className="mb-6 flex flex-wrap gap-2">
+          {plan.tags.slice(0, 4).map((tag, i) => (
+            <span key={tag} className={`rounded-full px-2.5 py-1 text-xs ${TAG_TONES[i % TAG_TONES.length]}`}>
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        {/* 节奏 + 通勤（真实数据；价格/天气待后端补充） */}
+        <div className="mt-auto flex items-end justify-between border-t border-gray-50 pt-4">
+          <div className="flex flex-col">
+            <span className="mb-1 flex items-center text-xs text-gray-400">
+              <i className="fas fa-gauge-high mr-1 text-primary-600" aria-hidden="true" /> 行程节奏
+            </span>
+            <span className="text-lg font-bold text-primary-700">{paceText}</span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="mb-1 flex items-center text-xs text-gray-400">
+              <i className="fas fa-route mr-1 text-primary-600" aria-hidden="true" /> 总通勤
+            </span>
+            <span className="text-sm font-semibold text-gray-700">{commuteText}</span>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-4 border-t border-primary-50 pt-3">
-        <PaceIndicator
-          level={plan.pace.level}
-          commuteStatus={plan.pace.commute_status}
-          totalMinutes={plan.pace.total_commute_minutes}
-        />
+      <div className="flex gap-3 px-6 pb-6 pt-2">
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex-1 rounded-full bg-primary-700 py-2.5 font-medium text-white transition-colors hover:bg-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2"
+        >
+          查看详情
+        </button>
+        <button
+          type="button"
+          className="flex items-center justify-center rounded-full border border-gray-200 px-4 py-2.5 text-gray-600 transition-colors hover:bg-gray-50"
+        >
+          <i className="far fa-heart mr-2" aria-hidden="true" /> 收藏
+        </button>
       </div>
-
-      <div className="mt-3 flex items-center justify-end gap-1 text-xs font-semibold text-accent-500 transition-transform group-hover:translate-x-0.5">
-        查看详情
-        <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3l5 5-5 5" /></svg>
-      </div>
-    </button>
+    </div>
   );
 }

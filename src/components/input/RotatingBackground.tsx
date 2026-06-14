@@ -79,6 +79,16 @@ export function cityNameOfImage(url: string): string | null {
   return match ? (FOLDER_TO_CITY_NAME[match[1]] ?? null) : null;
 }
 
+/** 取某城市的图片列表（用于给方案卡配图）；无匹配返回 fallback 单图 */
+export function cityImageList(city: string): string[] {
+  const entry = Object.entries(CITY_NAME_TO_FOLDER).find(
+    ([name, folder]) => city.includes(name) || city.toLowerCase().includes(folder),
+  );
+  if (!entry) return [FALLBACK_IMAGE];
+  const folder = entry[1];
+  return CITY_IMAGES[folder].map((f) => `/city/${folder}/${f}`);
+}
+
 export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' | 'static' = 'shuffle') {
   const pool = useMemo(() => {
     const cityPool = resolveCityPool(cities);
