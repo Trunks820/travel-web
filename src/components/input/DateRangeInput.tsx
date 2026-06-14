@@ -17,27 +17,27 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
   const days = getDayCount();
 
   return (
-    <div className="flex items-center space-x-3">
-      <div className="flex-1 flex items-center bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 focus-within:ring-2 focus-within:ring-primary-300">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex flex-1 items-center rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5 focus-within:ring-2 focus-within:ring-primary-300 sm:px-4">
         <input
           type="date"
           value={startDate}
           onChange={(e) => onStartChange(e.target.value)}
           aria-label="出发日期"
-          className="flex-1 bg-transparent text-gray-700 text-sm focus:outline-none min-w-0"
+          className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 focus:outline-none"
         />
-        <span className="mx-3 text-gray-300" aria-hidden="true">—</span>
+        <span className="mx-2 text-gray-300 sm:mx-3" aria-hidden="true">—</span>
         <input
           type="date"
           value={endDate}
           min={startDate}
           onChange={(e) => onEndChange(e.target.value)}
           aria-label="返程日期"
-          className="flex-1 bg-transparent text-gray-700 text-sm focus:outline-none min-w-0"
+          className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 focus:outline-none"
         />
       </div>
-      <div className="w-24 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 flex items-center justify-center shrink-0">
-        <span className="text-gray-700 text-sm whitespace-nowrap">{days ? `${days} 天` : '— 天'}</span>
+      <div className="flex shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5 sm:w-24">
+        <span className="whitespace-nowrap text-sm text-gray-700">{days ? `${days} 天` : '— 天'}</span>
       </div>
     </div>
   );

@@ -75,27 +75,27 @@ export default function ResultPage() {
       {/* 顶部渐变背景装饰 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-50 to-transparent" />
 
-      <main className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         {/* 操作栏 */}
-        <div className="mb-6 flex justify-end gap-3">
-          <button className="flex items-center rounded-full border border-gray-200 bg-white/80 px-5 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white">
-            <i className="fas fa-share-nodes mr-2 text-gray-400" aria-hidden="true" /> 分享
+        <div className="mb-6 flex flex-wrap justify-end gap-2 sm:gap-3">
+          <button className="flex items-center rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white sm:px-5">
+            <i className="fas fa-share-nodes mr-1.5 text-gray-400 sm:mr-2" aria-hidden="true" /> 分享
           </button>
-          <button className="flex items-center rounded-full border border-gray-200 bg-white/80 px-5 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white">
-            <i className="far fa-heart mr-2 text-gray-400" aria-hidden="true" /> 收藏
+          <button className="flex items-center rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white sm:px-5">
+            <i className="far fa-heart mr-1.5 text-gray-400 sm:mr-2" aria-hidden="true" /> 收藏
           </button>
           <button
             onClick={() => navigate("/")}
-            className="flex items-center rounded-full bg-primary-700 px-5 py-2 text-sm font-medium text-white shadow-lg transition-colors hover:bg-primary-600"
+            className="flex items-center rounded-full bg-primary-700 px-4 py-2 text-sm font-medium text-white shadow-lg transition-colors hover:bg-primary-600 sm:px-5"
           >
-            <i className="fas fa-sliders mr-2" aria-hidden="true" /> 调整偏好
+            <i className="fas fa-sliders mr-1.5 sm:mr-2" aria-hidden="true" /> 调整偏好
           </button>
         </div>
 
         {/* 标题 */}
-        <div className="mb-10 text-center animate-fade-in">
-          <h1 className="mb-5 flex items-center justify-center gap-3 text-4xl font-extrabold text-gray-800">
-            <span className="text-3xl text-primary-400" aria-hidden="true">✦</span>
+        <div className="mb-8 text-center animate-fade-in sm:mb-10">
+          <h1 className="mb-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-2xl font-extrabold text-gray-800 sm:mb-5 sm:gap-3 sm:text-4xl">
+            <span className="text-2xl text-primary-400 sm:text-3xl" aria-hidden="true">✦</span>
             为你生成了
             <span className="relative text-accent-500">
               {plans.length}
@@ -105,7 +105,7 @@ export default function ResultPage() {
             </span>
             个方案
           </h1>
-          <div className="inline-flex items-center rounded-full border border-gray-100/50 bg-white/60 px-4 py-1.5 text-base text-gray-500 shadow-sm">
+          <div className="inline-flex items-center rounded-full border border-gray-100/50 bg-white/60 px-4 py-1.5 text-sm text-gray-500 shadow-sm sm:text-base">
             <i className="fas fa-map-marker-alt mr-2 text-primary-600" aria-hidden="true" />
             {city.name} · {request.days}天 · {request.people_count}人
           </div>

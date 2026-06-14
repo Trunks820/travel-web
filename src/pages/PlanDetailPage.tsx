@@ -31,6 +31,8 @@ export default function PlanDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const [detailPlace, setDetailPlace] = useState<TripPlace | null>(null);
+  // 窄屏单栏切换：行程 / 地图 / 概览（桌面端忽略，始终三栏并排）
+  const [mobileTab, setMobileTab] = useState<"itinerary" | "map" | "overview">("itinerary");
 
   const result = storeResult ?? fetchedResult;
 
@@ -82,35 +84,62 @@ export default function PlanDetailPage() {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-[#f8f9fa]">
       {/* 详情页标题条 */}
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-100 bg-white px-6 py-3">
-        <div className="flex items-center gap-4">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <button
             onClick={() => navigate(`/result/${resultId}${jobQuery}`)}
-            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm text-sand-500 transition-colors hover:bg-primary-50 hover:text-primary-600"
+            aria-label="返回方案"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-sand-500 transition-colors hover:bg-primary-50 hover:text-primary-600"
           >
-            <i className="fa-solid fa-chevron-left text-xs" aria-hidden="true" /> 返回方案
+            <i className="fa-solid fa-chevron-left text-xs" aria-hidden="true" />
+            <span className="hidden sm:inline">返回方案</span>
           </button>
-          <div>
-            <h1 className="font-display text-lg font-bold text-gray-800">{plan.title}</h1>
-            <p className="text-xs text-gray-500">
+          <div className="min-w-0">
+            <h1 className="truncate font-display text-base font-bold text-gray-800 sm:text-lg">{plan.title}</h1>
+            <p className="truncate text-xs text-gray-500">
               {result.city.name} · {result.request.days}天 · {people}人
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-sm font-medium text-gray-600">
-          <button className="flex items-center gap-1.5 transition-colors hover:text-primary-600">
-            <i className="fa-solid fa-share-nodes" aria-hidden="true" /> 分享
+        <div className="flex shrink-0 items-center gap-1 text-sm font-medium text-gray-600 sm:gap-4">
+          <button aria-label="分享" className="flex items-center gap-1.5 rounded-lg p-2 transition-colors hover:text-primary-600 sm:p-0">
+            <i className="fa-solid fa-share-nodes" aria-hidden="true" /> <span className="hidden sm:inline">分享</span>
           </button>
-          <button className="flex items-center gap-1.5 transition-colors hover:text-primary-600">
-            <i className="fa-regular fa-star" aria-hidden="true" /> 收藏
+          <button aria-label="收藏" className="flex items-center gap-1.5 rounded-lg p-2 transition-colors hover:text-primary-600 sm:p-0">
+            <i className="fa-regular fa-star" aria-hidden="true" /> <span className="hidden sm:inline">收藏</span>
           </button>
         </div>
       </div>
 
-      {/* 三栏 */}
+      {/* 窄屏 Tab 切换（桌面端隐藏，始终三栏并排） */}
+      <div className="flex shrink-0 border-b border-gray-100 bg-white md:hidden">
+        {([
+          ["itinerary", "fa-route", "行程"],
+          ["map", "fa-map-location-dot", "地图"],
+          ["overview", "fa-wallet", "概览"],
+        ] as const).map(([key, icon, label]) => (
+          <button
+            key={key}
+            onClick={() => setMobileTab(key)}
+            className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+              mobileTab === key
+                ? "border-b-2 border-primary-600 text-primary-600"
+                : "text-gray-500"
+            }`}
+          >
+            <i className={`fa-solid ${icon} text-xs`} aria-hidden="true" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {/* 三栏（桌面）/ 单栏切换（窄屏） */}
       <div className="flex flex-1 overflow-hidden">
-        {/* 左栏：预算 + 天气 + 导出 */}
-        <aside className="hidden w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-100 p-4 lg:flex">
+        {/* 左栏：预算 + 天气 + 导出 —— 桌面常驻；窄屏归入「概览」Tab */}
+        <aside
+          className={`w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-100 p-4 lg:flex lg:w-[300px] ${
+            mobileTab === "overview" ? "flex" : "hidden"
+          }`}
+        >
           <BudgetCard data={budget} />
           <WeatherCard data={weather} />
           <button className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-700">
@@ -118,8 +147,12 @@ export default function PlanDetailPage() {
           </button>
         </aside>
 
-        {/* 中栏：Day 标签 + 时间线 */}
-        <section className="flex w-full shrink-0 flex-col border-r border-gray-100 bg-white md:w-[480px] xl:w-[560px]">
+        {/* 中栏：Day 标签 + 时间线 —— 桌面常驻；窄屏「行程」Tab */}
+        <section
+          className={`w-full shrink-0 flex-col border-r border-gray-100 bg-white md:flex md:w-[480px] xl:w-[560px] ${
+            mobileTab === "itinerary" ? "flex" : "hidden"
+          }`}
+        >
           <div className="hide-scrollbar flex shrink-0 gap-2 overflow-x-auto border-b border-gray-100 p-3">
             {plan.days.map((d) => {
               const active = effectiveDay === d.day;
@@ -148,8 +181,8 @@ export default function PlanDetailPage() {
           </div>
         </section>
 
-        {/* 右栏：地图占满 + 概览条 */}
-        <section className="relative hidden flex-1 md:block">
+        {/* 右栏：地图占满 + 概览条 —— 桌面常驻；窄屏「地图」Tab */}
+        <section className={`relative flex-1 md:block ${mobileTab === "map" ? "block" : "hidden"}`}>
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center bg-[#e3f0f5]">
@@ -162,7 +195,7 @@ export default function PlanDetailPage() {
 
           {/* 今日行程概览（真实数据） */}
           {summary && (
-            <div className="absolute inset-x-5 bottom-5 z-10 rounded-2xl border border-white bg-white/95 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md">
+            <div className="absolute inset-x-3 bottom-3 z-10 rounded-2xl border border-white bg-white/95 p-3 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md sm:inset-x-5 sm:bottom-5 sm:p-4">
               <h3 className="mb-3 px-2 text-sm font-bold text-gray-800">今日行程概览</h3>
               <div className="flex items-center justify-between px-2">
                 <SummaryItem icon="fa-car-side" label="行驶" value={summary.distance} />

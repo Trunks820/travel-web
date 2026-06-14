@@ -10,7 +10,7 @@ export function BoardingPass({ city, formData }: BoardingPassProps) {
   const people = formData?.people_count ?? 1;
 
   return (
-    <div className="relative w-[340px] max-w-full rotate-[2deg]">
+    <div className="relative w-[340px] max-w-full rotate-0 sm:rotate-[2deg]">
       <div className="rounded-2xl bg-white/90 backdrop-blur-xl border border-white/70 shadow-card overflow-hidden">
         {/* 票根头部 */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4">

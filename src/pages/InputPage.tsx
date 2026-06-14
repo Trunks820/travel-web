@@ -177,11 +177,11 @@ export default function InputPage() {
       <RotatingBackground current={bgImage} incoming={bgIncoming} />
 
       {/* 主体内容 */}
-      <main className="relative z-10 max-w-[1400px] mx-auto pt-16 pb-24 px-8 grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-12 items-start">
-        {/* 左侧：品牌与特性 */}
-        <div className="pt-12 animate-slide-up">
-          <div className="mb-12">
-            <h1 className="text-4xl xl:text-5xl font-bold text-gray-800 leading-tight mb-4">
+      <main className="relative z-10 mx-auto grid max-w-[1400px] grid-cols-1 items-start gap-8 px-4 pb-16 pt-8 sm:px-8 lg:grid-cols-[5fr_7fr] lg:gap-12 lg:pb-24 lg:pt-16">
+        {/* 左侧：品牌与特性（窄屏简化：保留标题，隐藏特性列表与签名） */}
+        <div className="lg:pt-12 animate-slide-up">
+          <div className="mb-6 lg:mb-12">
+            <h1 className="mb-3 text-3xl font-bold leading-tight text-gray-800 sm:text-4xl lg:mb-4 xl:text-5xl">
               <span className="relative inline-block">
                 AI 智能规划
                 <span className="absolute -top-4 -right-6 text-2xl text-accent-400" aria-hidden="true">✦</span>
@@ -189,16 +189,16 @@ export default function InputPage() {
               <br />
               <span className="text-primary-500">更懂你的每一次旅行</span>
             </h1>
-            <p className="text-xl text-gray-600">云途 YunTu · 让旅行更简单，更美好</p>
+            <p className="text-base text-gray-600 sm:text-xl">云途 YunTu · 让旅行更简单，更美好</p>
           </div>
 
-          <div className="space-y-8">
+          <div className="hidden space-y-8 lg:block">
             {FEATURES.map(f => (
               <FeatureItem key={f.title} {...f} />
             ))}
           </div>
 
-          <div className="mt-20 relative inline-block">
+          <div className="relative mt-20 hidden lg:inline-block">
             <p className="signature-font text-4xl text-primary-500 opacity-80 transform -rotate-6">
               探索世界，遇见更好的自己
             </p>
@@ -207,10 +207,10 @@ export default function InputPage() {
         </div>
 
         {/* 右侧：表单卡片 */}
-        <div className="glass-card rounded-3xl p-8 relative overflow-hidden animate-slide-up-delay-1">
-          <div className="flex justify-between items-start mb-8">
+        <div className="glass-card relative overflow-hidden rounded-3xl p-5 animate-slide-up-delay-1 sm:p-8">
+          <div className="mb-6 flex items-start justify-between sm:mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+              <h2 className="flex items-center text-xl font-bold text-gray-800 sm:text-2xl">
                 <span className="text-accent-400 mr-2" aria-hidden="true">✦</span>
                 生成你的专属行程
               </h2>

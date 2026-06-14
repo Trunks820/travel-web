@@ -102,11 +102,11 @@ export default function PlanningPage() {
       {/* 均匀白色蒙版，保证双栏内容可读 */}
       <div className="fixed inset-0 z-0 bg-white/55 pointer-events-none" />
 
-      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-3.5rem)] max-w-6xl grid-cols-1 items-center gap-12 px-8 py-12 lg:grid-cols-2">
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-3.5rem)] max-w-6xl grid-cols-1 items-center gap-8 px-5 py-8 sm:px-8 sm:py-12 lg:grid-cols-2 lg:gap-12">
         {/* 左：进度 */}
-        <div className="animate-slide-up">
-          <h1 className="mb-2 text-3xl font-bold text-gray-800 xl:text-4xl">{title}</h1>
-          <p className="mb-10 text-sm text-gray-600">
+        <div className="order-2 animate-slide-up lg:order-1">
+          <h1 className="mb-2 text-2xl font-bold text-gray-800 sm:text-3xl xl:text-4xl">{title}</h1>
+          <p className="mb-6 text-sm text-gray-600 sm:mb-10">
             {failed
               ? "可以调整需求后重新规划"
               : timedOut
@@ -150,9 +150,9 @@ export default function PlanningPage() {
         </div>
 
         {/* 右：登机牌 */}
-        <div className="flex flex-col items-center justify-center animate-slide-up-delay-1">
+        <div className="order-1 flex flex-col items-center justify-center animate-slide-up-delay-1 lg:order-2">
           <BoardingPass city={destination} formData={formData} />
-          <p className="signature-font mt-8 -rotate-3 text-2xl text-primary-500 opacity-80">
+          <p className="signature-font mt-6 -rotate-3 text-2xl text-primary-500 opacity-80 sm:mt-8">
             {failed ? "下次一定顺利" : "好行程值得稍等片刻"}
           </p>
         </div>
