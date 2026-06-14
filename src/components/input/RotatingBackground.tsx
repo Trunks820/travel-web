@@ -79,14 +79,23 @@ export function cityNameOfImage(url: string): string | null {
   return match ? (FOLDER_TO_CITY_NAME[match[1]] ?? null) : null;
 }
 
-/** 取某城市的图片列表（用于给方案卡配图）；无匹配返回 fallback 单图 */
+/**
+ * 取某城市的图片列表（用于给方案卡配图）。
+ * 命中城市 → 返回该城市图；未命中（如桂林等暂无素材的城市）→ 返回全部城市图，
+ * 并按城市名做确定性轮转，让多张卡片取到不同的国内风景图，且同城每次顺序稳定（不闪烁）。
+ */
 export function cityImageList(city: string): string[] {
   const entry = Object.entries(CITY_NAME_TO_FOLDER).find(
     ([name, folder]) => city.includes(name) || city.toLowerCase().includes(folder),
   );
-  if (!entry) return [FALLBACK_IMAGE];
-  const folder = entry[1];
-  return CITY_IMAGES[folder].map((f) => `/city/${folder}/${f}`);
+  if (entry) {
+    const folder = entry[1];
+    return CITY_IMAGES[folder].map((f) => `/city/${folder}/${f}`);
+  }
+  // 未命中：用城市名生成确定性偏移，轮转全部图，保证稳定且不全是同一张
+  const seed = Array.from(city).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  const offset = seed % ALL_IMAGES.length;
+  return [...ALL_IMAGES.slice(offset), ...ALL_IMAGES.slice(0, offset)];
 }
 
 export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' | 'static' = 'shuffle') {
