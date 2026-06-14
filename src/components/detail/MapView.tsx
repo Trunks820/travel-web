@@ -20,12 +20,30 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const amapRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const satelliteRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const polylinesRef = useRef<any[]>([]);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"standard" | "satellite">("standard");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  function toggleView(next: "standard" | "satellite") {
+    const AMap = amapRef.current;
+    const map = mapRef.current;
+    if (!AMap || !map || next === view) return;
+    if (next === "satellite") {
+      if (!satelliteRef.current) satelliteRef.current = new AMap.TileLayer.Satellite();
+      map.add(satelliteRef.current);
+    } else if (satelliteRef.current) {
+      map.remove(satelliteRef.current);
+    }
+    setView(next);
+  }
 
   useEffect(() => {
     let destroyed = false;
@@ -47,6 +65,7 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
       .then((AMap) => {
         if (destroyed || !containerRef.current) return;
 
+        amapRef.current = AMap;
         const map = new AMap.Map(containerRef.current, {
           zoom: 13,
           viewMode: "2D",
@@ -98,7 +117,30 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
         </div>
       )}
       <div ref={containerRef} className="h-full w-full" />
-      <div className="absolute right-2 top-2 rounded-lg bg-white/80 px-2.5 py-1 text-[10px] text-sand-500 backdrop-blur-sm">
+
+      {/* 图层切换 */}
+      <div className="absolute right-2 top-2 flex overflow-hidden rounded-lg border border-gray-100 bg-white shadow-sm">
+        <button
+          type="button"
+          onClick={() => toggleView("standard")}
+          className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+            view === "standard" ? "bg-primary-50 text-primary-600" : "bg-white text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          地图
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleView("satellite")}
+          className={`border-l border-gray-100 px-3 py-1.5 text-xs font-medium transition-colors ${
+            view === "satellite" ? "bg-primary-50 text-primary-600" : "bg-white text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          卫星
+        </button>
+      </div>
+
+      <div className="absolute bottom-2 right-2 rounded-lg bg-white/80 px-2.5 py-1 text-[10px] text-sand-500 backdrop-blur-sm">
         路线顺序示意图
       </div>
     </div>

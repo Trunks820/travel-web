@@ -1,9 +1,11 @@
+import type { CSSProperties } from "react";
 import type { TripPlan } from "@/types/trip";
 
 interface PlanSummaryCardProps {
   plan: TripPlan;
   image: string;
   recommended?: boolean;
+  index?: number;
   onClick: () => void;
 }
 
@@ -20,14 +22,17 @@ const TAG_TONES = [
   "bg-purple-50 text-purple-500",
 ];
 
-export function PlanSummaryCard({ plan, image, recommended, onClick }: PlanSummaryCardProps) {
+export function PlanSummaryCard({ plan, image, recommended, index = 0, onClick }: PlanSummaryCardProps) {
   const paceText = PACE_LABEL[plan.pace.level] ?? "适中";
   const hours = Math.floor(plan.pace.total_commute_minutes / 60);
   const mins = plan.pace.total_commute_minutes % 60;
   const commuteText = hours > 0 ? `${hours}小时${mins}分钟` : `${mins}分钟`;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-card">
+    <div
+      style={{ "--i": index } as CSSProperties}
+      className="flex h-full flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-card"
+    >
       {/* 封面图 */}
       <div className="relative h-56 overflow-hidden">
         <img src={image} alt={plan.title} className="h-full w-full object-cover" />

@@ -164,10 +164,26 @@
     animation: fadeIn 1.5s ease-in-out both;
   }
 
+  /* 依次入场：父元素给 .stagger，子项设 style={{'--i': index}} */
+  .stagger > * {
+    animation: slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
+  }
+
+  /* 路由页面转场 */
+  .page-enter {
+    animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
   .loading-dots::after {
     content: "";
     animation: loadingDots 1.4s steps(4, end) infinite;
   }
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes loadingDots {
@@ -204,7 +220,9 @@
   .animate-slide-up-delay-1,
   .animate-slide-up-delay-2,
   .animate-skeleton,
-  .animate-bg-fade-in {
+  .animate-bg-fade-in,
+  .page-enter,
+  .stagger > * {
     animation: none !important;
   }
 }

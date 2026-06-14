@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { TripDay, TripPlace } from "@/types/trip";
 import { categoryIcon, isAnchorRole } from "@/constants/places";
 import { commuteModeName, formatMinutes, formatDistance } from "@/utils/format";
@@ -23,7 +24,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
       {/* 连接竖线 */}
       <div className="absolute left-[86px] top-10 bottom-10 w-px bg-gray-200" aria-hidden="true" />
 
-      <div className="relative space-y-1">
+      <div className="stagger relative space-y-1">
         {day.places.map((place, i) => {
           const sched = schedule.get(place.place_id);
           const leg = day.commute_legs.find((l) => l.from_place_id === place.place_id);
@@ -31,7 +32,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
           const isActive = activePlaceId === place.place_id;
 
           return (
-            <div key={place.place_id}>
+            <div key={place.place_id} style={{ "--i": i } as CSSProperties}>
               <div className="flex gap-4">
                 {/* 时刻列 */}
                 <div className="w-12 shrink-0 pt-2.5 text-right text-[13px] font-medium text-gray-500">

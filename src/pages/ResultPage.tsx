@@ -112,13 +112,14 @@ export default function ResultPage() {
         </div>
 
         {/* 方案卡片网格 */}
-        <div className="grid grid-cols-1 gap-8 animate-slide-up md:grid-cols-2 lg:grid-cols-3">
+        <div className="stagger grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan, i) => (
             <PlanSummaryCard
               key={plan.plan_id}
               plan={plan}
               image={images[i % images.length]}
               recommended={i === 0}
+              index={i}
               onClick={() => navigate(`/plan/${resultId}/${plan.plan_id}${jobQuery}`)}
             />
           ))}

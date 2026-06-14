@@ -1,10 +1,11 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Header from "./components/layout/Header";
 import { useOnline } from "./hooks/useOnline";
 
 export default function App() {
   const online = useOnline();
+  const location = useLocation();
 
   return (
     <div className="min-h-screen bg-white">
@@ -16,7 +17,9 @@ export default function App() {
       <Header />
       <div className="pt-14">
         <ErrorBoundary>
-          <Outlet />
+          <div key={location.pathname} className="page-enter">
+            <Outlet />
+          </div>
         </ErrorBoundary>
       </div>
     </div>
