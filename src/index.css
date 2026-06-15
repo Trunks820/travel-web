@@ -170,6 +170,12 @@
     animation-delay: calc(var(--i, 0) * 60ms);
   }
 
+  /* 仅淡入的依次入场（用于自带 transform/旋转的元素，如拍立得卡） */
+  .stagger-fade > * {
+    animation: fadeIn 0.5s ease-out both;
+    animation-delay: calc(var(--i, 0) * 80ms);
+  }
+
   /* 路由页面转场 */
   .page-enter {
     animation: pageEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -222,7 +228,8 @@
   .animate-skeleton,
   .animate-bg-fade-in,
   .page-enter,
-  .stagger > * {
+  .stagger > *,
+  .stagger-fade > * {
     animation: none !important;
   }
 }

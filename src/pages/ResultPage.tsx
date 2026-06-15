@@ -5,14 +5,8 @@ import { ResultSkeleton } from "@/components/skeleton/ResultSkeleton";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
 import { cityImageList } from "@/components/input/RotatingBackground";
+import { saveRecentTrip } from "@/utils/recentTrip";
 import type { TripResult } from "@/types/trip";
-
-const SUGGESTIONS = [
-  { title: "本地美食地图", type: "美食指南", icon: "fa-utensils", tone: "bg-accent-50 text-accent-500" },
-  { title: "周边一日游包车", type: "交通服务", icon: "fa-car", tone: "bg-blue-50 text-blue-500" },
-  { title: "特色演出门票", type: "当地体验", icon: "fa-mask", tone: "bg-purple-50 text-purple-500" },
-  { title: "市区精选酒店", type: "住宿推荐", icon: "fa-hotel", tone: "bg-primary-50 text-primary-600" },
-];
 
 export default function ResultPage() {
   const { resultId } = useParams<{ resultId: string }>();
@@ -41,6 +35,18 @@ export default function ResultPage() {
       })
       .finally(() => setLoading(false));
   }, [resultId, jobId, result, setResult]);
+
+  // 记录最近行程，供首页「继续上次」找回
+  useEffect(() => {
+    if (result && resultId && jobId) {
+      saveRecentTrip({
+        resultId,
+        jobId,
+        city: result.city.name,
+        days: result.request.days,
+      });
+    }
+  }, [result, resultId, jobId]);
 
   useEffect(() => {
     if (!result) return;
@@ -71,17 +77,21 @@ export default function ResultPage() {
   const images = cityImageList(city.name);
 
   return (
-    <div className="relative min-h-screen bg-[#f1f5f9]">
-      {/* 顶部渐变背景装饰 */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-50 to-transparent" />
+    <div className="relative min-h-screen">
+      {/* 暖玻璃背景：城市图 + 暖白蒙版（与首页一套质感） */}
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-top"
+        style={{ backgroundImage: `url('${images[0]}')` }}
+      />
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-[rgba(255,251,245,0.85)] via-[rgba(238,249,247,0.92)] to-[#f3faf8]" />
 
-      <main className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         {/* 操作栏 */}
         <div className="mb-6 flex flex-wrap justify-end gap-2 sm:gap-3">
-          <button className="flex items-center rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white sm:px-5">
+          <button className="flex items-center rounded-full border border-primary-100 bg-white/70 px-4 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white sm:px-5">
             <i className="fas fa-share-nodes mr-1.5 text-gray-400 sm:mr-2" aria-hidden="true" /> 分享
           </button>
-          <button className="flex items-center rounded-full border border-gray-200 bg-white/80 px-4 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white sm:px-5">
+          <button className="flex items-center rounded-full border border-primary-100 bg-white/70 px-4 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white sm:px-5">
             <i className="far fa-heart mr-1.5 text-gray-400 sm:mr-2" aria-hidden="true" /> 收藏
           </button>
           <button
@@ -105,14 +115,14 @@ export default function ResultPage() {
             </span>
             个方案
           </h1>
-          <div className="inline-flex items-center rounded-full border border-gray-100/50 bg-white/60 px-4 py-1.5 text-sm text-gray-500 shadow-sm sm:text-base">
+          <div className="inline-flex items-center rounded-full border border-primary-100/60 bg-white/70 px-4 py-1.5 text-sm text-gray-500 shadow-sm sm:text-base">
             <i className="fas fa-map-marker-alt mr-2 text-primary-600" aria-hidden="true" />
             {city.name} · {request.days}天 · {request.people_count}人
           </div>
         </div>
 
-        {/* 方案卡片网格 */}
-        <div className="stagger grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {/* 方案卡片网格（拍立得风，依次淡入） */}
+        <div className="stagger-fade mx-auto grid max-w-4xl grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2">
           {plans.map((plan, i) => (
             <PlanSummaryCard
               key={plan.plan_id}
@@ -125,37 +135,17 @@ export default function ResultPage() {
           ))}
         </div>
 
-        {/* 推荐区 */}
-        <div className="mt-12">
-          <h2 className="mb-6 flex items-center text-xl font-bold text-gray-800">
-            <span className="mr-3 h-6 w-1.5 rounded-full bg-primary-500" />
-            你可能还会感兴趣
-          </h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {SUGGESTIONS.map((item) => (
-              <div
-                key={item.title}
-                className="group cursor-pointer rounded-2xl border border-gray-100 bg-white/60 p-5 transition-all hover:bg-white hover:shadow-md"
-              >
-                <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-110 ${item.tone}`}>
-                  <i className={`fas ${item.icon}`} aria-hidden="true" />
-                </div>
-                <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                  {item.type}
-                </div>
-                <div className="text-sm font-bold text-gray-700">{item.title}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-12 flex items-center justify-center gap-2 py-4 text-sm text-gray-400">
-          <i className="far fa-lightbulb text-gray-300" aria-hidden="true" />
-          以上方案均为 AI 智能生成，您可以
-          <button onClick={() => navigate("/")} className="font-medium text-primary-600 hover:underline">
-            调整偏好
-          </button>
-          重新生成更多方案
+        {/* 手写签名收尾 */}
+        <div className="mt-14 text-center">
+          <p className="signature-font text-2xl text-primary-500 opacity-80">好行程，值得慢慢挑 ✦</p>
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-sm text-gray-400">
+            <i className="far fa-lightbulb text-gray-300" aria-hidden="true" />
+            方案均由 AI 智能生成，可
+            <button onClick={() => navigate("/")} className="font-medium text-primary-600 hover:underline">
+              调整偏好
+            </button>
+            重新规划
+          </p>
         </div>
       </main>
     </div>
