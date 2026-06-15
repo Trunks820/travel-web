@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MultiCitySelect } from '../components/input/MultiCitySelect';
 import { DateRangeInput } from '../components/input/DateRangeInput';
@@ -6,6 +6,7 @@ import { BudgetSlider } from '../components/input/BudgetSlider';
 import { RotatingBackground, useRotatingBackground, cityNameOfImage } from '../components/input/RotatingBackground';
 import { submitTrip, ApiRequestError } from '../services/api';
 import { useTripStore } from '../stores/tripStore';
+import { getRecentTrip } from '../utils/recentTrip';
 
 const FEATURES = [
   {
@@ -103,6 +104,7 @@ function isoDateAfter(daysFromNow: number): string {
 export default function InputPage() {
   const navigate = useNavigate();
   const setFormData = useTripStore((s) => s.setFormData);
+  const recentTrip = useMemo(() => getRecentTrip(), []);
   const [cities, setCities] = useState<string[]>(['重庆']);
   const [multiCity, setMultiCity] = useState(false);
   const [startDate, setStartDate] = useState(() => isoDateAfter(7));
@@ -208,6 +210,26 @@ export default function InputPage() {
 
         {/* 右侧：表单卡片 */}
         <div className="glass-card relative overflow-hidden rounded-3xl p-5 animate-slide-up-delay-1 sm:p-8">
+          {recentTrip && (
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/result/${recentTrip.resultId}?job_id=${encodeURIComponent(recentTrip.jobId)}`)
+              }
+              className="group mb-6 flex w-full items-center gap-3 rounded-2xl border border-primary-100 bg-primary-50/70 px-4 py-3 text-left transition-colors hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 sm:mb-8"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white">
+                <i className="fas fa-clock-rotate-left" aria-hidden="true"></i>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-gray-800">继续上次行程</span>
+                <span className="block truncate text-xs text-gray-500">
+                  {recentTrip.city} · {recentTrip.days}天 · 点击查看已生成的方案
+                </span>
+              </span>
+              <i className="fas fa-chevron-right text-gray-400 transition-transform group-hover:translate-x-0.5" aria-hidden="true"></i>
+            </button>
+          )}
           <div className="mb-6 flex items-start justify-between sm:mb-8">
             <div>
               <h2 className="flex items-center text-xl font-bold text-gray-800 sm:text-2xl">

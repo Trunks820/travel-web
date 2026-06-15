@@ -11,7 +11,15 @@ export function WeatherCard({ data }: WeatherCardProps) {
     <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-800">{city}天气预报</h2>
-        <span className="text-[11px] text-gray-400">未来 {days.length} 天</span>
+        <div className="flex items-center gap-2">
+          <span
+            className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-400"
+            title="示意数据，待接入真实天气接口"
+          >
+            示意
+          </span>
+          <span className="text-[11px] text-gray-400">未来 {days.length} 天</span>
+        </div>
       </div>
 
       <div className="mb-6 flex items-center gap-5">
