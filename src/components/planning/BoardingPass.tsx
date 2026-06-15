@@ -49,7 +49,7 @@ export function BoardingPass({ city, formData }: BoardingPassProps) {
         <div className="grid grid-cols-3 gap-2 px-6 py-4 text-center">
           <div>
             <p className="text-[10px] text-gray-400">天数</p>
-            <p className="text-sm font-bold text-gray-700">{days ? `${days} 天` : "—"}</p>
+            <p className="text-sm font-bold text-gray-700">{days ? `${days} 天` : "-"}</p>
           </div>
           <div>
             <p className="text-[10px] text-gray-400">旅客</p>

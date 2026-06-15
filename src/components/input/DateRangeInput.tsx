@@ -26,7 +26,7 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
           aria-label="出发日期"
           className="min-w-0 flex-1 bg-transparent text-sm text-gray-700 focus:outline-none"
         />
-        <span className="mx-2 text-gray-300 sm:mx-3" aria-hidden="true">—</span>
+        <span className="mx-2 text-gray-300 sm:mx-3" aria-hidden="true">~</span>
         <input
           type="date"
           value={endDate}
@@ -37,7 +37,7 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
         />
       </div>
       <div className="flex shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 px-4 py-2.5 sm:w-24">
-        <span className="whitespace-nowrap text-sm text-gray-700">{days ? `${days} 天` : '— 天'}</span>
+        <span className="whitespace-nowrap text-sm text-gray-700">{days ? `${days} 天` : '- 天'}</span>
       </div>
     </div>
   );
