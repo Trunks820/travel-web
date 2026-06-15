@@ -4,3 +4,8 @@ dist
 .env.local
 .env.*.local
 *.log
+
+# IDE / 本地杂物（不参与运行）
+.idea/
+.tmp-*
+docs/city/
