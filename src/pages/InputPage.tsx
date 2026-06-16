@@ -397,7 +397,7 @@ export default function InputPage() {
                   aria-valuetext={pace < 34 ? '轻松悠闲' : pace < 67 ? '适中' : '紧凑充实'}
                   className="custom-slider flex-1"
                   style={{
-                    background: `linear-gradient(to right, #fb923c 0%, #fb923c ${pace}%, #f3f4f6 ${pace}%, #f3f4f6 100%)`,
+                    background: `linear-gradient(to right, var(--color-accent-400) 0%, var(--color-accent-400) ${pace}%, var(--color-sand-100) ${pace}%, var(--color-sand-100) 100%)`,
                   }}
                 />
                 <div className="text-gray-500 flex flex-col items-center shrink-0" aria-hidden="true">
@@ -490,15 +490,15 @@ export default function InputPage() {
 
         {/* 纸飞机虚线轨迹 */}
         <div className="absolute -top-32 -left-20 pointer-events-none opacity-40">
-          <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-500">
             <path
               d="M10 180C40 160 100 170 140 100C160 60 140 30 180 10"
-              stroke="#0f766e"
+              stroke="currentColor"
               strokeWidth="1.5"
               strokeDasharray="6 6"
             />
-            <path d="M180 10L165 15M180 10L175 25" stroke="#0f766e" strokeWidth="1.5" />
-            <circle cx="180" cy="10" r="2" fill="#0f766e" />
+            <path d="M180 10L165 15M180 10L175 25" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="180" cy="10" r="2" fill="currentColor" />
           </svg>
           <div className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2">
             <i className="fas fa-paper-plane text-accent-400 transform -rotate-12"></i>

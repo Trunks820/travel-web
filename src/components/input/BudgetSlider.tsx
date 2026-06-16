@@ -36,7 +36,7 @@ export function BudgetSlider({ min = 1000, max = 12000, onChange, labelId }: Bud
         aria-valuetext={`人均 ¥${value.toLocaleString()}`}
         className="custom-slider"
         style={{
-          background: `linear-gradient(to right, #fb923c 0%, #fb923c ${percent}%, #f3f4f6 ${percent}%, #f3f4f6 100%)`,
+          background: `linear-gradient(to right, var(--color-accent-400) 0%, var(--color-accent-400) ${percent}%, var(--color-sand-100) ${percent}%, var(--color-sand-100) 100%)`,
         }}
       />
       <div className="flex justify-between mt-2">

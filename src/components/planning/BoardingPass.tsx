@@ -40,8 +40,8 @@ export function BoardingPass({ city, formData }: BoardingPassProps) {
 
         {/* 撕裂分隔线 */}
         <div className="relative">
-          <div className="absolute -left-2 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-[#f2f5f4]" />
-          <div className="absolute -right-2 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-[#f2f5f4]" />
+          <div className="absolute -left-2 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-sand-100" />
+          <div className="absolute -right-2 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full bg-sand-100" />
           <div className="border-t border-dashed border-gray-200 mx-4" />
         </div>
 

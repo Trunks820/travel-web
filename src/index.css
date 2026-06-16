@@ -3,6 +3,15 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-primary-500: #0f766e;
+    --color-primary-600: #0c625b;
+    --color-accent-400: #fb923c;
+    --color-accent-500: #f97316;
+    --color-sand-100: #f3f4f6;
+    --color-sand-200: #e5e7eb;
+  }
+
   body {
     margin: 0;
     font-family: "Noto Sans SC", system-ui, sans-serif;
@@ -47,13 +56,13 @@
     appearance: none;
     width: 100%;
     height: 4px;
-    background: #e5e7eb;
+    background: var(--color-sand-200);
     border-radius: 2px;
     outline: none;
   }
 
   .custom-slider:focus-visible {
-    outline: 2px solid #66b3b3;
+    outline: 2px solid var(--color-primary-500);
     outline-offset: 4px;
     border-radius: 4px;
   }
@@ -63,7 +72,7 @@
     appearance: none;
     width: 18px;
     height: 18px;
-    background: #f97316;
+    background: var(--color-accent-500);
     cursor: pointer;
     border-radius: 50%;
     border: 3px solid white;
@@ -73,7 +82,7 @@
   .custom-slider::-moz-range-thumb {
     width: 18px;
     height: 18px;
-    background: #f97316;
+    background: var(--color-accent-500);
     cursor: pointer;
     border-radius: 50%;
     border: 3px solid white;
