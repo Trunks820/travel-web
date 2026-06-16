@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { TripPlace } from "@/types/trip";
 import { categoryIcon, isAnchorRole } from "@/constants/places";
 
@@ -6,19 +7,38 @@ interface PlaceDetailModalProps {
   onClose: () => void;
 }
 
-/**
- * 地点详情浮层。后端暂无 /api/places/{id} 接口，这里直接展示结果数据里
- * 已有的字段（名称/类别/简介/经纬度）。待后端补 POI 详情接口后再增强
- * （开放时间、门票、图片、tips 等）。
- */
 export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!place) return;
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    requestAnimationFrame(() => panelRef.current?.focus());
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, [place, onClose]);
+
   if (!place) return null;
 
   return (
     <>
       <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div className="fixed inset-x-0 bottom-0 z-50 animate-slide-up lg:inset-0 lg:flex lg:items-center lg:justify-center">
-        <div className="card max-h-[85vh] overflow-y-auto rounded-t-3xl lg:max-w-lg lg:rounded-3xl">
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label={place.name}
+          tabIndex={-1}
+          className="card max-h-[85vh] overflow-y-auto rounded-t-3xl outline-none lg:max-w-lg lg:rounded-3xl"
+        >
           <div className="p-6">
             <div className="mb-4 flex items-start justify-between">
               <div className="flex items-center gap-3">

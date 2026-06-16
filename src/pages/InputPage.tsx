@@ -334,7 +334,7 @@ export default function InputPage() {
                   onClick={() => setPeople(p => Math.max(1, p - 1))}
                   disabled={people <= 1}
                   aria-label="减少人数"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
                 >
                   <i className="fas fa-minus text-xs" aria-hidden="true"></i>
                 </button>
@@ -346,7 +346,7 @@ export default function InputPage() {
                   onClick={() => setPeople(p => Math.min(10, p + 1))}
                   disabled={people >= 10}
                   aria-label="增加人数"
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
                 >
                   <i className="fas fa-plus text-xs" aria-hidden="true"></i>
                 </button>

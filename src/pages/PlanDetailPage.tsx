@@ -112,7 +112,7 @@ export default function PlanDetailPage() {
       </div>
 
       {/* 窄屏 Tab 切换（桌面端隐藏，始终三栏并排） */}
-      <div className="flex shrink-0 border-b border-gray-100 bg-white md:hidden">
+      <div role="tablist" aria-label="详情视图" className="flex shrink-0 border-b border-gray-100 bg-white md:hidden">
         {([
           ["itinerary", "fa-route", "行程"],
           ["map", "fa-map-location-dot", "地图"],
@@ -120,6 +120,9 @@ export default function PlanDetailPage() {
         ] as const).map(([key, icon, label]) => (
           <button
             key={key}
+            role="tab"
+            aria-selected={mobileTab === key}
+            aria-controls={`tabpanel-${key}`}
             onClick={() => setMobileTab(key)}
             className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
               mobileTab === key
@@ -136,6 +139,8 @@ export default function PlanDetailPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* 左栏：预算 + 天气 + 导出 —— 桌面常驻；窄屏归入「概览」Tab */}
         <aside
+          id="tabpanel-overview"
+          role="tabpanel"
           className={`w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-100 p-4 lg:flex lg:w-[300px] ${
             mobileTab === "overview" ? "flex" : "hidden"
           }`}
@@ -149,6 +154,8 @@ export default function PlanDetailPage() {
 
         {/* 中栏：Day 标签 + 时间线 —— 桌面常驻；窄屏「行程」Tab */}
         <section
+          id="tabpanel-itinerary"
+          role="tabpanel"
           className={`w-full shrink-0 flex-col border-r border-gray-100 bg-white md:flex md:w-[480px] xl:w-[560px] ${
             mobileTab === "itinerary" ? "flex" : "hidden"
           }`}
@@ -182,7 +189,7 @@ export default function PlanDetailPage() {
         </section>
 
         {/* 右栏：地图占满 + 概览条 —— 桌面常驻；窄屏「地图」Tab */}
-        <section className={`relative flex-1 md:block ${mobileTab === "map" ? "block" : "hidden"}`}>
+        <section id="tabpanel-map" role="tabpanel" className={`relative flex-1 md:block ${mobileTab === "map" ? "block" : "hidden"}`}>
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center bg-[#e3f0f5]">

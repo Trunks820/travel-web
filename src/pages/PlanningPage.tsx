@@ -136,7 +136,9 @@ export default function PlanningPage() {
                 : "AI 旅行管家正在逐步定制，通常需要 30-90 秒"}
           </p>
 
-          <ProgressTimeline currentCode={stageCode} failed={failed} />
+          <div aria-live="polite" aria-atomic="true">
+            <ProgressTimeline currentCode={stageCode} failed={failed} />
+          </div>
 
           {errorMessage && (
             <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
