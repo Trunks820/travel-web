@@ -102,10 +102,10 @@ export default function PlanDetailPage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 text-sm font-medium text-gray-600 sm:gap-4">
-          <button aria-label="分享" className="flex items-center gap-1.5 rounded-lg p-2 transition-colors hover:text-primary-600 sm:p-0">
+          <button aria-label="分享（即将上线）" disabled title="即将上线" className="flex items-center gap-1.5 rounded-lg p-2 text-gray-400 cursor-not-allowed opacity-60 sm:p-0">
             <i className="fa-solid fa-share-nodes" aria-hidden="true" /> <span className="hidden sm:inline">分享</span>
           </button>
-          <button aria-label="收藏" className="flex items-center gap-1.5 rounded-lg p-2 transition-colors hover:text-primary-600 sm:p-0">
+          <button aria-label="收藏（即将上线）" disabled title="即将上线" className="flex items-center gap-1.5 rounded-lg p-2 text-gray-400 cursor-not-allowed opacity-60 sm:p-0">
             <i className="fa-regular fa-star" aria-hidden="true" /> <span className="hidden sm:inline">收藏</span>
           </button>
         </div>

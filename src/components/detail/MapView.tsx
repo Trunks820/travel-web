@@ -115,7 +115,21 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day, activePlaceId]);
 
-  if (error) return null;
+  if (error)
+    return (
+      <div className="card flex h-full w-full flex-col items-center justify-center gap-3 bg-primary-50/30 p-6 text-center">
+        <i className="fa-solid fa-map-location-dot text-3xl text-primary-200" aria-hidden="true" />
+        <p className="text-sm font-medium text-gray-600">地图加载失败</p>
+        <p className="text-xs text-gray-400">行程信息不受影响，可刷新页面重试</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-1 rounded-lg border border-primary-200 px-4 py-1.5 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+        >
+          刷新重试
+        </button>
+      </div>
+    );
 
   return (
     <div className="card relative h-full w-full overflow-hidden">

@@ -88,11 +88,19 @@ export default function ResultPage() {
       <main className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         {/* 操作栏 */}
         <div className="mb-6 flex flex-wrap justify-end gap-2 sm:gap-3">
-          <button className="flex items-center rounded-full border border-primary-100 bg-white/70 px-4 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white sm:px-5">
-            <i className="fas fa-share-nodes mr-1.5 text-gray-400 sm:mr-2" aria-hidden="true" /> 分享
+          <button
+            disabled
+            title="即将上线"
+            className="flex items-center rounded-full border border-primary-100 bg-white/50 px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed opacity-70 sm:px-5"
+          >
+            <i className="fas fa-share-nodes mr-1.5 text-gray-300 sm:mr-2" aria-hidden="true" /> 分享
           </button>
-          <button className="flex items-center rounded-full border border-primary-100 bg-white/70 px-4 py-2 text-sm font-medium text-gray-700 backdrop-blur transition-colors hover:bg-white sm:px-5">
-            <i className="far fa-heart mr-1.5 text-gray-400 sm:mr-2" aria-hidden="true" /> 收藏
+          <button
+            disabled
+            title="即将上线"
+            className="flex items-center rounded-full border border-primary-100 bg-white/50 px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed opacity-70 sm:px-5"
+          >
+            <i className="far fa-heart mr-1.5 text-gray-300 sm:mr-2" aria-hidden="true" /> 收藏
           </button>
           <button
             onClick={() => navigate("/")}

@@ -5,6 +5,7 @@
  */
 
 const KEY = "yuntu-recent-trip";
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 天后视为过期
 
 export interface RecentTrip {
   resultId: string;
@@ -29,6 +30,11 @@ export function getRecentTrip(): RecentTrip | null {
     if (!raw) return null;
     const data = JSON.parse(raw) as RecentTrip;
     if (!data.resultId || !data.jobId) return null;
+    // 超过 7 天的记录视为过期：后端可能已清理结果，点进去会是死胡同
+    if (!data.savedAt || Date.now() - data.savedAt > MAX_AGE_MS) {
+      clearRecentTrip();
+      return null;
+    }
     return data;
   } catch {
     return null;
