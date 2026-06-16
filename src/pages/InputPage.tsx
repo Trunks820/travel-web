@@ -35,6 +35,9 @@ const FEATURES = [
   },
 ];
 
+// 节奏滑块映射出的标签，与兴趣偏好同存于 preferences；回填时需从兴趣中剔除
+const PACE_TAGS = ['轻松', '适中', '紧凑'];
+
 const PREFERENCE_OPTIONS = [
   { label: '自然风光', icon: 'fas fa-mountain' },
   { label: '文化历史', icon: 'fas fa-university' },
@@ -105,23 +108,49 @@ export default function InputPage() {
   const navigate = useNavigate();
   const setFormData = useTripStore((s) => s.setFormData);
   const recentTrip = useMemo(() => getRecentTrip(), []);
-  const [cities, setCities] = useState<string[]>(['重庆']);
-  const [multiCity, setMultiCity] = useState(false);
-  const [startDate, setStartDate] = useState(() => isoDateAfter(7));
-  const [endDate, setEndDate] = useState(() => isoDateAfter(13));
-  const [preferences, setPreferences] = useState<string[]>(['自然风光']);
-  const [pace, setPace] = useState(60);
-  const [budget, setBudget] = useState<[number, number]>([1000, 5000]);
-  const [notes, setNotes] = useState('');
+  // 一次性读取上次提交的表单（来自 sessionStorage），用于失败/返回首页后回填，
+  // 避免用户丢掉已填的选择。getState() 只读不订阅，不会触发额外重渲染。
+  const stored = useMemo(() => useTripStore.getState().formData, []);
+  const storedPrefs = stored?.preferences ?? null;
+  const [cities, setCities] = useState<string[]>(
+    stored?.to_city ? [stored.to_city] : ['重庆'],
+  );
+  const [startDate, setStartDate] = useState(() => stored?.start_date || isoDateAfter(7));
+  const [endDate, setEndDate] = useState(() => stored?.end_date || isoDateAfter(13));
+  const [preferences, setPreferences] = useState<string[]>(
+    storedPrefs
+      ? storedPrefs.filter((p) => !PACE_TAGS.includes(p))
+      : ['自然风光'],
+  );
+  const [people, setPeople] = useState(stored?.people_count ?? 1);
+  const [pace, setPace] = useState(
+    storedPrefs?.includes('轻松') ? 20 : storedPrefs?.includes('紧凑') ? 80 : 60,
+  );
+  const [notes, setNotes] = useState(stored?.notes ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | undefined>(undefined);
 
   const togglePreference = (pref: string) => {
-    setPreferences(prev =>
-      prev.includes(pref) ? prev.filter(p => p !== pref) : [...prev, pref]
-    );
+    setPreferences(prev => {
+      const next = prev.includes(pref)
+        ? prev.filter(p => p !== pref)
+        : [...prev, pref];
+      return next;
+    });
+    // 亲子默认至少 1 大人 + 1 小孩：勾选"亲子"且当前仅 1 人时，自动顶到 2 人，
+    // 化解"1 人却带亲子"的语义悖论。取消勾选不回退人数（用户可能确有 2 人）。
+    if (pref === '亲子' && !preferences.includes('亲子') && people < 2) {
+      setPeople(2);
+    }
   };
+
+  // 实时计算行程天数，超过 7 天时给出提示（不阻断，提交时按 7 天处理）
+  const overLimit = useMemo(() => {
+    const ms = new Date(endDate).getTime() - new Date(startDate).getTime();
+    if (isNaN(ms) || ms < 0) return false;
+    return Math.round(ms / 86400000) + 1 > 7;
+  }, [startDate, endDate]);
 
   const { current: bgImage, incoming: bgIncoming } = useRotatingBackground(cities);
   const polaroidImage = bgImage;
@@ -142,24 +171,25 @@ export default function InputPage() {
       setSubmitError('请选择有效的旅行时间（返程不能早于出发）');
       return;
     }
-    const days = Math.min(7, Math.round(dayMs / 86400000) + 1);
+    const rawDays = Math.round(dayMs / 86400000) + 1;
+    const days = Math.min(7, rawDays);
 
     setSubmitting(true);
     setSubmitError(null);
+    // 节奏滑块映射为后端真正消费的 preferences 标签（后端按关键词识别）。
+    // 三档都显式传达，让"适中"也是一个明确选择，而非"未表态"。
+    const paceTag = pace < 34 ? '轻松' : pace > 67 ? '紧凑' : '适中';
     const formData = {
       to_city: cities[0],
+      start_date: startDate,
+      end_date: endDate,
       days,
-      people_count: 1,
-      preferences,
+      people_count: people,
+      preferences: [...preferences, paceTag],
       avoid: [],
-      notes: [
-        multiCity && cities.length > 1 ? `多城市：${cities.join('、')}` : '',
-        notes,
-        `节奏:${pace}`,
-        `预算:人均¥${budget[0]}-¥${budget[1]}`,
-      ]
-        .filter(Boolean)
-        .join('；'),
+      // 仅发用户在「特殊需求」里输入的真实文本；
+      // 节奏走 preferences、预算后端暂不解析故不发、多城市后端暂不支持
+      notes: notes.trim(),
     };
     setFormData(formData);
     try {
@@ -242,7 +272,9 @@ export default function InputPage() {
             </div>
             <button
               type="button"
-              className="flex items-center space-x-1 text-gray-500 hover:text-gray-700 text-sm border border-gray-200 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+              disabled
+              title="即将上线"
+              className="flex items-center space-x-1 text-gray-400 text-sm border border-gray-200 px-3 py-1.5 rounded-lg cursor-not-allowed opacity-60 shrink-0"
             >
               <i className="far fa-lightbulb" aria-hidden="true"></i>
               <span>行程灵感</span>
@@ -256,22 +288,20 @@ export default function InputPage() {
                 <label className="text-gray-700 font-bold flex items-center text-sm">
                   <i className="fas fa-map-marker-alt text-primary-500 mr-2" aria-hidden="true"></i> 目的地
                 </label>
-                <label className="flex items-center text-xs text-gray-500 cursor-pointer">
+                <label className="flex items-center text-xs text-gray-400 cursor-not-allowed" title="多城市规划开发中，敬请期待">
                   <span>多地旅行</span>
+                  <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-400">敬请期待</span>
                   <input
                     type="checkbox"
-                    checked={multiCity}
-                    onChange={e => {
-                      const on = e.target.checked;
-                      setMultiCity(on);
-                      if (!on && cities.length > 1) setCities([cities[0]]);
-                    }}
+                    checked={false}
+                    disabled
+                    aria-label="多地旅行（开发中）"
                     className="sr-only peer"
                   />
-                  <div className="w-8 h-4 bg-gray-200 peer-checked:bg-primary-500 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-300 rounded-full ml-2 relative transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full after:transition-transform peer-checked:after:translate-x-4"></div>
+                  <div className="w-8 h-4 bg-gray-200 rounded-full ml-2 relative opacity-50 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full"></div>
                 </label>
               </div>
-              <MultiCitySelect value={cities} onChange={setCities} multiCity={multiCity} error={cityError} />
+              <MultiCitySelect value={cities} onChange={setCities} multiCity={false} error={cityError} />
             </div>
 
             {/* 旅行时间 */}
@@ -285,6 +315,42 @@ export default function InputPage() {
                 onStartChange={setStartDate}
                 onEndChange={setEndDate}
               />
+              {overLimit && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
+                  <i className="fas fa-circle-info" aria-hidden="true"></i>
+                  当前仅支持最多 7 天行程，将按 7 天为你规划
+                </p>
+              )}
+            </div>
+
+            {/* 出行人数 */}
+            <div>
+              <label className="text-gray-700 font-bold flex items-center text-sm mb-3" id="people-label">
+                <i className="fas fa-user-group text-primary-500 mr-2" aria-hidden="true"></i> 出行人数
+              </label>
+              <div className="flex items-center gap-4" role="group" aria-labelledby="people-label">
+                <button
+                  type="button"
+                  onClick={() => setPeople(p => Math.max(1, p - 1))}
+                  disabled={people <= 1}
+                  aria-label="减少人数"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                >
+                  <i className="fas fa-minus text-xs" aria-hidden="true"></i>
+                </button>
+                <span className="min-w-[3rem] text-center text-lg font-bold text-gray-800" aria-live="polite">
+                  {people} <span className="text-sm font-normal text-gray-400">人</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPeople(p => Math.min(10, p + 1))}
+                  disabled={people >= 10}
+                  aria-label="增加人数"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                >
+                  <i className="fas fa-plus text-xs" aria-hidden="true"></i>
+                </button>
+              </div>
             </div>
 
             {/* 旅行偏好 */}
@@ -351,7 +417,7 @@ export default function InputPage() {
                 <span className="text-xs text-gray-400 ml-3 font-normal">不含往返大交通</span>
               </div>
               <div className="px-2">
-                <BudgetSlider min={1000} max={12000} onChange={setBudget} labelId="budget-label" />
+                <BudgetSlider min={1000} max={12000} onChange={() => {}} labelId="budget-label" />
               </div>
             </div>
 
