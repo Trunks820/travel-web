@@ -6,6 +6,8 @@ interface UsePollingOptions<T> {
   interval?: number;
   maxAttempts?: number;
   onTimeout?: () => void;
+  onConsecutiveErrors?: (count: number) => void;
+  consecutiveErrorThreshold?: number;
   enabled?: boolean;
 }
 
@@ -15,9 +17,12 @@ export function usePolling<T>({
   interval = 2000,
   maxAttempts = 90,
   onTimeout,
+  onConsecutiveErrors,
+  consecutiveErrorThreshold = 3,
   enabled = true,
 }: UsePollingOptions<T>) {
   const attemptRef = useRef(0);
+  const consecutiveErrorsRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const stoppedRef = useRef(false);
 
@@ -31,6 +36,7 @@ export function usePolling<T>({
 
     stoppedRef.current = false;
     attemptRef.current = 0;
+    consecutiveErrorsRef.current = 0;
 
     async function tick() {
       if (stoppedRef.current) return;
@@ -38,10 +44,14 @@ export function usePolling<T>({
 
       try {
         const data = await fetcher();
+        consecutiveErrorsRef.current = 0;
         const shouldStop = onData(data);
         if (shouldStop) return;
       } catch {
-        // keep polling on network error
+        consecutiveErrorsRef.current++;
+        if (consecutiveErrorsRef.current >= consecutiveErrorThreshold) {
+          onConsecutiveErrors?.(consecutiveErrorsRef.current);
+        }
       }
 
       if (attemptRef.current >= maxAttempts) {
@@ -67,7 +77,7 @@ export function usePolling<T>({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       stop();
     };
-  }, [enabled, fetcher, onData, interval, maxAttempts, onTimeout, stop]);
+  }, [enabled, fetcher, onData, interval, maxAttempts, onTimeout, onConsecutiveErrors, consecutiveErrorThreshold, stop]);
 
   return { stop };
 }

@@ -73,6 +73,8 @@ export default function ResultPage() {
     );
   }
 
+  if (result.plans.length === 1) return <ResultSkeleton />;
+
   const { city, request, plans } = result;
   const images = cityImageList(city.name);
 

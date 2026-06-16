@@ -28,6 +28,7 @@ export default function PlanningPage() {
   const [failed, setFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
+  const [networkUnstable, setNetworkUnstable] = useState(false);
 
   const fetcher = useCallback(() => pollJobStatus(jobId!), [jobId]);
 
@@ -58,12 +59,18 @@ export default function PlanningPage() {
 
   const onTimeout = useCallback(() => setTimedOut(true), []);
 
+  const onConsecutiveErrors = useCallback((count: number) => {
+    setNetworkUnstable(count >= 3);
+  }, []);
+
   const { stop } = usePolling({
     fetcher,
     onData,
     interval: 2500,
     maxAttempts: 144,
     onTimeout,
+    onConsecutiveErrors,
+    consecutiveErrorThreshold: 3,
     enabled: !!jobId && !failed && !timedOut,
   });
 
@@ -143,6 +150,13 @@ export default function PlanningPage() {
           {errorMessage && (
             <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {errorMessage}
+            </p>
+          )}
+
+          {networkUnstable && !failed && !timedOut && (
+            <p className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              <i className="fas fa-wifi text-amber-400" aria-hidden="true" />
+              网络不稳定，正在持续尝试连接...
             </p>
           )}
 
