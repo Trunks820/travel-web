@@ -7,8 +7,9 @@ import {
   useRotatingBackground,
 } from "@/components/input/RotatingBackground";
 import { useTripStore } from "@/stores/tripStore";
-import { pollJobStatus, ApiRequestError } from "@/services/api";
+import { pollJobStatus, submitTrip, ApiRequestError } from "@/services/api";
 import { usePolling } from "@/hooks/usePolling";
+import { webErrorMessage } from "@/constants/errors";
 import type { StageCode, JobResponse } from "@/types/trip";
 
 export default function PlanningPage() {
@@ -46,7 +47,7 @@ export default function PlanningPage() {
 
       if (data.status === "FAILED") {
         setFailed(true);
-        setErrorMessage(data.error?.message ?? "生成失败，请重试");
+        setErrorMessage(webErrorMessage(data.error?.code, data.error?.message));
         return true;
       }
 
@@ -90,6 +91,27 @@ export default function PlanningPage() {
     }
   }
 
+  const [retrying, setRetrying] = useState(false);
+
+  // 同参数原地重试：生成失败常是 LLM 偶发不稳定，相同参数重跑大概率成功，
+  // 比回首页重填更顺。formData 来自 store（提交时已写入）。
+  async function handleRetrySame() {
+    if (!formData || retrying) return;
+    setRetrying(true);
+    setErrorMessage(null);
+    try {
+      const res = await submitTrip(formData);
+      setFailed(false);
+      setStageCode(null);
+      navigate(`/planning/${res.job_id}`, { replace: true });
+    } catch (err) {
+      const msg = err instanceof ApiRequestError ? err.message : "重试失败，请稍后再试";
+      setErrorMessage(msg);
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   const title = failed
     ? "这次规划没能完成"
     : timedOut
@@ -124,9 +146,22 @@ export default function PlanningPage() {
 
           {(failed || timedOut) && (
             <div className="mt-8 flex gap-3">
+              {failed && (
+                <button
+                  onClick={handleRetrySame}
+                  disabled={retrying || !formData}
+                  className="rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
+                >
+                  {retrying ? "正在重试..." : "再试一次"}
+                </button>
+              )}
               <button
                 onClick={handleRetry}
-                className="rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
+                className={
+                  failed
+                    ? "rounded-xl border border-primary-200 bg-white px-6 py-3 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
+                    : "rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
+                }
               >
                 重新规划
               </button>
