@@ -100,18 +100,14 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
   }, []);
 
   useEffect(() => {
+    const AMap = amapRef.current;
     const map = mapRef.current;
-    if (!map) return;
+    if (!AMap || !map) return;
 
-    AMapLoader.load({
-      key: import.meta.env.VITE_AMAP_KEY || "",
-      version: "2.0",
-    }).then((AMap) => {
-      clearOverlays(markersRef, polylinesRef);
-      updateMarkers(AMap, map, day, activePlaceId, onMarkerClick, markersRef);
-      updatePolylines(AMap, map, day, polylinesRef);
-      fitView(map);
-    });
+    clearOverlays(markersRef, polylinesRef);
+    updateMarkers(AMap, map, day, activePlaceId, onMarkerClick, markersRef);
+    updatePolylines(AMap, map, day, polylinesRef);
+    fitView(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day, activePlaceId]);
 

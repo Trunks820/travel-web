@@ -81,9 +81,12 @@ export default function ResultPage() {
   return (
     <div className="relative min-h-screen">
       {/* 暖玻璃背景：城市图 + 暖白蒙版（与首页一套质感） */}
-      <div
-        className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-top"
-        style={{ backgroundImage: `url('${images[0]}')` }}
+      <img
+        src={images[0]}
+        alt=""
+        loading="lazy"
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 h-full w-full object-cover object-top"
       />
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-[rgba(255,251,245,0.85)] via-[rgba(238,249,247,0.92)] to-[#f3faf8]" />
 
