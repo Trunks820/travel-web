@@ -118,7 +118,6 @@ export default function ResultPage() {
         {/* 标题 */}
         <div className="mb-8 text-center animate-fade-in sm:mb-10">
           <h1 className="mb-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-2xl font-extrabold text-gray-800 sm:mb-5 sm:gap-3 sm:text-4xl">
-            <span className="text-2xl text-primary-400 sm:text-3xl" aria-hidden="true">✦</span>
             为你生成了
             <span className="relative text-accent-500">
               {plans.length}

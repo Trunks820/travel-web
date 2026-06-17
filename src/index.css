@@ -39,6 +39,32 @@
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
   }
 
+  .journal-card {
+    position: relative;
+    background: rgba(255, 252, 247, 0.85);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(210, 195, 170, 0.25);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .journal-card::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 16px;
+    bottom: 16px;
+    width: 2px;
+    background: repeating-linear-gradient(
+      to bottom,
+      #a7ded7 0px, #a7ded7 8px,
+      transparent 8px, transparent 14px
+    );
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
   .polaroid-shadow {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   }

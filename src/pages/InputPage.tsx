@@ -8,33 +8,6 @@ import { submitTrip, ApiRequestError } from '../services/api';
 import { useTripStore } from '../stores/tripStore';
 import { getRecentTrip } from '../utils/recentTrip';
 
-const FEATURES = [
-  {
-    icon: 'fas fa-robot',
-    color: 'bg-primary-500',
-    title: 'AI 智能推荐',
-    desc: '基于大模型与偏好分析，生成个性化行程',
-  },
-  {
-    icon: 'fas fa-map-marked-alt',
-    color: 'bg-primary-400',
-    title: '行程高效合理',
-    desc: '景点路线优化，节省时间不走回头路',
-  },
-  {
-    icon: 'fas fa-heart',
-    color: 'bg-accent-400',
-    title: '体验地道精彩',
-    desc: '发现小众玩法，深入当地文化体验',
-  },
-  {
-    icon: 'fas fa-shield-alt',
-    color: 'bg-primary-600',
-    title: '实时动态调整',
-    desc: '天气、交通变化实时感知，行程灵活调整',
-  },
-];
-
 // 节奏滑块映射出的标签，与兴趣偏好同存于 preferences；回填时需从兴趣中剔除
 const PACE_TAGS = ['轻松', '适中', '紧凑'];
 
@@ -48,20 +21,6 @@ const PREFERENCE_OPTIONS = [
   { label: '拍照', icon: 'fas fa-camera' },
   { label: '夜景', icon: 'fas fa-moon' },
 ];
-
-function FeatureItem({ icon, color, title, desc }: (typeof FEATURES)[number]) {
-  return (
-    <div className="flex items-start space-x-4">
-      <div className={`${color} w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0`}>
-        <i className={icon} aria-hidden="true"></i>
-      </div>
-      <div>
-        <h3 className="font-bold text-gray-800">{title}</h3>
-        <p className="text-gray-500 text-sm">{desc}</p>
-      </div>
-    </div>
-  );
-}
 
 function PreferenceBtn({
   icon,
@@ -214,32 +173,26 @@ export default function InputPage() {
         <div className="lg:pt-12 animate-slide-up">
           <div className="mb-6 lg:mb-12">
             <h1 className="mb-3 text-3xl font-bold leading-tight text-gray-800 sm:text-4xl lg:mb-4 xl:text-5xl">
-              <span className="relative inline-block">
-                AI 智能规划
-                <span className="absolute -top-4 -right-6 text-2xl text-accent-400" aria-hidden="true">✦</span>
-              </span>
+              AI 智能规划
               <br />
               <span className="text-primary-500">更懂你的每一次旅行</span>
             </h1>
             <p className="text-base text-gray-600 sm:text-xl">云途 YunTu · 让旅行更简单，更美好</p>
           </div>
 
-          <div className="hidden space-y-8 lg:block">
-            {FEATURES.map(f => (
-              <FeatureItem key={f.title} {...f} />
-            ))}
-          </div>
+          <p className="mb-8 hidden text-lg leading-relaxed text-gray-600 lg:block">
+            告诉我们你的偏好，行程自己会长出来
+          </p>
 
           <div className="relative mt-20 hidden lg:inline-block">
             <p className="signature-font text-4xl text-primary-500 opacity-80 transform -rotate-6">
               探索世界，遇见更好的自己
             </p>
-            <span className="absolute -top-4 -right-12 text-primary-200 text-2xl" aria-hidden="true">✦</span>
           </div>
         </div>
 
         {/* 右侧：表单卡片 */}
-        <div className="glass-card relative overflow-hidden rounded-3xl p-5 animate-slide-up-delay-1 sm:p-8">
+        <div className="journal-card relative overflow-hidden rounded-3xl p-5 pl-8 animate-slide-up-delay-1 sm:p-8 sm:pl-10">
           {recentTrip && (
             <button
               type="button"
@@ -262,8 +215,7 @@ export default function InputPage() {
           )}
           <div className="mb-6 flex items-start justify-between sm:mb-8">
             <div>
-              <h2 className="flex items-center text-xl font-bold text-gray-800 sm:text-2xl">
-                <span className="text-accent-400 mr-2" aria-hidden="true">✦</span>
+              <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">
                 生成你的专属行程
               </h2>
               <p className="text-gray-500 text-sm mt-1">
@@ -474,8 +426,6 @@ export default function InputPage() {
 
       {/* 右下角拍立得装饰 */}
       <div className="fixed bottom-12 right-12 z-20 pointer-events-none hidden xl:block" aria-hidden="true">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary-400 rounded-full opacity-60 blur-sm -z-10"></div>
-
         <div className="relative transform rotate-6">
           <div className="bg-white p-3 pb-12 polaroid-shadow rounded-sm w-48">
             <div
@@ -506,9 +456,6 @@ export default function InputPage() {
         </div>
       </div>
 
-      {/* 漂浮光晕 */}
-      <div className="fixed top-1/3 -right-20 w-64 h-64 bg-primary-300/20 rounded-full blur-3xl z-0 pointer-events-none"></div>
-      <div className="fixed top-20 left-20 w-96 h-96 bg-accent-200/20 rounded-full blur-3xl z-0 pointer-events-none"></div>
     </div>
   );
 }
