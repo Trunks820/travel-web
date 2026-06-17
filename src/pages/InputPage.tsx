@@ -181,7 +181,7 @@ export default function InputPage() {
           </div>
 
           <p className="mb-8 hidden text-lg leading-relaxed text-gray-600 lg:block">
-            告诉我们你的偏好，行程自己会长出来
+            说说你想去哪、想慢还是想赶，我们帮你把日子排进本子里。
           </p>
 
           <div className="relative mt-20 hidden lg:inline-block">
