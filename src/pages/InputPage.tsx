@@ -66,6 +66,7 @@ function isoDateAfter(daysFromNow: number): string {
 export default function InputPage() {
   const navigate = useNavigate();
   const setFormData = useTripStore((s) => s.setFormData);
+  const clearResult = useTripStore((s) => s.clearResult);
   const recentTrip = useMemo(() => getRecentTrip(), []);
   // 一次性读取上次提交的表单（来自 sessionStorage），用于失败/返回首页后回填，
   // 避免用户丢掉已填的选择。getState() 只读不订阅，不会触发额外重渲染。
@@ -151,6 +152,7 @@ export default function InputPage() {
       notes: notes.trim(),
     };
     setFormData(formData);
+    clearResult(); // 清掉上一条 job 的结果，避免 loading 阶段闪现旧城市
     try {
       const res = await submitTrip(formData);
       navigate(`/planning/${res.job_id}`);

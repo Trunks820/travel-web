@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Header from "./components/layout/Header";
+import { Toast } from "./components/feedback/Toast";
 import { useOnline } from "./hooks/useOnline";
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           </div>
         </ErrorBoundary>
       </div>
+      <Toast />
     </div>
   );
 }

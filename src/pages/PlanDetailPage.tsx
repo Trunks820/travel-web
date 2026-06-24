@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense, useCallback } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Timeline } from "@/components/detail/Timeline";
 import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
 import { PlaceDetailModal } from "@/components/detail/PlaceDetailModal";
 import { BudgetCard } from "@/components/detail/BudgetCard";
 import { WeatherCard } from "@/components/detail/WeatherCard";
+import { ShareDialog } from "@/components/share/ShareDialog";
+import { ExportPDF } from "@/components/export/ExportPDF";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
 import { mockBudget, mockWeather } from "@/services/mockBudget";
+import { generatePdf } from "@/utils/exportPdf";
+import { showToast } from "@/stores/toastStore";
 import { formatDistance, formatMinutes } from "@/utils/format";
 import type { TripPlace, TripPlan, TripResult } from "@/types/trip";
 
@@ -31,19 +35,29 @@ export default function PlanDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const [detailPlace, setDetailPlace] = useState<TripPlace | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportPages, setExportPages] = useState<HTMLDivElement[] | null>(null);
   // 窄屏单栏切换：行程 / 地图 / 概览（桌面端忽略，始终三栏并排）
   const [mobileTab, setMobileTab] = useState<"itinerary" | "map" | "overview">("itinerary");
 
-  const result = storeResult ?? fetchedResult;
+  // store 缓存仅在 resultId+jobId 与当前 URL 一致时复用，否则强制 fetch，
+  // 防止上一条 job 的方案污染当前详情页
+  const matched =
+    storeResult &&
+    storeResult.resultId === resultId &&
+    storeResult.jobId === (jobId ?? "");
+
+  const result = matched ? storeResult.data : fetchedResult;
 
   useEffect(() => {
-    if (storeResult || fetchedResult || !resultId) return;
+    if (matched || fetchedResult || !resultId) return;
     setLoading(true);
     fetchResult(resultId, jobId ?? "")
-      .then((data) => { setFetchedResult(data); setResult(data); })
+      .then((data) => { setFetchedResult(data); setResult(resultId, jobId ?? "", data); })
       .catch((err) => { setError(err instanceof ApiRequestError ? err.message : "加载失败"); })
       .finally(() => setLoading(false));
-  }, [resultId, jobId, storeResult, fetchedResult, setResult]);
+  }, [resultId, jobId, matched, fetchedResult, setResult]);
 
   const plan: TripPlan | undefined = result?.plans.find((p) => p.plan_id === planId);
   const effectiveDay = selectedDay || plan?.days[0]?.day || 1;
@@ -68,6 +82,26 @@ export default function PlanDetailPage() {
       legs: currentDay.commute_legs.length,
     };
   }, [currentDay]);
+
+  const handleExport = useCallback(() => {
+    if (exporting) return;
+    setExporting(true);
+    setExportPages([]); // trigger ExportPDF render
+  }, [exporting]);
+
+  const handlePagesReady = useCallback(
+    async (pages: HTMLDivElement[]) => {
+      try {
+        await generatePdf(pages, `云途-${result?.city.name ?? "行程"}-${plan?.title ?? "方案"}.pdf`);
+      } catch {
+        showToast("导出失败，请重试", "error");
+      } finally {
+        setExporting(false);
+        setExportPages(null);
+      }
+    },
+    [result, plan],
+  );
 
   if (loading) return <DetailSkeleton />;
 
@@ -102,7 +136,7 @@ export default function PlanDetailPage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 text-sm font-medium text-gray-600 sm:gap-4">
-          <button aria-label="分享（即将上线）" disabled title="即将上线" className="flex items-center gap-1.5 rounded-lg p-2 text-gray-400 cursor-not-allowed opacity-60 sm:p-0">
+          <button aria-label="分享" onClick={() => setShareOpen(true)} className="flex items-center gap-1.5 rounded-lg p-2 text-gray-600 transition-colors hover:bg-primary-50 hover:text-primary-600 sm:p-0">
             <i className="fa-solid fa-share-nodes" aria-hidden="true" /> <span className="hidden sm:inline">分享</span>
           </button>
           <button aria-label="收藏（即将上线）" disabled title="即将上线" className="flex items-center gap-1.5 rounded-lg p-2 text-gray-400 cursor-not-allowed opacity-60 sm:p-0">
@@ -147,8 +181,13 @@ export default function PlanDetailPage() {
         >
           <BudgetCard data={budget} />
           <WeatherCard data={weather} />
-          <button className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-700">
-            <i className="fa-solid fa-download" aria-hidden="true" /> 导出行程
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <i className={exporting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-download"} aria-hidden="true" />
+            {exporting ? "正在导出..." : "导出行程"}
           </button>
         </aside>
 
@@ -219,6 +258,10 @@ export default function PlanDetailPage() {
       </div>
 
       <PlaceDetailModal place={detailPlace} onClose={() => setDetailPlace(null)} />
+      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} result={result} plan={plan} />
+      {exporting && exportPages !== null && result && plan && (
+        <ExportPDF result={result} plan={plan} onReady={handlePagesReady} />
+      )}
     </div>
   );
 }

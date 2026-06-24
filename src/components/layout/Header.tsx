@@ -5,13 +5,13 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const result = useTripStore((s) => s.result);
-  const currentJobId = useTripStore((s) => s.currentJobId);
 
-  // 「目的地」= 当前结果页：有结果跳结果页，否则回首页填表
+  // 「目的地」= 当前结果页：有结果跳结果页，否则回首页填表。
+  // job_id 用绑定在结果上的 jobId（而非 currentJobId，后者可能已指向新任务）
   const goDestination = () => {
     if (result) {
-      const q = currentJobId ? `?job_id=${encodeURIComponent(currentJobId)}` : '';
-      navigate(`/result/${result.result_id}${q}`);
+      const q = `?job_id=${encodeURIComponent(result.jobId)}`;
+      navigate(`/result/${result.data.result_id}${q}`);
     } else {
       navigate('/');
     }

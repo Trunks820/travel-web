@@ -3,6 +3,14 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { TripFormData } from "@/types/form";
 import type { JobStatus, StageProgress, TripResult } from "@/types/trip";
 
+// 结果绑定 resultId+jobId 身份，页面据此判断 store 缓存是否属于当前 URL，
+// 避免上一条 job 的结果污染下一条（见 ResultPage/PlanDetailPage 的 matched 守卫）
+export interface StoredResult {
+  resultId: string;
+  jobId: string;
+  data: TripResult;
+}
+
 interface TripStore {
   formData: TripFormData | null;
   setFormData: (data: TripFormData) => void;
@@ -16,8 +24,9 @@ interface TripStore {
     progress: StageProgress | null,
   ) => void;
 
-  result: TripResult | null;
-  setResult: (result: TripResult) => void;
+  result: StoredResult | null;
+  setResult: (resultId: string, jobId: string, data: TripResult) => void;
+  clearResult: () => void;
 
   selectedPlanId: string | null;
   selectedDay: number;
@@ -47,7 +56,10 @@ export const useTripStore = create<TripStore>()(
       setJob: (jobId, status, progress) =>
         set({ currentJobId: jobId, jobStatus: status, stageProgress: progress }),
 
-      setResult: (result) => set({ result }),
+      setResult: (resultId, jobId, data) =>
+        set({ result: { resultId, jobId, data } }),
+
+      clearResult: () => set({ result: null }),
 
       selectPlan: (planId) => set({ selectedPlanId: planId, selectedDay: 1 }),
 

@@ -121,8 +121,8 @@ export default function DemoResultPage() {
   const setResult = useTripStore((s) => s.setResult);
 
   useEffect(() => {
-    setResult(MOCK_RESULT);
-    navigate("/result/999", { replace: true });
+    setResult("999", "demo", MOCK_RESULT);
+    navigate("/result/999?job_id=demo", { replace: true });
   }, [setResult, navigate]);
 
   return null;

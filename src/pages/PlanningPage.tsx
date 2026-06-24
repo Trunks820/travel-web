@@ -8,7 +8,7 @@ import {
 } from "@/components/input/RotatingBackground";
 import { useTripStore } from "@/stores/tripStore";
 import { pollJobStatus, submitTrip, ApiRequestError } from "@/services/api";
-import { usePolling } from "@/hooks/usePolling";
+import { useJobProgress } from "@/hooks/useJobProgress";
 import { webErrorMessage } from "@/constants/errors";
 import type { StageCode, JobResponse } from "@/types/trip";
 
@@ -16,6 +16,7 @@ export default function PlanningPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const setJob = useTripStore((s) => s.setJob);
+  const clearResult = useTripStore((s) => s.clearResult);
   const formData = useTripStore((s) => s.formData);
 
   const destination = formData?.to_city ?? "目的地";
@@ -29,8 +30,6 @@ export default function PlanningPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [networkUnstable, setNetworkUnstable] = useState(false);
-
-  const fetcher = useCallback(() => pollJobStatus(jobId!), [jobId]);
 
   const onData = useCallback(
     (data: JobResponse): boolean => {
@@ -63,11 +62,9 @@ export default function PlanningPage() {
     setNetworkUnstable(count >= 3);
   }, []);
 
-  const { stop } = usePolling({
-    fetcher,
+  const { stop } = useJobProgress({
+    jobId,
     onData,
-    interval: 2500,
-    maxAttempts: 144,
     onTimeout,
     onConsecutiveErrors,
     consecutiveErrorThreshold: 3,
@@ -106,6 +103,7 @@ export default function PlanningPage() {
     if (!formData || retrying) return;
     setRetrying(true);
     setErrorMessage(null);
+    clearResult(); // 重试发起新 job，先清掉可能残留的旧结果
     try {
       const res = await submitTrip(formData);
       setFailed(false);

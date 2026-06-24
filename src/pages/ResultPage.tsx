@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PlanSummaryCard } from "@/components/result/PlanSummaryCard";
 import { ResultSkeleton } from "@/components/skeleton/ResultSkeleton";
+import { ShareDialog } from "@/components/share/ShareDialog";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
 import { cityImageList } from "@/components/input/RotatingBackground";
@@ -17,9 +18,19 @@ export default function ResultPage() {
   const storeResult = useTripStore((s) => s.result);
   const setResult = useTripStore((s) => s.setResult);
 
-  const [result, setLocal] = useState<TripResult | null>(storeResult);
-  const [loading, setLoading] = useState(!storeResult);
+  // store 缓存只在 resultId+jobId 与当前 URL 一致时才复用，否则按 URL 重新拉取，
+  // 避免上一条 job 的结果污染当前页（如北京结果显示在上海页）
+  const matched =
+    storeResult &&
+    storeResult.resultId === resultId &&
+    storeResult.jobId === (jobId ?? "");
+
+  const [result, setLocal] = useState<TripResult | null>(
+    matched ? storeResult.data : null,
+  );
+  const [loading, setLoading] = useState(!matched);
   const [error, setError] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (result || !resultId) return;
@@ -28,7 +39,7 @@ export default function ResultPage() {
     fetchResult(resultId, jobId ?? "")
       .then((data) => {
         setLocal(data);
-        setResult(data);
+        setResult(resultId, jobId ?? "", data);
       })
       .catch((err) => {
         setError(err instanceof ApiRequestError ? err.message : "加载失败");
@@ -94,11 +105,10 @@ export default function ResultPage() {
         {/* 操作栏 */}
         <div className="mb-6 flex flex-wrap justify-end gap-2 sm:gap-3">
           <button
-            disabled
-            title="即将上线"
-            className="flex items-center rounded-full border border-primary-100 bg-white/50 px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed opacity-70 sm:px-5"
+            onClick={() => setShareOpen(true)}
+            className="flex items-center rounded-full border border-primary-100 bg-white/50 px-4 py-2 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50 sm:px-5"
           >
-            <i className="fas fa-share-nodes mr-1.5 text-gray-300 sm:mr-2" aria-hidden="true" /> 分享
+            <i className="fas fa-share-nodes mr-1.5 text-primary-500 sm:mr-2" aria-hidden="true" /> 分享
           </button>
           <button
             disabled
@@ -160,6 +170,7 @@ export default function ResultPage() {
           </p>
         </div>
       </main>
+      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} result={result} />
     </div>
   );
 }
