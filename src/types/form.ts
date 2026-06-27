@@ -7,6 +7,8 @@ export interface TripFormData {
   preferences: string[];
   avoid: string[];
   notes: string;
+  /** 人均预算上限（元），来自首页预算滑块 */
+  budget: number;
 }
 
 export const DEFAULT_FORM: TripFormData = {
@@ -18,4 +20,5 @@ export const DEFAULT_FORM: TripFormData = {
   preferences: [],
   avoid: [],
   notes: "",
+  budget: 5000,
 };

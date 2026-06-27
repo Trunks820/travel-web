@@ -3,18 +3,20 @@ import { useState } from "react";
 interface BudgetSliderProps {
   min?: number;
   max?: number;
-  onChange: (range: [number, number]) => void;
+  /** 初始人均预算值（默认 5000） */
+  value?: number;
+  onChange: (value: number) => void;
   labelId?: string;
 }
 
 const TICKS = [1000, 3000, 5000, 8000, 12000];
 
-export function BudgetSlider({ min = 1000, max = 12000, onChange, labelId }: BudgetSliderProps) {
-  const [value, setValue] = useState(5000);
+export function BudgetSlider({ min = 1000, max = 12000, value: initial = 5000, onChange, labelId }: BudgetSliderProps) {
+  const [value, setValue] = useState(initial);
 
   const handleChange = (newVal: number) => {
     setValue(newVal);
-    onChange([min, newVal]);
+    onChange(newVal);
   };
 
   const percent = ((value - min) / (max - min)) * 100;

@@ -87,6 +87,7 @@ export default function InputPage() {
     storedPrefs?.includes('轻松') ? 20 : storedPrefs?.includes('紧凑') ? 80 : 60,
   );
   const [notes, setNotes] = useState(stored?.notes ?? '');
+  const [budget, setBudget] = useState(stored?.budget ?? 5000);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | undefined>(undefined);
@@ -148,8 +149,10 @@ export default function InputPage() {
       preferences: [...preferences, paceTag],
       avoid: [],
       // 仅发用户在「特殊需求」里输入的真实文本；
-      // 节奏走 preferences、预算后端暂不解析故不发、多城市后端暂不支持
+      // 节奏走 preferences、多城市后端暂不支持
       notes: notes.trim(),
+      // 人均预算上限，来自预算滑块；后端是否解析由后端决定，前端先发
+      budget,
     };
     setFormData(formData);
     clearResult(); // 清掉上一条 job 的结果，避免 loading 阶段闪现旧城市
@@ -371,7 +374,7 @@ export default function InputPage() {
                 <span className="text-xs text-gray-400 ml-3 font-normal">不含往返大交通</span>
               </div>
               <div className="px-2">
-                <BudgetSlider min={1000} max={12000} onChange={() => {}} labelId="budget-label" />
+                <BudgetSlider min={1000} max={12000} value={budget} onChange={setBudget} labelId="budget-label" />
               </div>
             </div>
 
