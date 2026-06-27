@@ -9,3 +9,5 @@ dist
 .idea/
 .tmp-*
 docs/city/
+.claude/
+vite.local-sse.config.ts

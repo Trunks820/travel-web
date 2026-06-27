@@ -29,7 +29,8 @@ export default function ResultPage() {
     matched ? storeResult.data : null,
   );
   const [loading, setLoading] = useState(!matched);
-  const [error, setError] = useState<string | null>(null);
+  // notfound=攻略不存在(404)；unsupported=旧版本生成不兼容(422)；generic=其他
+  const [error, setError] = useState<{ kind: "notfound" | "unsupported" | "generic"; message: string } | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
@@ -42,7 +43,17 @@ export default function ResultPage() {
         setResult(resultId, jobId ?? "", data);
       })
       .catch((err) => {
-        setError(err instanceof ApiRequestError ? err.message : "加载失败");
+        if (err instanceof ApiRequestError) {
+          if (err.status === 404) {
+            setError({ kind: "notfound", message: "攻略不存在" });
+          } else if (err.status === 422 && err.code === "RESULT_CONTRACT_UNSUPPORTED") {
+            setError({ kind: "unsupported", message: "该攻略由旧版本生成，暂不支持打开，请重新生成" });
+          } else {
+            setError({ kind: "generic", message: err.message });
+          }
+        } else {
+          setError({ kind: "generic", message: "加载失败" });
+        }
       })
       .finally(() => setLoading(false));
   }, [resultId, jobId, result, setResult]);
@@ -71,14 +82,16 @@ export default function ResultPage() {
   if (loading) return <ResultSkeleton />;
 
   if (error || !result || result.plans.length === 0) {
+    const kind = error?.kind;
+    const icon = kind === "notfound" ? "🔍" : kind === "unsupported" ? "🕰️" : error ? "😵" : "🗺️";
     return (
       <div className="empty-state animate-fade-in">
-        <span className="empty-state-icon">{error ? "😵" : "🗺️"}</span>
-        <p className="text-sm font-medium text-primary-700">
-          {error ?? "暂时无法生成方案，请稍后重试"}
+        <span className="empty-state-icon">{icon}</span>
+        <p className="max-w-xs text-sm font-medium text-primary-700">
+          {error?.message ?? "暂时无法生成方案，请稍后重试"}
         </p>
         <button onClick={() => navigate("/")} className="btn-primary mt-2">
-          重新规划
+          {kind === "unsupported" ? "重新生成" : "重新规划"}
         </button>
       </div>
     );

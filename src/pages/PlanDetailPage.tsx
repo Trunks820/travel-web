@@ -9,7 +9,7 @@ import { ShareDialog } from "@/components/share/ShareDialog";
 import { ExportPDF } from "@/components/export/ExportPDF";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
-import { mockBudget, mockWeather } from "@/services/mockBudget";
+import { mockBudget } from "@/services/mockBudget";
 import { generatePdf } from "@/utils/exportPdf";
 import { showToast } from "@/stores/toastStore";
 import { formatDistance, formatMinutes } from "@/utils/format";
@@ -32,7 +32,8 @@ export default function PlanDetailPage() {
 
   const [fetchedResult, setFetchedResult] = useState<TripResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // 结果加载错误：notfound=攻略不存在(404)；unsupported=旧版本生成不兼容(422)；generic=其他
+  const [error, setError] = useState<{ kind: "notfound" | "unsupported" | "generic"; message: string } | null>(null);
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const [detailPlace, setDetailPlace] = useState<TripPlace | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -55,7 +56,20 @@ export default function PlanDetailPage() {
     setLoading(true);
     fetchResult(resultId, jobId ?? "")
       .then((data) => { setFetchedResult(data); setResult(resultId, jobId ?? "", data); })
-      .catch((err) => { setError(err instanceof ApiRequestError ? err.message : "加载失败"); })
+      .catch((err) => {
+        if (err instanceof ApiRequestError) {
+          // 404 攻略不存在；422 + RESULT_CONTRACT_UNSUPPORTED 旧版本生成不兼容（v0.8.3 契约）
+          if (err.status === 404) {
+            setError({ kind: "notfound", message: "攻略不存在" });
+          } else if (err.status === 422 && err.code === "RESULT_CONTRACT_UNSUPPORTED") {
+            setError({ kind: "unsupported", message: "该攻略由旧版本生成，暂不支持打开，请重新生成" });
+          } else {
+            setError({ kind: "generic", message: err.message });
+          }
+        } else {
+          setError({ kind: "generic", message: "加载失败" });
+        }
+      })
       .finally(() => setLoading(false));
   }, [resultId, jobId, matched, fetchedResult, setResult]);
 
@@ -65,10 +79,9 @@ export default function PlanDetailPage() {
 
   const people = result?.request.people_count ?? 1;
   const budget = useMemo(() => (plan ? mockBudget(plan, people) : null), [plan, people]);
-  const weather = useMemo(
-    () => (result ? mockWeather(result.city.name, plan?.days.length ?? 5) : null),
-    [result, plan],
-  );
+  // 天气来自后端 TripResult.weather。有数据则渲染预报；status 非 ok（日期太远/未开启等）
+  // 渲染友好说明而非整卡消失，让用户知道"为什么没有天气"
+  const weather = result?.weather ?? null;
 
   // 今日行程概览（真实数据：里程/用时来自 commute_legs，景点数来自 places）
   const summary = useMemo(() => {
@@ -105,12 +118,17 @@ export default function PlanDetailPage() {
 
   if (loading) return <DetailSkeleton />;
 
-  if (error || !result || !plan || !currentDay || !budget || !weather) {
+  if (error || !result || !plan || !currentDay || !budget) {
+    const kind = error?.kind ?? "generic";
+    const icon = kind === "notfound" ? "🔍" : kind === "unsupported" ? "🕰️" : "📋";
+    const message = error?.message ?? "方案未找到";
     return (
       <div className="empty-state animate-fade-in">
-        <span className="empty-state-icon">📋</span>
-        <p className="text-sm font-medium text-primary-700">{error ?? "方案未找到"}</p>
-        <button onClick={() => navigate("/")} className="btn-primary mt-2">重新规划</button>
+        <span className="empty-state-icon">{icon}</span>
+        <p className="max-w-xs text-sm font-medium text-primary-700">{message}</p>
+        <button onClick={() => navigate("/")} className="btn-primary mt-2">
+          {kind === "unsupported" ? "重新生成" : "重新规划"}
+        </button>
       </div>
     );
   }
@@ -180,7 +198,7 @@ export default function PlanDetailPage() {
           }`}
         >
           <BudgetCard data={budget} />
-          <WeatherCard data={weather} />
+          {weather && <WeatherCard data={weather} activeDay={effectiveDay} />}
           <button
             onClick={handleExport}
             disabled={exporting}
@@ -223,7 +241,14 @@ export default function PlanDetailPage() {
             })}
           </div>
           <div className="flex-1 overflow-y-auto">
-            <Timeline day={currentDay} activePlaceId={activePlaceId} onPlaceClick={setDetailPlace} />
+            <Timeline
+              day={currentDay}
+              activePlaceId={activePlaceId}
+              onPlaceClick={(place) => {
+                setActivePlaceId(place.place_id);
+                setDetailPlace(place);
+              }}
+            />
           </div>
         </section>
 

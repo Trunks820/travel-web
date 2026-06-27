@@ -82,7 +82,6 @@ interface RawJobStatus {
   job_id: string;
   status: string; // PENDING | RUNNING | SUCCESS | FAILED | TIMEOUT | REJECTED
   current_stage: string | null;
-  reply_text: string | null;
   error_message: string | null;
   error_code: string | null;
   result_record_id: number | null;
