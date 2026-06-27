@@ -72,6 +72,27 @@ export interface TripPlan {
   days: TripDay[];
 }
 
+/** 后端 weather.status：ok 为正常，其余（skipped_disabled / failed…）一律视为无数据 */
+export type WeatherStatus = "ok" | string;
+
+/** 与后端 weather.days[] 字段一一对应 */
+export interface WeatherDay {
+  day: number;
+  date: string; // "2026-06-28"
+  weather_text: string; // "中雨转大雨"
+  temp_min_c: number;
+  temp_max_c: number;
+  wind_text: string; // "东风 1级"
+  icon_code: string; // 见 constants/weather.ts 映射
+  reminders: string[];
+}
+
+export interface TripWeather {
+  status: WeatherStatus;
+  city: string;
+  days: WeatherDay[];
+}
+
 export interface TripResult {
   schema_version: string;
   result_id: number;
@@ -82,6 +103,7 @@ export interface TripResult {
     preferences: string[];
     avoid: string[];
   };
+  weather?: TripWeather | null;
   plans: TripPlan[];
 }
 
