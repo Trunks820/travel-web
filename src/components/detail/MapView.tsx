@@ -99,6 +99,7 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // day 变化：重建全部覆盖物并 fitView 全览
   useEffect(() => {
     const AMap = amapRef.current;
     const map = mapRef.current;
@@ -109,7 +110,24 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
     updatePolylines(AMap, map, day, polylinesRef);
     fitView(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day, activePlaceId]);
+  }, [day]);
+
+  // activePlaceId 变化：重建 marker 更新高亮，并平移到选中点（不重置缩放）
+  useEffect(() => {
+    const AMap = amapRef.current;
+    const map = mapRef.current;
+    if (!AMap || !map) return;
+
+    clearOverlays(markersRef, polylinesRef);
+    updateMarkers(AMap, map, day, activePlaceId, onMarkerClick, markersRef);
+    updatePolylines(AMap, map, day, polylinesRef);
+
+    const active = day.places.find((p) => p.place_id === activePlaceId);
+    if (active?.longitude && active?.latitude) {
+      map.panTo([active.longitude, active.latitude], 250);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePlaceId]);
 
   if (error)
     return (
@@ -172,12 +190,25 @@ function updateMarkers(AMap: any, map: any, day: TripDay, activePlaceId: number 
 
     const isActive = place.place_id === activePlaceId;
     const isAnchor = isAnchorRole(place.role);
-    const bg = isActive ? "#0c625b" : isAnchor ? "#0f766e" : "#9a8672";
+    const bg = isActive ? "#0c625b" : isAnchor ? "#0f766e" : "#fb923c";
+    // 选中态：圆点放大、白描边加粗、整块加阴影与边框高亮
+    const dot = isActive ? 30 : 24;
+    const ring = isActive ? 3 : 2;
+    const nameWeight = isActive ? 700 : 600;
+    const nameColor = isActive ? "#0a4f49" : "#374151";
+    const nameBg = isActive ? "#eef9f7" : "rgba(255,255,255,.92)";
+    const nameBorder = isActive ? "#6ec6bb" : "#e5e7eb";
 
     const marker = new AMap.Marker({
       position: [place.longitude, place.latitude],
-      content: `<div style="width:24px;height:24px;border-radius:50%;background:${bg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.25);border:2px solid #fff">${i + 1}</div>`,
-      offset: new AMap.Pixel(-12, -12),
+      // 选中项提到最上层，避免被其它 marker 名称遮住
+      zIndex: isActive ? 200 : 100,
+      content: `
+        <div style="display:flex;align-items:center;gap:5px;transform:translate(-${dot / 2}px,-${dot / 2}px);white-space:nowrap;cursor:pointer">
+          <div style="width:${dot}px;height:${dot}px;border-radius:50%;background:${bg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:${isActive ? 14 : 12}px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.28);border:${ring}px solid #fff">${i + 1}</div>
+          <div style="font-size:12px;font-weight:${nameWeight};color:${nameColor};background:${nameBg};border:1px solid ${nameBorder};border-radius:8px;padding:2px 7px;box-shadow:0 1px 4px rgba(0,0,0,.12);backdrop-filter:blur(2px)">${place.name}</div>
+        </div>`,
+      offset: new AMap.Pixel(0, 0),
     });
 
     marker.on("click", () => onMarkerClick?.(place.place_id));
@@ -194,12 +225,12 @@ function updatePolylines(AMap: any, map: any, day: TripDay, polylinesRef: React.
     if (!from?.longitude || !to?.longitude) return;
 
     let path: [number, number][];
-    let strokeStyle: "solid" | "dashed" = "dashed";
+    let hasRealRoute = false;
 
     if (leg.encoded_polyline) {
       try {
         path = decodePolyline(leg.encoded_polyline);
-        strokeStyle = "solid";
+        hasRealRoute = true;
       } catch {
         path = [
           [from.longitude, from.latitude],
@@ -213,13 +244,33 @@ function updatePolylines(AMap: any, map: any, day: TripDay, polylinesRef: React.
       ];
     }
 
+    const color = MODE_COLOR[leg.mode] ?? "#94a3b8";
+
+    // 底层：白色描边线（比主线更粗），让彩色路线在地图底图上跳得出来——竞品(高德)的关键手法
+    const outline = new AMap.Polyline({
+      path,
+      strokeColor: "#ffffff",
+      strokeWeight: 9,
+      strokeOpacity: 0.9,
+      lineJoin: "round",
+      lineCap: "round",
+      zIndex: 50,
+    });
+    map.add(outline);
+    polylinesRef.current.push(outline);
+
+    // 上层：彩色实线 + 方向箭头。无真实路网(直线段)用虚线区分"非实际路径"，但仍加粗醒目
     const polyline = new AMap.Polyline({
       path,
-      strokeColor: MODE_COLOR[leg.mode] ?? "#94a3b8",
-      strokeWeight: strokeStyle === "solid" ? 4 : 3,
-      strokeStyle,
-      strokeOpacity: strokeStyle === "solid" ? 0.8 : 0.7,
-      strokeDasharray: strokeStyle === "dashed" ? [8, 4] : undefined,
+      strokeColor: color,
+      strokeWeight: 6,
+      strokeStyle: hasRealRoute ? "solid" : "dashed",
+      strokeOpacity: 0.95,
+      strokeDasharray: hasRealRoute ? undefined : [12, 6],
+      showDir: true, // 行进方向箭头，一眼看出走向
+      lineJoin: "round",
+      lineCap: "round",
+      zIndex: 51,
     });
 
     map.add(polyline);

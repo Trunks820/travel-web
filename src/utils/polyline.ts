@@ -1,36 +1,21 @@
+/**
+ * 解析高德路径规划 API 的 polyline 明文串。
+ * 格式："lng,lat;lng,lat;..."（经度,纬度，分号分隔，GCJ-02 坐标系）。
+ * 后端把一个 commute_leg 跨越的所有 steps[].polyline 拼接成一条传入。
+ * 返回 [lng, lat][]，与高德地图 AMap.Polyline 的 path 顺序一致。
+ */
 export function decodePolyline(encoded: string): [number, number][] {
   const coords: [number, number][] = [];
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
+  if (!encoded) return coords;
 
-  while (index < encoded.length) {
-    let shift = 0;
-    let result = 0;
-    let byte: number;
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-
-    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
-    lat += dlat;
-
-    shift = 0;
-    result = 0;
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-
-    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
-    lng += dlng;
-
-    coords.push([lng / 1e5, lat / 1e5]);
+  for (const pair of encoded.split(";")) {
+    if (!pair) continue;
+    const [lngStr, latStr] = pair.split(",");
+    const lng = Number(lngStr);
+    const lat = Number(latStr);
+    if (Number.isFinite(lng) && Number.isFinite(lat)) {
+      coords.push([lng, lat]);
+    }
   }
 
   return coords;
