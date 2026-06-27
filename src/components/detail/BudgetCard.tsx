@@ -9,7 +9,7 @@ export function BudgetCard({ data }: BudgetCardProps) {
   const remaining = Math.max(0, budgetCap - total);
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
+    <div className="rounded-xl bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
       <div className="mb-1 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-800">预算总览（{people}人）</h2>
         <span
@@ -20,15 +20,15 @@ export function BudgetCard({ data }: BudgetCardProps) {
         </span>
       </div>
       <div className="mb-4 flex items-end justify-between">
-        <div className="text-3xl font-bold text-primary-600">¥ {total.toLocaleString()}</div>
-        <div className="mb-1 text-xs text-gray-500">总预算 ¥ {budgetCap.toLocaleString()}</div>
+        <div className="text-3xl font-bold text-primary-600 tabular-nums">¥ {total.toLocaleString()}</div>
+        <div className="mb-1 text-xs text-gray-500 tabular-nums">总预算 ¥ {budgetCap.toLocaleString()}</div>
       </div>
 
       <div className="mb-5">
         <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
           <div className="h-1.5 rounded-full bg-primary-500" style={{ width: `${usedPercent}%` }} />
         </div>
-        <div className="flex justify-between text-[11px] text-gray-500">
+        <div className="flex justify-between text-[11px] text-gray-500 tabular-nums">
           <span>已使用 {usedPercent}%</span>
           <span>剩余 ¥ {remaining.toLocaleString()}</span>
         </div>
@@ -44,7 +44,7 @@ export function BudgetCard({ data }: BudgetCardProps) {
             <div className="mx-3 flex h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100">
               <div className="h-1.5 rounded-full bg-primary-500" style={{ width: `${item.percentage}%` }} />
             </div>
-            <div className="flex w-[60px] flex-col text-right">
+            <div className="flex w-[60px] flex-col text-right tabular-nums">
               <div className="mb-0.5 font-semibold text-gray-700">¥ {item.amount.toLocaleString()}</div>
               <div className="text-[10px] leading-none text-gray-400">{item.percentage}%</div>
             </div>

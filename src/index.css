@@ -220,6 +220,12 @@
     content: "";
     animation: loadingDots 1.4s steps(4, end) infinite;
   }
+
+  /* 数字列等宽，防止金额/温度/时刻在变化或对齐时宽度跳动 */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
 }
 
 @keyframes pageEnter {
@@ -264,7 +270,8 @@
   .animate-bg-fade-in,
   .page-enter,
   .stagger > *,
-  .stagger-fade > * {
+  .stagger-fade > *,
+  .loading-dots::after {
     animation: none !important;
   }
 }

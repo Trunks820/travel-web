@@ -20,10 +20,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
   const schedule = computeSchedule(day);
 
   return (
-    <div className="relative px-5 py-5">
-      {/* 连接竖线 */}
-      <div className="absolute left-[86px] top-10 bottom-10 w-px bg-gray-200" aria-hidden="true" />
-
+    <div className="px-5 py-5">
       <div className="stagger relative space-y-1">
         {day.places.map((place, i) => {
           const sched = schedule.get(place.place_id);
@@ -35,12 +32,19 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
             <div key={place.place_id} style={{ "--i": i } as CSSProperties}>
               <div className="flex gap-4">
                 {/* 时刻列 */}
-                <div className="w-12 shrink-0 pt-2.5 text-right text-[13px] font-medium text-gray-500">
+                <div className="w-12 shrink-0 pt-2.5 text-right text-[13px] font-medium text-gray-500 tabular-nums">
                   {sched?.arrive ?? ""}
                 </div>
 
                 {/* 节点 */}
                 <div className="relative shrink-0 pt-2.5">
+                  {/* 连线：从本圆点底部连到下一项圆点（最后一项不画，避免溢出到正文） */}
+                  {i < day.places.length - 1 && (
+                    <div
+                      className="absolute left-1/2 top-[34px] -bottom-1 w-px -translate-x-1/2 bg-gray-200"
+                      aria-hidden="true"
+                    />
+                  )}
                   <div
                     className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm ${
                       anchor ? "bg-primary-600" : "bg-accent-400"
@@ -73,7 +77,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                   </div>
 
                   {sched && (
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-400">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-400 tabular-nums">
                       <i className="fa-regular fa-clock" aria-hidden="true" />
                       {sched.arrive} - {sched.leave}
                     </div>
@@ -98,7 +102,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                 <div className="flex gap-4 py-1.5">
                   <div className="w-12 shrink-0" />
                   <div className="w-6 shrink-0" />
-                  <div className="flex w-fit items-center gap-2 rounded-md border border-gray-100 bg-[#f8f9fa] px-2.5 py-1.5 text-[11px] font-medium text-gray-500">
+                  <div className="flex w-fit items-center gap-2 rounded-md border border-gray-100 bg-[#f8f9fa] px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums">
                     <i className={`fa-solid ${MODE_ICON[leg.mode] ?? "fa-route"} text-[10px] text-gray-400`} aria-hidden="true" />
                     {commuteModeName(leg.mode)} {formatMinutes(leg.duration_minutes)}
                     <span className="text-gray-300">|</span>
