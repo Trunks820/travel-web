@@ -14,6 +14,7 @@ const MODE_ICON: Record<string, string> = {
   walking: "fa-person-walking",
   transit: "fa-bus",
   taxi: "fa-car",
+  driving: "fa-car",
 };
 
 export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {

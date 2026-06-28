@@ -9,6 +9,7 @@ const MODE_ICON: Record<string, string> = {
   walking: "🚶",
   transit: "🚌",
   taxi: "🚕",
+  driving: "🚗",
 };
 
 export function CommuteLeg({ leg }: CommuteLegProps) {

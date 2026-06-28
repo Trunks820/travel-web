@@ -15,6 +15,7 @@ export function commuteModeName(mode: string): string {
     walking: "步行",
     transit: "公交",
     taxi: "打车",
+    driving: "驾车",
   };
   return map[mode] ?? mode;
 }

@@ -14,6 +14,7 @@ const MODE_COLOR: Record<string, string> = {
   walking: "#0f766e",
   transit: "#1d9e91",
   taxi: "#f97316",
+  driving: "#1d9e91",
 };
 
 export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
