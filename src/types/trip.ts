@@ -40,6 +40,21 @@ export interface TripPlace {
   stay_minutes?: number;
 }
 
+/** GET /trip/places/{id} 响应（v0.8.5 合同）。空字段前端按空态隐藏，后端不给假文案。 */
+export interface PlaceDetail {
+  place_id: number;
+  name: string;
+  place_type: string; // 与 TripPlace.category 同一套取值，复用 categoryIcon()
+  district: string;
+  longitude: number;
+  latitude: number;
+  summary: string;
+  top_reasons: string[];
+  warnings: string[];
+  source_count: number;
+  mention_count: number;
+}
+
 export interface CommuteLeg {
   from_place_id: number;
   to_place_id: number;

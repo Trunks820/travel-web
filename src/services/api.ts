@@ -3,6 +3,7 @@ import type {
   AsyncSubmitResponse,
   JobResponse,
   JobStatus,
+  PlaceDetail,
   TripResult,
 } from "@/types/trip";
 import { getConversationId } from "@/utils/session";
@@ -161,4 +162,12 @@ export async function fetchResult(
   return request<TripResult>(
     `/trip/results/${resultId}?job_id=${encodeURIComponent(jobId)}`,
   );
+}
+
+/**
+ * POI 详情（v0.8.5）。按需请求，失败由调用方局部降级（弹窗保留基础信息）。
+ * 404 PLACE_NOT_FOUND / 422 PLACE_UNSUPPORTED 都会以 ApiRequestError 抛出。
+ */
+export async function fetchPlaceDetail(placeId: number): Promise<PlaceDetail> {
+  return request<PlaceDetail>(`/trip/places/${placeId}`);
 }
