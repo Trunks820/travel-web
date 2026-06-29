@@ -78,7 +78,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                   </div>
 
                   {sched && (
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-400 tabular-nums">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-500 tabular-nums">
                       <i className="fa-regular fa-clock" aria-hidden="true" />
                       {sched.arrive} - {sched.leave}
                     </div>
@@ -118,7 +118,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
 
       {/* 当日通勤小结 + 叙述 */}
       {day.commute_summary && (
-        <p className="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-400">{day.commute_summary}</p>
+        <p className="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-500">{day.commute_summary}</p>
       )}
       {day.narrative && (
         <p className="mt-3 rounded-xl bg-primary-50/50 p-3.5 text-[13px] leading-relaxed text-primary-700">

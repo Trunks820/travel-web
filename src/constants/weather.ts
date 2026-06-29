@@ -1,12 +1,23 @@
 /** 后端 weather.days[].icon_code → emoji。后端取值集见 hermes-travel。 */
 const WEATHER_ICON_EMOJI: Record<string, string> = {
   sunny: "☀️",
+  clear: "☀️",
   cloudy: "☁️",
   partly_cloudy: "⛅",
   overcast: "🌥️",
   rain: "🌧️",
+  light_rain: "🌦️",
+  moderate_rain: "🌧️",
   heavy_rain: "⛈️",
+  thunderstorm: "⛈️",
+  thunder: "⛈️",
   snow: "🌨️",
+  light_snow: "🌨️",
+  heavy_snow: "❄️",
+  sleet: "🌨️",
+  fog: "🌫️",
+  haze: "😶‍🌫️",
+  windy: "💨",
   unknown: "🌡️",
 };
 

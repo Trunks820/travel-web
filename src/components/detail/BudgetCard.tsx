@@ -46,7 +46,7 @@ export function BudgetCard({ data }: BudgetCardProps) {
             </div>
             <div className="flex w-[60px] flex-col text-right tabular-nums">
               <div className="mb-0.5 font-semibold text-gray-700">¥ {item.amount.toLocaleString()}</div>
-              <div className="text-[10px] leading-none text-gray-400">{item.percentage}%</div>
+              <div className="text-[10px] leading-none text-gray-500">{item.percentage}%</div>
             </div>
           </div>
         ))}

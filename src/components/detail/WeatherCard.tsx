@@ -42,7 +42,7 @@ export function WeatherCard({ data, activeDay }: WeatherCardProps) {
         </div>
         <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-3">
           <i className="fa-solid fa-cloud-sun text-lg text-gray-300" aria-hidden="true" />
-          <p className="text-[11px] leading-relaxed text-gray-400">{hint}</p>
+          <p className="text-[11px] leading-relaxed text-gray-500">{hint}</p>
         </div>
       </div>
     );
@@ -54,7 +54,7 @@ export function WeatherCard({ data, activeDay }: WeatherCardProps) {
     <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-800">{city}天气预报</h2>
-        <span className="text-[11px] text-gray-400">未来 {days.length} 天</span>
+        <span className="text-[11px] text-gray-500">未来 {days.length} 天</span>
       </div>
 
       {/* 提醒条（黄色，贴卡顶） */}
@@ -77,7 +77,7 @@ export function WeatherCard({ data, activeDay }: WeatherCardProps) {
             <span className="text-4xl font-bold text-gray-800 tabular-nums">{head.temp_max_c}°</span>
             <span className="text-xs font-medium text-gray-600">{head.weather_text}</span>
           </div>
-          <div className="mt-1 text-[11px] text-gray-400 tabular-nums">
+          <div className="mt-1 text-[11px] text-gray-500 tabular-nums">
             最低 {head.temp_min_c}° · {head.wind_text}
           </div>
         </div>
@@ -96,10 +96,10 @@ export function WeatherCard({ data, activeDay }: WeatherCardProps) {
               }`}
             >
               <div className={`mb-0.5 text-xs font-medium ${isHead ? "text-primary-700" : "text-gray-700"}`}>{label}</div>
-              <div className="mb-1 text-[10px] text-gray-400 tabular-nums">{md}</div>
+              <div className="mb-1 text-[10px] text-gray-500 tabular-nums">{md}</div>
               <div className="my-1 text-lg leading-none">{weatherIcon(d.icon_code)}</div>
               <div className="mt-1 text-xs font-bold text-gray-800 tabular-nums">{d.temp_max_c}°</div>
-              <div className="mt-0.5 text-[11px] text-gray-400 tabular-nums">{d.temp_min_c}°</div>
+              <div className="mt-0.5 text-[11px] text-gray-500 tabular-nums">{d.temp_min_c}°</div>
             </div>
           );
         })}
