@@ -130,6 +130,26 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePlaceId]);
 
+  // 容器尺寸变化（移动端 Tab 切换：地图从 hidden(0尺寸) 变可见）时，
+  // 高德地图需 resize + 重新 fitView，否则会停在 0 尺寸初始化时的错误缩放（缩太远）
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    let prevW = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      const map = mapRef.current;
+      const w = el.clientWidth;
+      // 仅在从不可见(0)变为可见时重排，避免正常缩放/拖动被打断
+      if (map && prevW === 0 && w > 0) {
+        map.resize();
+        fitView(map);
+      }
+      prevW = w;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   if (error)
     return (
       <div className="card flex h-full w-full flex-col items-center justify-center gap-3 bg-primary-50/30 p-6 text-center">
