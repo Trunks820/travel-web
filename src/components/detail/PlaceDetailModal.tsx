@@ -50,7 +50,8 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
 
   // 优先用后端详情字段，缺失回退到 TripPlace 基础信息
   const typeLabel = detail?.place_type ?? place.category;
-  const summary = detail?.summary || place.brief;
+  // 简介只用后端真实 summary，不回退 place.brief（brief 是生成期占位脏文案，如"写成咖啡/茶歇休息点"）
+  const summary = detail?.summary ?? "";
   const reasons = detail?.top_reasons ?? [];
   const warnings = detail?.warnings ?? [];
   const sourceCount = detail?.source_count ?? 0;

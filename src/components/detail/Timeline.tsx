@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { TripDay, TripPlace } from "@/types/trip";
 import { categoryIcon, isAnchorRole } from "@/constants/places";
-import { commuteModeName, formatMinutes, formatDistance } from "@/utils/format";
+import { commuteModeName, formatMinutes, formatDistance, cleanBrief } from "@/utils/format";
 import { computeSchedule } from "@/utils/schedule";
 
 interface TimelineProps {
@@ -84,9 +84,9 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                     </div>
                   )}
 
-                  {place.brief && (
+                  {cleanBrief(place.brief) && (
                     <p className="mb-2 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
-                      {place.brief}
+                      {cleanBrief(place.brief)}
                     </p>
                   )}
 

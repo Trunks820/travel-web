@@ -1,5 +1,5 @@
 import { computeSchedule } from "@/utils/schedule";
-import { formatMinutes, formatDistance, commuteModeName } from "@/utils/format";
+import { formatMinutes, formatDistance, commuteModeName, cleanBrief } from "@/utils/format";
 import { categoryIcon } from "@/constants/places";
 import { cityImageList } from "@/components/input/RotatingBackground";
 import type { TripPlan, TripResult, TripDay } from "@/types/trip";
@@ -114,8 +114,8 @@ function DayPage({ day, dayIndex }: { day: TripDay; dayIndex: number }) {
                     <span className="text-sm font-bold text-gray-800">{place.name}</span>
                     <span className="text-xs text-gray-400">{categoryIcon(place.category)} {place.category}</span>
                   </div>
-                  {place.brief && (
-                    <p className="mt-1 text-xs leading-relaxed text-gray-500 line-clamp-2">{place.brief}</p>
+                  {cleanBrief(place.brief) && (
+                    <p className="mt-1 text-xs leading-relaxed text-gray-500 line-clamp-2">{cleanBrief(place.brief)}</p>
                   )}
                   {sc && (
                     <div className="mt-1 text-xs text-gray-400">{sc.arrive} - {sc.leave}</div>
