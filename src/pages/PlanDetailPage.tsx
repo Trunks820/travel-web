@@ -31,7 +31,8 @@ export default function PlanDetailPage() {
   const selectDay = useTripStore((s) => s.selectDay);
 
   const [fetchedResult, setFetchedResult] = useState<TripResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  // 初始即处于加载态（除非稍后 effect 命中缓存），避免直连 URL 首帧闪现"方案未找到"
+  const [loading, setLoading] = useState(true);
   // 结果加载错误：notfound=攻略不存在(404)；unsupported=旧版本生成不兼容(422)；generic=其他
   const [error, setError] = useState<{ kind: "notfound" | "unsupported" | "generic"; message: string } | null>(null);
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
@@ -52,11 +53,31 @@ export default function PlanDetailPage() {
   const result = matched ? storeResult.data : fetchedResult;
 
   useEffect(() => {
-    if (matched || fetchedResult || !resultId) return;
+    // resultId/jobId 变化时重置本地态并取消旧请求，防止组件复用时旧数据/慢响应污染新页面。
+    // 缓存命中用 getState() 读、不订阅 matched：否则 fetch 成功写 store 会翻转 matched
+    // 触发本 effect 重跑，cleanup 把 cancelled 置 true，finally 里 setLoading(false) 被跳过，骨架屏卡死
+    setError(null);
+    const cached = useTripStore.getState().result;
+    const hit =
+      cached && cached.resultId === resultId && cached.jobId === (jobId ?? "");
+    if (hit) {
+      setFetchedResult(cached.data);
+      setLoading(false);
+      return;
+    }
+    setFetchedResult(null);
+    if (!resultId) return;
+
+    let cancelled = false;
     setLoading(true);
     fetchResult(resultId, jobId ?? "")
-      .then((data) => { setFetchedResult(data); setResult(resultId, jobId ?? "", data); })
+      .then((data) => {
+        if (cancelled) return;
+        setFetchedResult(data);
+        setResult(resultId, jobId ?? "", data);
+      })
       .catch((err) => {
+        if (cancelled) return;
         if (err instanceof ApiRequestError) {
           // 404 攻略不存在；422 + RESULT_CONTRACT_UNSUPPORTED 旧版本生成不兼容（v0.8.3 契约）
           if (err.status === 404) {
@@ -70,11 +91,14 @@ export default function PlanDetailPage() {
           setError({ kind: "generic", message: "加载失败" });
         }
       })
-      .finally(() => setLoading(false));
-  }, [resultId, jobId, matched, fetchedResult, setResult]);
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [resultId, jobId, setResult]);
 
+  // selectedDay 跨行程残留校验：上个行程选了 Day 3，新行程只有 2 天时回退 Day 1
   const plan: TripPlan | undefined = result?.plans.find((p) => p.plan_id === planId);
-  const effectiveDay = selectedDay || plan?.days[0]?.day || 1;
+  const dayValid = plan?.days.some((d) => d.day === selectedDay);
+  const effectiveDay = (dayValid ? selectedDay : 0) || plan?.days[0]?.day || 1;
   const currentDay = plan?.days.find((d) => d.day === effectiveDay) ?? plan?.days[0];
 
   const people = result?.request.people_count ?? 1;
@@ -134,18 +158,20 @@ export default function PlanDetailPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-[#f8f9fa]">
+    <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
       {/* 详情页标题条 */}
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          <button
-            onClick={() => navigate(`/result/${resultId}${jobQuery}`)}
-            aria-label="返回方案"
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-sand-500 transition-colors hover:bg-primary-50 hover:text-primary-600"
-          >
-            <i className="fa-solid fa-chevron-left text-xs" aria-hidden="true" />
-            <span className="hidden sm:inline">返回方案</span>
-          </button>
+          {result.plans.length > 1 && (
+            <button
+              onClick={() => navigate(`/result/${resultId}${jobQuery}`)}
+              aria-label="返回方案"
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-sand-500 transition-colors hover:bg-primary-50 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+            >
+              <i className="fa-solid fa-chevron-left text-xs" aria-hidden="true" />
+              <span className="hidden sm:inline">返回方案</span>
+            </button>
+          )}
           <div className="min-w-0">
             <h1 className="truncate font-display text-base font-bold text-gray-800 sm:text-lg">{plan.title}</h1>
             <p className="truncate text-xs text-gray-500">
@@ -154,7 +180,7 @@ export default function PlanDetailPage() {
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1 text-sm font-medium text-gray-600 sm:gap-4">
-          <button aria-label="分享" onClick={() => setShareOpen(true)} className="flex items-center gap-1.5 rounded-lg p-2 text-gray-600 transition-colors hover:bg-primary-50 hover:text-primary-600 sm:p-0">
+          <button aria-label="分享" onClick={() => setShareOpen(true)} className="flex items-center gap-1.5 rounded-lg p-2 text-gray-600 transition-colors hover:bg-primary-50 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 sm:p-0">
             <i className="fa-solid fa-share-nodes" aria-hidden="true" /> <span className="hidden sm:inline">分享</span>
           </button>
           <button aria-label="收藏（即将上线）" disabled title="即将上线" className="flex items-center gap-1.5 rounded-lg p-2 text-gray-400 cursor-not-allowed opacity-60 sm:p-0">
@@ -163,8 +189,8 @@ export default function PlanDetailPage() {
         </div>
       </div>
 
-      {/* 窄屏 Tab 切换（桌面端隐藏，始终三栏并排） */}
-      <div role="tablist" aria-label="详情视图" className="flex shrink-0 border-b border-gray-100 bg-white md:hidden">
+      {/* 窄屏/平板 Tab 切换（≥lg 隐藏，始终三栏并排） */}
+      <div role="tablist" aria-label="详情视图" className="flex shrink-0 border-b border-gray-100 bg-white lg:hidden">
         {([
           ["itinerary", "fa-route", "行程"],
           ["map", "fa-map-location-dot", "地图"],
@@ -176,7 +202,7 @@ export default function PlanDetailPage() {
             aria-selected={mobileTab === key}
             aria-controls={`tabpanel-${key}`}
             onClick={() => setMobileTab(key)}
-            className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+            className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-300 ${
               mobileTab === key
                 ? "border-b-2 border-primary-600 text-primary-600"
                 : "text-gray-500"
@@ -202,7 +228,7 @@ export default function PlanDetailPage() {
           <button
             onClick={handleExport}
             disabled={exporting}
-            className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2"
           >
             <i className={exporting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-download"} aria-hidden="true" />
             {exporting ? "正在导出..." : "导出行程"}
@@ -213,7 +239,7 @@ export default function PlanDetailPage() {
         <section
           id="tabpanel-itinerary"
           role="tabpanel"
-          className={`w-full shrink-0 flex-col border-r border-gray-100 bg-white md:flex md:w-[480px] xl:w-[560px] ${
+          className={`w-full shrink-0 flex-col border-r border-gray-100 bg-white lg:flex lg:w-[480px] xl:w-[560px] ${
             mobileTab === "itinerary" ? "flex" : "hidden"
           }`}
         >
@@ -224,7 +250,7 @@ export default function PlanDetailPage() {
                 <button
                   key={d.day}
                   onClick={() => { selectDay(d.day); setActivePlaceId(null); }}
-                  className={`flex min-w-[68px] shrink-0 flex-col items-center justify-center rounded-xl border px-1.5 py-2 transition-colors ${
+                  className={`flex min-w-[68px] shrink-0 flex-col items-center justify-center rounded-xl border px-1.5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
                     active
                       ? "border-primary-600 bg-primary-600 text-white shadow-md"
                       : "border-gray-100 bg-white text-gray-600 hover:bg-gray-50"
@@ -253,10 +279,10 @@ export default function PlanDetailPage() {
         </section>
 
         {/* 右栏：地图占满 + 概览条 —— 桌面常驻；窄屏「地图」Tab */}
-        <section id="tabpanel-map" role="tabpanel" className={`relative flex-1 md:block ${mobileTab === "map" ? "block" : "hidden"}`}>
+        <section id="tabpanel-map" role="tabpanel" className={`relative flex-1 lg:block ${mobileTab === "map" ? "block" : "hidden"}`}>
           <Suspense
             fallback={
-              <div className="flex h-full items-center justify-center bg-[#e3f0f5]">
+              <div className="flex h-full items-center justify-center" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-200 border-t-primary-500" />
               </div>
             }

@@ -37,8 +37,41 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
     requestAnimationFrame(() => panelRef.current?.focus());
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+
+      // 焦点陷阱：Tab 键循环焦点在弹窗内
+      if (e.key === "Tab") {
+        const panel = panelRef.current;
+        if (!panel) return;
+
+        const focusableElements = panel.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const focusable = Array.from(focusableElements);
+        if (focusable.length === 0) return;
+
+        const firstFocusable = focusable[0];
+        const lastFocusable = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          // Shift+Tab: 如果在第一个元素，跳到最后一个
+          if (document.activeElement === firstFocusable) {
+            e.preventDefault();
+            lastFocusable.focus();
+          }
+        } else {
+          // Tab: 如果在最后一个元素，跳到第一个
+          if (document.activeElement === lastFocusable) {
+            e.preventDefault();
+            firstFocusable.focus();
+          }
+        }
+      }
     };
+
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
@@ -62,11 +95,15 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 z-50 animate-slide-up lg:inset-0 lg:flex lg:items-center lg:justify-center">
+      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 animate-slide-up lg:inset-0 lg:flex lg:items-center lg:justify-center"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      >
         <div
           ref={panelRef}
           role="dialog"
+          aria-modal="true"
           aria-label={place.name}
           tabIndex={-1}
           className="card max-h-[85vh] overflow-y-auto rounded-t-3xl outline-none lg:max-w-lg lg:rounded-3xl"
@@ -78,7 +115,7 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
                 <span className="text-2xl">{categoryIcon(typeLabel)}</span>
                 <div>
                   <h2 className="font-display text-xl font-bold text-primary-800">{place.name}</h2>
-                  <p className="mt-1 flex items-center gap-2 text-sm text-sand-500">
+                  <p className="mt-1 flex items-center gap-2 text-sm text-sand-600">
                     <span>{typeLabel}</span>
                     {detail?.district && (
                       <span className="text-sand-400">· {detail.district}</span>
@@ -94,7 +131,7 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
               <button
                 onClick={onClose}
                 aria-label="关闭"
-                className="rounded-lg p-2 text-sand-400 transition-colors hover:bg-sand-100 hover:text-sand-600"
+                className="rounded-lg p-2 text-sand-400 transition-colors hover:bg-sand-100 hover:text-sand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
               >
                 <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -139,7 +176,7 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
 
             {/* 可信度/热度 */}
             {showCredibility && (
-              <div className="mb-4 flex items-center gap-3 text-xs text-sand-500">
+              <div className="mb-4 flex items-center gap-3 text-xs text-sand-600">
                 {sourceCount > 0 && (
                   <span className="inline-flex items-center gap-1">
                     <i className="fa-solid fa-layer-group text-primary-400" aria-hidden="true" />
@@ -155,12 +192,17 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
               </div>
             )}
 
-            {/* 坐标 */}
+            {/* 坐标改为高德地图链接 */}
             {place.longitude != null && place.latitude != null && (
-              <div className="flex items-center gap-1.5 text-xs text-sand-400">
+              <a
+                href={`https://uri.amap.com/marker?position=${place.longitude},${place.latitude}&name=${encodeURIComponent(place.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded text-xs text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+              >
                 <i className="fa-solid fa-location-dot" aria-hidden="true" />
-                {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}
-              </div>
+                在高德地图中查看
+              </a>
             )}
 
             {/* loading / 无更多详情 */}

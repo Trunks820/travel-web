@@ -61,7 +61,7 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
             <button
               type="button"
               onClick={() => removeCity(city)}
-              className={`text-xs transition-opacity p-1 -m-1 ${
+              className={`text-xs transition-opacity p-1 -m-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
                 idx === 0 ? 'opacity-80 hover:opacity-100' : 'text-gray-400 hover:text-gray-600'
               }`}
               aria-label={`移除 ${city}`}
@@ -78,7 +78,12 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
               onClick={() => setPickerOpen((o) => !o)}
               aria-expanded={pickerOpen}
               aria-haspopup="listbox"
-              className="flex items-center px-4 py-2 rounded-lg text-sm border border-dashed border-gray-300 text-gray-500 hover:border-primary-500 hover:text-primary-500 transition-colors"
+              aria-invalid={!!error}
+              className={`flex items-center px-4 py-2 rounded-lg text-sm border border-dashed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                error
+                  ? 'border-red-500 text-red-600 hover:border-red-600'
+                  : 'border-gray-300 text-gray-500 hover:border-primary-500 hover:text-primary-500'
+              }`}
             >
               {multiCity ? '+ 添加城市' : value.length > 0 ? '更换城市' : '+ 选择城市'}
             </button>
@@ -96,7 +101,7 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
                       role="option"
                       aria-selected={false}
                       onClick={() => addCity(city)}
-                      className="rounded-lg px-2 py-1.5 text-sm text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition-colors text-center"
+                      className="rounded-lg px-2 py-1.5 text-sm text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition-colors text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
                     >
                       {city}
                     </button>
@@ -116,13 +121,18 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
             key={city}
             type="button"
             onClick={() => addCity(city)}
-            className="rounded-md bg-gray-50 border border-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50/50 transition-colors"
+            className="rounded-md bg-gray-50 border border-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
           >
             {city}
           </button>
         ))}
       </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && (
+        <p className="flex items-center gap-1.5 text-xs text-red-600">
+          <i className="fas fa-circle-exclamation" aria-hidden="true"></i>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

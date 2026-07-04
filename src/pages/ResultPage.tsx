@@ -34,15 +34,29 @@ export default function ResultPage() {
   const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
-    if (result || !resultId) return;
+    // resultId/jobId 变化时重置本地态，防止 React Router 同路由复用组件导致旧结果残留
+    const cached = useTripStore.getState().result;
+    const hit =
+      cached && cached.resultId === resultId && cached.jobId === (jobId ?? "");
+    setError(null);
+    if (hit) {
+      setLocal(cached.data);
+      setLoading(false);
+      return;
+    }
+    setLocal(null);
+    if (!resultId) return;
 
+    let cancelled = false;
     setLoading(true);
     fetchResult(resultId, jobId ?? "")
       .then((data) => {
+        if (cancelled) return;
         setLocal(data);
         setResult(resultId, jobId ?? "", data);
       })
       .catch((err) => {
+        if (cancelled) return;
         if (err instanceof ApiRequestError) {
           if (err.status === 404) {
             setError({ kind: "notfound", message: "攻略不存在" });
@@ -55,8 +69,9 @@ export default function ResultPage() {
           setError({ kind: "generic", message: "加载失败" });
         }
       })
-      .finally(() => setLoading(false));
-  }, [resultId, jobId, result, setResult]);
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [resultId, jobId, setResult]);
 
   // 记录最近行程，供首页「继续上次」找回
   useEffect(() => {
@@ -70,13 +85,12 @@ export default function ResultPage() {
     }
   }, [result, resultId, jobId]);
 
+  // 单方案时自动跳转到详情页（跳过方案选择页）
   useEffect(() => {
-    if (!result) return;
-    if (result.plans.length === 1) {
-      navigate(`/plan/${resultId}/${result.plans[0].plan_id}${jobQuery}`, {
-        replace: true,
-      });
-    }
+    if (!result || result.plans.length !== 1) return;
+    navigate(`/plan/${resultId}/${result.plans[0].plan_id}${jobQuery}`, {
+      replace: true,
+    });
   }, [result, resultId, navigate, jobQuery]);
 
   if (loading) return <ResultSkeleton />;
