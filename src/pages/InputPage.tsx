@@ -211,7 +211,7 @@ export default function InputPage() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-bold text-gray-800">继续上次行程</span>
-                <span className="block truncate text-xs text-gray-500">
+                <span className="block truncate text-xs text-gray-600">
                   {recentTrip.city} · {recentTrip.days}天 · 点击查看已生成的方案
                 </span>
               </span>
@@ -223,39 +223,18 @@ export default function InputPage() {
               <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">
                 生成你的专属行程
               </h2>
-              <p className="text-gray-500 text-sm mt-1">
+              <p className="text-gray-600 text-sm mt-1">
                 告诉我们你的喜好，AI 为你量身打造完美旅程
               </p>
             </div>
-            <button
-              type="button"
-              disabled
-              title="即将上线"
-              className="flex items-center space-x-1 text-gray-400 text-sm border border-gray-200 px-3 py-1.5 rounded-lg cursor-not-allowed opacity-60 shrink-0"
-            >
-              <i className="far fa-lightbulb" aria-hidden="true"></i>
-              <span>行程灵感</span>
-            </button>
           </div>
 
-          <div className="space-y-6">
+          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
             {/* 目的地 */}
             <div>
               <div className="flex justify-between items-center mb-3">
                 <label className="text-gray-700 font-bold flex items-center text-sm">
                   <i className="fas fa-map-marker-alt text-primary-500 mr-2" aria-hidden="true"></i> 目的地
-                </label>
-                <label className="flex items-center text-xs text-gray-400 cursor-not-allowed" title="多城市规划开发中，敬请期待">
-                  <span>多地旅行</span>
-                  <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-400">敬请期待</span>
-                  <input
-                    type="checkbox"
-                    checked={false}
-                    disabled
-                    aria-label="多地旅行（开发中）"
-                    className="sr-only peer"
-                  />
-                  <div className="w-8 h-4 bg-gray-200 rounded-full ml-2 relative opacity-50 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-3 after:h-3 after:bg-white after:rounded-full"></div>
                 </label>
               </div>
               <MultiCitySelect value={cities} onChange={setCities} multiCity={false} error={cityError} />
@@ -272,12 +251,14 @@ export default function InputPage() {
                 onStartChange={setStartDate}
                 onEndChange={setEndDate}
               />
-              {overLimit && (
-                <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
-                  <i className="fas fa-circle-info" aria-hidden="true"></i>
-                  当前仅支持最多 7 天行程，将按 7 天为你规划
-                </p>
-              )}
+              <div aria-live="polite">
+                {overLimit && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-600">
+                    <i className="fas fa-circle-info" aria-hidden="true"></i>
+                    当前仅支持最多 7 天行程，将按 7 天为你规划
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* 出行人数 */}
@@ -340,7 +321,7 @@ export default function InputPage() {
                 </span>
               </div>
               <div className="flex items-center space-x-4 px-2">
-                <div className="text-gray-500 flex flex-col items-center shrink-0" aria-hidden="true">
+                <div className="text-gray-600 flex flex-col items-center shrink-0" aria-hidden="true">
                   <i className="fas fa-umbrella-beach text-sm mb-1"></i>
                   <span className="text-[10px]">轻松悠闲</span>
                 </div>
@@ -357,7 +338,7 @@ export default function InputPage() {
                     background: `linear-gradient(to right, var(--color-accent-400) 0%, var(--color-accent-400) ${pace}%, var(--color-sand-100) ${pace}%, var(--color-sand-100) 100%)`,
                   }}
                 />
-                <div className="text-gray-500 flex flex-col items-center shrink-0" aria-hidden="true">
+                <div className="text-gray-600 flex flex-col items-center shrink-0" aria-hidden="true">
                   <i className="fas fa-running text-sm mb-1"></i>
                   <span className="text-[10px]">紧凑充实</span>
                 </div>
@@ -393,18 +374,19 @@ export default function InputPage() {
                 id="trip-notes"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[60px] resize-none"
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[60px] resize-none"
                 placeholder="请输入你的特殊需求..."
               ></textarea>
             </div>
 
             {/* 生成按钮 */}
-            {submitError && (
-              <p className="text-sm text-red-500 text-center">{submitError}</p>
-            )}
+            <div aria-live="polite">
+              {submitError && (
+                <p className="text-sm text-red-500 text-center">{submitError}</p>
+              )}
+            </div>
             <button
-              type="button"
-              onClick={handleSubmit}
+              type="submit"
               disabled={submitting}
               className="w-full bg-accent-500 hover:bg-accent-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-accent-200 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
             >
@@ -421,11 +403,11 @@ export default function InputPage() {
               )}
             </button>
 
-            <div className="text-center text-xs text-gray-500 flex items-center justify-center space-x-1 pt-2">
+            <div className="text-center text-xs text-gray-600 flex items-center justify-center space-x-1 pt-2">
               <i className="fas fa-shield-alt" aria-hidden="true"></i>
               <span>信息安全保障 · 仅用于行程规划</span>
             </div>
-          </div>
+          </form>
         </div>
       </main>
 
@@ -440,23 +422,6 @@ export default function InputPage() {
             <div className="mt-4 signature-font text-2xl text-gray-400 text-center opacity-60">
               {polaroidCity ?? 'YunTu'}
             </div>
-          </div>
-        </div>
-
-        {/* 纸飞机虚线轨迹 */}
-        <div className="absolute -top-32 -left-20 pointer-events-none opacity-40">
-          <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary-500">
-            <path
-              d="M10 180C40 160 100 170 140 100C160 60 140 30 180 10"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeDasharray="6 6"
-            />
-            <path d="M180 10L165 15M180 10L175 25" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="180" cy="10" r="2" fill="currentColor" />
-          </svg>
-          <div className="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2">
-            <i className="fas fa-paper-plane text-accent-400 transform -rotate-12"></i>
           </div>
         </div>
       </div>

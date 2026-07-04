@@ -15,7 +15,6 @@ export function BoardingPass({ city, formData }: BoardingPassProps) {
         {/* 票根头部 */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4">
           <div>
-            <p className="text-[10px] tracking-widest text-gray-400">BOARDING PASS</p>
             <p className="text-sm font-bold text-primary-700">云途 · AI 行程</p>
           </div>
           <img src="/logo.svg" alt="" className="h-7 w-7" aria-hidden="true" />
@@ -25,7 +24,6 @@ export function BoardingPass({ city, formData }: BoardingPassProps) {
         <div className="flex items-center justify-between px-6 pb-4">
           <div>
             <p className="text-2xl font-bold text-gray-800 leading-none">出发</p>
-            <p className="text-[11px] text-gray-400 mt-1">YOUR TRIP</p>
           </div>
           <div className="flex-1 mx-3 flex items-center text-primary-500">
             <span className="h-px flex-1 bg-primary-200" />
@@ -34,7 +32,6 @@ export function BoardingPass({ city, formData }: BoardingPassProps) {
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-primary-600 leading-none">{city}</p>
-            <p className="text-[11px] text-gray-400 mt-1">DESTINATION</p>
           </div>
         </div>
 

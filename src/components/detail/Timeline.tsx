@@ -33,7 +33,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
             <div key={place.place_id} style={{ "--i": i } as CSSProperties}>
               <div className="flex gap-4">
                 {/* 时刻列 */}
-                <div className="w-12 shrink-0 pt-2.5 text-right text-[13px] font-medium text-gray-500 tabular-nums">
+                <div className="w-12 shrink-0 pt-2.5 text-right text-[13px] font-medium text-gray-600 tabular-nums">
                   {sched?.arrive ?? ""}
                 </div>
 
@@ -59,7 +59,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                 <button
                   type="button"
                   onClick={() => onPlaceClick?.(place)}
-                  className={`flex-1 rounded-xl border bg-white p-3.5 text-left transition-all hover:shadow-md ${
+                  className={`flex-1 rounded-xl border bg-white p-3.5 text-left transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
                     isActive
                       ? "border-primary-300 shadow-[0_2px_12px_rgba(15,118,110,0.12)] ring-1 ring-primary-200"
                       : "border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
@@ -78,23 +78,17 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                   </div>
 
                   {sched && (
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-500 tabular-nums">
+                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-600 tabular-nums">
                       <i className="fa-regular fa-clock" aria-hidden="true" />
                       {sched.arrive} - {sched.leave}
                     </div>
                   )}
 
                   {cleanBrief(place.brief) && (
-                    <p className="mb-2 line-clamp-2 text-[11px] leading-relaxed text-gray-500">
+                    <p className="line-clamp-2 text-[11px] leading-relaxed text-gray-600">
                       {cleanBrief(place.brief)}
                     </p>
                   )}
-
-                  <div className="flex flex-wrap gap-1.5">
-                    <span className="rounded bg-primary-50 px-1.5 py-0.5 text-[10px] font-medium text-primary-600">
-                      {place.category}
-                    </span>
-                  </div>
                 </button>
               </div>
 
@@ -103,7 +97,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                 <div className="flex gap-4 py-1.5">
                   <div className="w-12 shrink-0" />
                   <div className="w-6 shrink-0" />
-                  <div className="flex w-fit items-center gap-2 rounded-md border border-gray-100 bg-[#f8f9fa] px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums">
+                  <div className="flex w-fit items-center gap-2 rounded-md border border-gray-100 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
                     <i className={`fa-solid ${MODE_ICON[leg.mode] ?? "fa-route"} text-[10px] text-gray-400`} aria-hidden="true" />
                     {commuteModeName(leg.mode)} {formatMinutes(leg.duration_minutes)}
                     <span className="text-gray-300">|</span>

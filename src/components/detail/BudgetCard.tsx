@@ -10,25 +10,19 @@ export function BudgetCard({ data }: BudgetCardProps) {
 
   return (
     <div className="rounded-xl bg-white p-5 shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1">
         <h2 className="text-sm font-bold text-gray-800">预算总览（{people}人）</h2>
-        <span
-          className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-400"
-          title="估算示意值，待接入真实预算计算"
-        >
-          示意
-        </span>
       </div>
       <div className="mb-4 flex items-end justify-between">
         <div className="text-3xl font-bold text-primary-600 tabular-nums">¥ {total.toLocaleString()}</div>
-        <div className="mb-1 text-xs text-gray-500 tabular-nums">总预算 ¥ {budgetCap.toLocaleString()}</div>
+        <div className="mb-1 text-xs text-gray-600 tabular-nums">总预算 ¥ {budgetCap.toLocaleString()}</div>
       </div>
 
       <div className="mb-5">
         <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
           <div className="h-1.5 rounded-full bg-primary-500" style={{ width: `${usedPercent}%` }} />
         </div>
-        <div className="flex justify-between text-[11px] text-gray-500 tabular-nums">
+        <div className="flex justify-between text-[11px] text-gray-600 tabular-nums">
           <span>已使用 {usedPercent}%</span>
           <span>剩余 ¥ {remaining.toLocaleString()}</span>
         </div>
@@ -46,11 +40,15 @@ export function BudgetCard({ data }: BudgetCardProps) {
             </div>
             <div className="flex w-[60px] flex-col text-right tabular-nums">
               <div className="mb-0.5 font-semibold text-gray-700">¥ {item.amount.toLocaleString()}</div>
-              <div className="text-[10px] leading-none text-gray-500">{item.percentage}%</div>
+              <div className="text-[10px] leading-none text-gray-600">{item.percentage}%</div>
             </div>
           </div>
         ))}
       </div>
+
+      <p className="mt-4 border-t border-gray-50 pt-3 text-[10px] leading-none text-gray-400">
+        预算为估算参考，实际花费以出行为准
+      </p>
     </div>
   );
 }
