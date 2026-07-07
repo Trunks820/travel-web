@@ -171,3 +171,22 @@ export async function fetchResult(
 export async function fetchPlaceDetail(placeId: number): Promise<PlaceDetail> {
   return request<PlaceDetail>(`/trip/places/${placeId}`);
 }
+
+/** GET /trip/places?city= 响应中的单个热门 POI（v0.8.9 契约） */
+export interface HotPlace {
+  place_id: number;
+  name: string;
+  place_type: string;
+  mention_count: number;
+}
+
+/**
+ * 城市热门 POI 列表（v0.8.9），供首页「必去地点」勾选。
+ * 失败/接口未上线由调用方降级为纯自由输入，不阻塞表单。
+ */
+export async function fetchHotPlaces(city: string, limit = 12): Promise<HotPlace[]> {
+  const raw = await request<{ ok: boolean; places?: HotPlace[] }>(
+    `/trip/places?city=${encodeURIComponent(city)}&limit=${limit}`,
+  );
+  return raw.places ?? [];
+}

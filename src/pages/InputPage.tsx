@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { MultiCitySelect } from '../components/input/MultiCitySelect';
 import { DateRangeInput } from '../components/input/DateRangeInput';
 import { BudgetSlider } from '../components/input/BudgetSlider';
+import { MorePreferences } from '../components/input/MorePreferences';
 import { RotatingBackground, useRotatingBackground, cityNameOfImage } from '../components/input/RotatingBackground';
 import { submitTrip, ApiRequestError } from '../services/api';
 import { useTripStore } from '../stores/tripStore';
 import { getRecentTrip } from '../utils/recentTrip';
+import type { CommuteMode, MustIncludeItem } from '../types/form';
 
 // 节奏滑块映射出的标签，与兴趣偏好同存于 preferences；回填时需从兴趣中剔除
 const PACE_TAGS = ['轻松', '适中', '紧凑'];
@@ -88,6 +90,11 @@ export default function InputPage() {
   );
   const [notes, setNotes] = useState(stored?.notes ?? '');
   const [budget, setBudget] = useState(stored?.budget ?? 5000);
+  // v0.8.9 更多偏好（折叠区，选填）。commute_mode 由 v0.8.10 后端接入，字段先行
+  const [mustInclude, setMustInclude] = useState<MustIncludeItem[]>(stored?.must_include ?? []);
+  const [commuteMode, setCommuteMode] = useState<CommuteMode>(stored?.commute_mode ?? 'driving');
+  const [dailyStart, setDailyStart] = useState(stored?.daily_start ?? '09:00');
+  const [dailyEnd, setDailyEnd] = useState(stored?.daily_end ?? '21:00');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | undefined>(undefined);
@@ -153,6 +160,13 @@ export default function InputPage() {
       notes: notes.trim(),
       // 人均预算上限，来自预算滑块；后端是否解析由后端决定，前端先发
       budget,
+      // v0.8.9 更多偏好：仅在用户改过默认值时携带，未设置不发（契约：选填）
+      ...(mustInclude.length > 0 && { must_include: mustInclude }),
+      ...(commuteMode !== 'driving' && { commute_mode: commuteMode }),
+      ...((dailyStart !== '09:00' || dailyEnd !== '21:00') && {
+        daily_start: dailyStart,
+        daily_end: dailyEnd,
+      }),
     };
     setFormData(formData);
     clearResult(); // 清掉上一条 job 的结果，避免 loading 阶段闪现旧城市
@@ -358,6 +372,19 @@ export default function InputPage() {
                 <BudgetSlider min={1000} max={12000} value={budget} onChange={setBudget} labelId="budget-label" />
               </div>
             </div>
+
+            {/* 更多偏好（v0.8.9：必去地点/出行方式/时间窗，默认折叠） */}
+            <MorePreferences
+              city={cities[0] ?? ''}
+              mustInclude={mustInclude}
+              onMustIncludeChange={setMustInclude}
+              commuteMode={commuteMode}
+              onCommuteModeChange={setCommuteMode}
+              dailyStart={dailyStart}
+              dailyEnd={dailyEnd}
+              onDailyStartChange={setDailyStart}
+              onDailyEndChange={setDailyEnd}
+            />
 
             {/* 特殊需求 */}
             <div>
