@@ -53,8 +53,8 @@ npm run format
 | 文件 | 是否提交 | 用途 |
 |------|----------|------|
 | `.env.development` | ✅ 提交 | 开发默认：`VITE_USE_MOCK=true` |
-| `.env.production` | ✅ 提交 | 构建默认：API 指向线上，密钥字段留空 |
-| `.env.local` | ❌ gitignored | 真实高德 key / 安全密钥，本地与构建机各自配置 |
+| `.env.production` | ✅ 提交 | 构建默认：API 指向线上，不定义空的密钥字段 |
+| `.env.local` / `.env.production.local` | ❌ gitignored | 真实高德 key / 安全密钥，本地与构建机各自配置 |
 
 可配置项：
 
@@ -64,6 +64,8 @@ VITE_USE_MOCK=false                     # true=用 mock 数据，false=调真实
 VITE_AMAP_KEY=your_amap_key             # 高德 Web 端 key
 VITE_AMAP_SECURITY=your_security_code   # 高德安全密钥
 ```
+
+生产构建时不要在 `.env.production` 里放空的 `VITE_AMAP_KEY=` / `VITE_AMAP_SECURITY=`，否则会覆盖本地或构建机的真实密钥，导致地图组件直接进入加载失败分支。构建机应使用 `.env.production.local` 或进程环境变量注入真实值。
 
 > ⚠️ **高德 key 安全说明**：Web 端高德 key 最终会出现在浏览器 JS 中（这是 JS SDK 的固有特性，无法隐藏）。安全防护依赖**高德控制台的域名白名单**（已配 kakarot8.com）+ 安全密钥，而非隐藏 key。远期可改为后端代理转发（见 roadmap 待办 #6）。
 
