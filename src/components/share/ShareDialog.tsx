@@ -77,7 +77,10 @@ export function ShareDialog({ open, onClose, recordId }: ShareDialogProps) {
           {loading && (
             <div className="flex flex-col items-center justify-center gap-4 py-16 text-gray-500">
               <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary-200 border-t-primary-500" />
-              <p className="text-sm">正在生成分享图...</p>
+              <div className="text-center">
+                <p className="text-sm">正在生成分享图...</p>
+                <p className="mt-1.5 text-xs text-gray-400">AI 绘制约需 50 秒，请稍候</p>
+              </div>
             </div>
           )}
 

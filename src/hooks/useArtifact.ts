@@ -25,6 +25,13 @@ function toErr(e: unknown, fallback: string): ArtifactError {
   return { code: "UNKNOWN", message: fallback };
 }
 
+// 轮询超时窗口（× interval 2s）。share_image 对接 AI 图像生成，实测约 50s，
+// 给到 120s 余量防偶发慢响应误判超时；pdf 是后端拼页，几秒即出。
+const MAX_ATTEMPTS: Record<ArtifactType, number> = {
+  pdf: 30, // 60s
+  share_image: 60, // 120s
+};
+
 /**
  * 封装后端 artifact（PDF / 分享图）的 GET-first → POST → 轮询 → 取 blob 生命周期。
  * 复用 usePolling 处理可见性暂停/超时/清理。同一 record 的 blob 常驻内存，
@@ -98,7 +105,7 @@ export function useArtifact(recordId: string | undefined, type: ArtifactType) {
     fetcher,
     onData,
     interval: 2000,
-    maxAttempts: 30,
+    maxAttempts: MAX_ATTEMPTS[type],
     onTimeout: handleTimeout,
     enabled: polling && !!recordId,
   });
