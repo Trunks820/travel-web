@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense, useCallback } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Timeline } from "@/components/detail/Timeline";
 import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
@@ -6,11 +6,11 @@ import { PlaceDetailModal } from "@/components/detail/PlaceDetailModal";
 import { BudgetCard } from "@/components/detail/BudgetCard";
 import { WeatherCard } from "@/components/detail/WeatherCard";
 import { ShareDialog } from "@/components/share/ShareDialog";
-import { ExportPDF } from "@/components/export/ExportPDF";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
 import { mockBudget } from "@/services/mockBudget";
-import { generatePdf } from "@/utils/exportPdf";
+import { useArtifact } from "@/hooks/useArtifact";
+import { saveBlob } from "@/utils/download";
 import { showToast } from "@/stores/toastStore";
 import { formatDistance, formatMinutes } from "@/utils/format";
 import type { TripPlace, TripPlan, TripResult } from "@/types/trip";
@@ -38,8 +38,7 @@ export default function PlanDetailPage() {
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const [detailPlace, setDetailPlace] = useState<TripPlace | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [exportPages, setExportPages] = useState<HTMLDivElement[] | null>(null);
+  const pdf = useArtifact(resultId, "pdf");
   // 窄屏单栏切换：行程 / 地图 / 概览（桌面端忽略，始终三栏并排）
   const [mobileTab, setMobileTab] = useState<"itinerary" | "map" | "overview">("itinerary");
 
@@ -120,25 +119,21 @@ export default function PlanDetailPage() {
     };
   }, [currentDay]);
 
-  const handleExport = useCallback(() => {
-    if (exporting) return;
-    setExporting(true);
-    setExportPages([]); // trigger ExportPDF render
-  }, [exporting]);
+  // PDF 就绪 → 下载并复位（复位后 phase 回 idle，不会重复触发）
+  useEffect(() => {
+    if (pdf.phase === "ready" && pdf.blob && pdf.artifact) {
+      saveBlob(pdf.blob, pdf.artifact.filename);
+      showToast("PDF 已导出");
+      pdf.reset();
+    }
+  }, [pdf.phase, pdf.blob, pdf.artifact, pdf.reset]);
 
-  const handlePagesReady = useCallback(
-    async (pages: HTMLDivElement[]) => {
-      try {
-        await generatePdf(pages, `云途-${result?.city.name ?? "行程"}-${plan?.title ?? "方案"}.pdf`);
-      } catch {
-        showToast("导出失败，请重试", "error");
-      } finally {
-        setExporting(false);
-        setExportPages(null);
-      }
-    },
-    [result, plan],
-  );
+  // PDF 生成失败 → 提示（保持 failed 态，用户可再次点击导出重试）
+  useEffect(() => {
+    if (pdf.phase === "failed") {
+      showToast(pdf.error?.message ?? "导出失败，请重试", "error");
+    }
+  }, [pdf.phase, pdf.error]);
 
   if (loading) return <DetailSkeleton />;
 
@@ -226,12 +221,12 @@ export default function PlanDetailPage() {
           <BudgetCard data={budget} />
           {weather && <WeatherCard data={weather} activeDay={effectiveDay} />}
           <button
-            onClick={handleExport}
-            disabled={exporting}
+            onClick={pdf.start}
+            disabled={pdf.loading}
             className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2"
           >
-            <i className={exporting ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-download"} aria-hidden="true" />
-            {exporting ? "正在导出..." : "导出行程"}
+            <i className={pdf.loading ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-download"} aria-hidden="true" />
+            {pdf.loading ? "正在导出..." : "导出行程"}
           </button>
         </aside>
 
@@ -309,10 +304,7 @@ export default function PlanDetailPage() {
       </div>
 
       <PlaceDetailModal place={detailPlace} onClose={() => setDetailPlace(null)} />
-      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} result={result} plan={plan} />
-      {exporting && exportPages !== null && result && plan && (
-        <ExportPDF result={result} plan={plan} onReady={handlePagesReady} />
-      )}
+      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} recordId={String(result.result_id)} />
     </div>
   );
 }

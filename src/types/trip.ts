@@ -134,3 +134,27 @@ export interface ApiError {
     message: string;
   };
 }
+
+/* ---------- 分享图 / PDF 产物（后端统一 artifact 接口） ---------- */
+
+export type ArtifactType = "pdf" | "share_image";
+export type ArtifactStatus = "pending" | "running" | "ready" | "failed";
+
+/** POST/GET /trip/results/{record_id}/artifacts/{type} 响应。ready 后才有 download_url */
+export interface Artifact {
+  ok: boolean;
+  artifact_id: string;
+  result_record_id: number;
+  artifact_type: ArtifactType;
+  status: ArtifactStatus;
+  download_url: string;
+  filename: string;
+  mime_type: string;
+  byte_size: number;
+  page_count: number | null; // pdf ready 后有
+  width_px: number | null; // share_image ready 后有
+  height_px: number | null;
+  expires_time: string;
+  metadata: Record<string, unknown>;
+  error: { code: string; message: string } | null;
+}

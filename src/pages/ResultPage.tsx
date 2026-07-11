@@ -197,7 +197,7 @@ export default function ResultPage() {
           </p>
         </div>
       </main>
-      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} result={result} />
+      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} recordId={String(result.result_id)} />
     </div>
   );
 }

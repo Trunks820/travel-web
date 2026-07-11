@@ -1,6 +1,8 @@
 import type { TripFormData } from "@/types/form";
 import type {
   AsyncSubmitResponse,
+  Artifact,
+  ArtifactType,
   JobResponse,
   JobStatus,
   PlaceDetail,
@@ -189,4 +191,47 @@ export async function fetchHotPlaces(city: string, limit = 12): Promise<HotPlace
     `/trip/places?city=${encodeURIComponent(city)}&limit=${limit}`,
   );
   return raw.places ?? [];
+}
+
+/* ---------- 分享图 / PDF 产物（后端统一 artifact 接口） ---------- */
+
+/**
+ * 创建产物（点"导出/分享"才调）。返回 status 可能是 pending/running（异步生成中）
+ * 或直接 ready（命中后端缓存）。配额超限等由后端以 4xx + ApiRequestError 抛出。
+ */
+export function createArtifact(
+  recordId: string,
+  type: ArtifactType,
+): Promise<Artifact> {
+  return request<Artifact>(`/trip/results/${recordId}/artifacts/${type}`, {
+    method: "POST",
+  });
+}
+
+/**
+ * 查询产物状态。从未创建时后端返回 404（ApiRequestError status 404），
+ * 由调用方据此决定是否 POST 创建。status:"failed" 是 HTTP 200 业务态，正常返回不抛错。
+ */
+export function getArtifact(
+  recordId: string,
+  type: ArtifactType,
+): Promise<Artifact> {
+  return request<Artifact>(`/trip/results/${recordId}/artifacts/${type}`);
+}
+
+/**
+ * 下载产物二进制。走裸 fetch —— 不能用 request<T>，那个会 res.json() 破坏二进制。
+ * download_url 是后端返回的 /trip/... 相对路径，需拼 API_BASE 走 vite 代理。
+ */
+export async function fetchArtifactBlob(downloadUrl: string): Promise<Blob> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${downloadUrl}`);
+  } catch {
+    throw new ApiRequestError("NETWORK_ERROR", "网络连接失败，请检查网络", 0);
+  }
+  if (!res.ok) {
+    throw new ApiRequestError("DOWNLOAD_FAILED", "下载失败，请重试", res.status);
+  }
+  return res.blob();
 }

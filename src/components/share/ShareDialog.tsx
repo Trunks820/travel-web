@@ -1,79 +1,54 @@
-import { useRef, useState, useCallback } from "react";
-import { ShareCard } from "./ShareCard";
+import { useEffect, useState, useCallback } from "react";
+import { useArtifact } from "@/hooks/useArtifact";
+import { saveBlob } from "@/utils/download";
 import { showToast } from "@/stores/toastStore";
-import type { TripResult, TripPlan } from "@/types/trip";
 
 interface ShareDialogProps {
   open: boolean;
   onClose: () => void;
-  result: TripResult;
-  plan?: TripPlan;
-}
-
-async function renderCard(el: HTMLElement): Promise<Blob> {
-  const { toBlob } = await import("html-to-image");
-  await document.fonts.ready;
-  const blob = await toBlob(el, {
-    pixelRatio: 2,
-    backgroundColor: "#fffcf7",
-  });
-  if (!blob) throw new Error("toBlob failed");
-  return blob;
+  recordId: string;
 }
 
 function isMobile() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
-export function ShareDialog({ open, onClose, result, plan }: ShareDialogProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [rendering, setRendering] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+export function ShareDialog({ open, onClose, recordId }: ShareDialogProps) {
+  const { phase, loading, blob, blobUrl, artifact, error, start } = useArtifact(
+    recordId,
+    "share_image",
+  );
+  // 复制受限时展示"长按/右键保存"提示态
+  const [fallbackHint, setFallbackHint] = useState(false);
 
-  const handleSave = useCallback(async () => {
-    if (!cardRef.current || rendering) return;
-    setRendering(true);
-    try {
-      const blob = await renderCard(cardRef.current);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `云途-${result.city.name}-${result.request.days}天行程.png`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast("图片已保存");
-    } catch {
-      showToast("保存失败，请重试", "error");
-    } finally {
-      setRendering(false);
-    }
-  }, [rendering, result]);
+  // 打开时触发生成（hook 内部会 GET-first 复用后端缓存 / 内存 blob，避免重复 POST）
+  useEffect(() => {
+    if (open) start();
+  }, [open, start]);
 
   const handleCopy = useCallback(async () => {
-    if (!cardRef.current || rendering) return;
-    setRendering(true);
+    if (!blob) return;
     try {
-      const blob = await renderCard(cardRef.current);
       if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
         await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
         showToast("已复制到剪贴板");
       } else {
-        const url = URL.createObjectURL(blob);
-        setPreviewUrl(url);
+        setFallbackHint(true);
         showToast("当前浏览器不支持复制图片，请长按保存");
       }
     } catch {
       showToast("复制失败，请尝试保存图片", "error");
-    } finally {
-      setRendering(false);
     }
-  }, [rendering]);
+  }, [blob]);
+
+  const handleSave = useCallback(() => {
+    if (!blob || !artifact) return;
+    saveBlob(blob, artifact.filename);
+    showToast("图片已保存");
+  }, [blob, artifact]);
 
   const handleClose = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
+    setFallbackHint(false);
     onClose();
   };
 
@@ -97,42 +72,56 @@ export function ShareDialog({ open, onClose, result, plan }: ShareDialogProps) {
           </button>
         </div>
 
-        {/* 预览 */}
+        {/* 内容区：随 phase 切换 loading / 预览 / 失败 */}
         <div className="flex-1 overflow-auto bg-gray-50 p-6">
-          {previewUrl ? (
-            <div className="text-center">
-              <p className="mb-3 text-sm text-gray-500">
-                {isMobile() ? "长按图片保存到相册" : "右键图片另存为"}
-              </p>
-              <img src={previewUrl} alt="分享卡片" className="mx-auto max-w-full rounded-lg shadow-md" />
+          {loading && (
+            <div className="flex flex-col items-center justify-center gap-4 py-16 text-gray-500">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary-200 border-t-primary-500" />
+              <p className="text-sm">正在生成分享图...</p>
             </div>
-          ) : (
-            <div className="mx-auto overflow-hidden rounded-lg shadow-md" style={{ width: "100%", maxWidth: 540 }}>
-              <div style={{ transform: "scale(0.5)", transformOrigin: "top left", width: 1080, height: 720 }}>
-                <ShareCard ref={cardRef} result={result} plan={plan} />
-              </div>
+          )}
+
+          {phase === "failed" && (
+            <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+              <span className="text-4xl">😵</span>
+              <p className="max-w-xs text-sm text-gray-600">{error?.message ?? "生成失败，请重试"}</p>
+              <button
+                onClick={start}
+                className="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary-700"
+              >
+                重试
+              </button>
+            </div>
+          )}
+
+          {phase === "ready" && blobUrl && (
+            <div className="text-center">
+              {fallbackHint && (
+                <p className="mb-3 text-sm text-gray-500">
+                  {isMobile() ? "长按图片保存到相册" : "右键图片另存为"}
+                </p>
+              )}
+              <img src={blobUrl} alt="分享卡片" className="mx-auto max-w-full rounded-lg shadow-md" />
             </div>
           )}
         </div>
 
-        {/* 操作按钮 */}
-        {!previewUrl && (
+        {/* 操作按钮：仅就绪时展示 */}
+        {phase === "ready" && blob && (
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">
             <button
               onClick={handleCopy}
-              disabled={rendering}
-              className="flex items-center gap-2 rounded-xl border border-primary-200 bg-white px-5 py-2.5 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center gap-2 rounded-xl border border-primary-200 bg-white px-5 py-2.5 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
             >
               <i className="fa-regular fa-copy" aria-hidden="true" />
-              {rendering ? "处理中..." : "复制图片"}
+              复制图片
             </button>
             <button
               onClick={handleSave}
-              disabled={rendering}
-              className="flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary-700"
             >
               <i className="fa-solid fa-download" aria-hidden="true" />
-              {rendering ? "生成中..." : "保存图片"}
+              保存图片
             </button>
           </div>
         )}
