@@ -6,7 +6,6 @@ import { ShareDialog } from "@/components/share/ShareDialog";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
 import { cityImageList } from "@/components/input/RotatingBackground";
-import { saveRecentTrip } from "@/utils/recentTrip";
 import type { TripResult } from "@/types/trip";
 
 export default function ResultPage() {
@@ -72,18 +71,6 @@ export default function ResultPage() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [resultId, jobId, setResult]);
-
-  // 记录最近行程，供首页「继续上次」找回
-  useEffect(() => {
-    if (result && resultId && jobId) {
-      saveRecentTrip({
-        resultId,
-        jobId,
-        city: result.city.name,
-        days: result.request.days,
-      });
-    }
-  }, [result, resultId, jobId]);
 
   // 单方案时自动跳转到详情页（跳过方案选择页）
   useEffect(() => {

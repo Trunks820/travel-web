@@ -16,8 +16,23 @@ export function commuteModeName(mode: string): string {
     transit: "公交",
     taxi: "打车",
     driving: "驾车",
+    cycling: "骑行",
   };
   return map[mode] ?? mode;
+}
+
+/** 出行方式 → FontAwesome 图标（不含 fa-solid 前缀）。 */
+export const COMMUTE_MODE_ICON: Record<string, string> = {
+  walking: "fa-person-walking",
+  transit: "fa-bus",
+  taxi: "fa-car",
+  driving: "fa-car-side",
+  cycling: "fa-bicycle",
+};
+
+/** 出行方式对应图标，未知 mode 落到驾车图标。 */
+export function commuteModeIcon(mode: string): string {
+  return COMMUTE_MODE_ICON[mode] ?? "fa-car-side";
 }
 
 /**

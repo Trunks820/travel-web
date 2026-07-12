@@ -1,4 +1,9 @@
-export type CommuteMode = "driving" | "transit" | "walking";
+/**
+ * 创建行程请求的出行方式（POST /trip/async）。
+ * walking 已从合法值移除（传入返回 422）。
+ * 结果接口仍可能返回 walking（历史兼容），请用 ResultCommuteMode。
+ */
+export type RequestedCommuteMode = "driving" | "transit" | "cycling";
 
 /** 后端 MustIncludeItem 模型（hermes-travel src/agents/schema.py）。
  * place_id 可选但会被优先消费（查库校验城市/trusted），仅勾选热门 POI 时携带；手输只传 name */
@@ -20,8 +25,8 @@ export interface TripFormData {
   budget: number;
   /** v0.8.9 更多偏好（选填，不传走后端默认） */
   must_include?: MustIncludeItem[];
-  /** v0.8.10 接入中：后端当前忽略该字段，接入后自动生效 */
-  commute_mode?: CommuteMode;
+  /** v0.8.10 市内出行方式（walking 已从合法选项移除） */
+  commute_mode?: RequestedCommuteMode;
   daily_start?: string; // "HH:mm"，排程软约束
   daily_end?: string; // "HH:mm"，排程软约束
 }

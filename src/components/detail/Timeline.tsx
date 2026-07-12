@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { TripDay, TripPlace } from "@/types/trip";
 import { categoryIcon, isAnchorRole } from "@/constants/places";
-import { commuteModeName, formatMinutes, formatDistance, cleanBrief } from "@/utils/format";
+import { commuteModeName, commuteModeIcon, formatMinutes, formatDistance, cleanBrief } from "@/utils/format";
 import { computeSchedule } from "@/utils/schedule";
 
 interface TimelineProps {
@@ -9,13 +9,6 @@ interface TimelineProps {
   activePlaceId?: number | null;
   onPlaceClick?: (place: TripPlace) => void;
 }
-
-const MODE_ICON: Record<string, string> = {
-  walking: "fa-person-walking",
-  transit: "fa-bus",
-  taxi: "fa-car",
-  driving: "fa-car",
-};
 
 export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
   const schedule = computeSchedule(day);
@@ -97,11 +90,18 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                 <div className="flex gap-4 py-1.5">
                   <div className="w-12 shrink-0" />
                   <div className="w-6 shrink-0" />
-                  <div className="flex w-fit items-center gap-2 rounded-md border border-gray-100 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
-                    <i className={`fa-solid ${MODE_ICON[leg.mode] ?? "fa-route"} text-[10px] text-gray-400`} aria-hidden="true" />
-                    {commuteModeName(leg.mode)} {formatMinutes(leg.duration_minutes)}
-                    <span className="text-gray-300">|</span>
-                    {formatDistance(leg.distance_meters)}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex w-fit items-center gap-2 rounded-md border border-gray-100 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+                      <i className={`fa-solid ${commuteModeIcon(leg.mode)} text-[10px] text-gray-400`} aria-hidden="true" />
+                      {commuteModeName(leg.mode)} {formatMinutes(leg.duration_minutes)}
+                      <span className="text-gray-300">|</span>
+                      {formatDistance(leg.distance_meters)}
+                    </div>
+                    {leg.mode === "transit" && leg.transit_summary && (
+                      <p className="max-w-[260px] text-[10px] leading-relaxed text-gray-400">
+                        {leg.transit_summary}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

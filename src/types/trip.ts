@@ -2,7 +2,30 @@
 
 export type PaceLevel = "RELAXED" | "MODERATE" | "INTENSIVE";
 export type CommuteStatus = "WITHIN_LIMIT" | "OVER_LIMIT";
-export type CommuteMode = "walking" | "transit" | "taxi" | "driving";
+
+/**
+ * 结果接口返回的出行方式（v1.4）：含历史兼容的 walking。
+ * 不要用此类型约束创建行程的请求体，请用 RequestedCommuteMode。
+ */
+export type ResultCommuteMode = "driving" | "transit" | "walking" | "cycling";
+
+/** @deprecated 改用 ResultCommuteMode（结果）或 form.ts 的 RequestedCommuteMode（请求） */
+export type CommuteMode = ResultCommuteMode;
+
+/** 公交 leg 内单段步骤的类型 */
+export type TransitStepKind = "walking" | "bus" | "rail" | "other";
+
+/** transit leg 内的单段步骤（mode=transit 时 transit_steps 数组元素） */
+export interface TransitStep {
+  kind: TransitStepKind;
+  duration_minutes: number | null;
+  distance_meters: number | null;
+  line_name: string | null;
+  provider_type: string | null; // "地铁线路" / "普通公交线路" 等，仅展示用，勿做程序判断
+  from_stop: string | null;
+  to_stop: string | null;
+  stop_count: number | null;
+}
 /** 后端 role 取值较多（anchor_activity/secondary_activity/meal_stop/photo_stop/optional_stop…），保留为开放字符串 */
 export type PlaceRole = string;
 export type JobStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
@@ -58,10 +81,15 @@ export interface PlaceDetail {
 export interface CommuteLeg {
   from_place_id: number;
   to_place_id: number;
-  mode: CommuteMode;
+  mode: ResultCommuteMode;
+  duration_source?: "amap" | "estimate";
   duration_minutes: number;
   distance_meters: number;
   encoded_polyline?: string;
+  // 只在 mode === "transit" 时存在；明细缺失时为空数组
+  transit_steps?: TransitStep[];
+  // 后端生成的可直接展示文本；明细缺失时有保底文案
+  transit_summary?: string;
 }
 
 export interface TripDay {

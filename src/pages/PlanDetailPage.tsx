@@ -12,7 +12,7 @@ import { mockBudget } from "@/services/mockBudget";
 import { useArtifact } from "@/hooks/useArtifact";
 import { saveBlob } from "@/utils/download";
 import { showToast } from "@/stores/toastStore";
-import { formatDistance, formatMinutes } from "@/utils/format";
+import { formatDistance, formatMinutes, commuteModeIcon } from "@/utils/format";
 import type { TripPlace, TripPlan, TripResult } from "@/types/trip";
 
 const MapView = lazy(() =>
@@ -111,11 +111,23 @@ export default function PlanDetailPage() {
     if (!currentDay) return null;
     const meters = currentDay.commute_legs.reduce((s, l) => s + l.distance_meters, 0);
     const minutes = currentDay.commute_legs.reduce((s, l) => s + l.duration_minutes, 0);
+    // 当天主要出行方式：取各段里出现最多的 mode，用于概览「行驶」图标，
+    // 避免固定车图标与实际公交/步行不符
+    const modeCount = new Map<string, number>();
+    for (const l of currentDay.commute_legs) {
+      modeCount.set(l.mode, (modeCount.get(l.mode) ?? 0) + 1);
+    }
+    let mainMode = "driving";
+    let max = 0;
+    for (const [mode, count] of modeCount) {
+      if (count > max) { max = count; mainMode = mode; }
+    }
     return {
       distance: formatDistance(meters),
       duration: formatMinutes(minutes),
       spots: currentDay.places.length,
       legs: currentDay.commute_legs.length,
+      mainMode,
     };
   }, [currentDay]);
 
@@ -290,7 +302,7 @@ export default function PlanDetailPage() {
             <div className="absolute inset-x-3 bottom-3 z-10 rounded-2xl border border-white bg-white/95 p-3 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md sm:inset-x-5 sm:bottom-5 sm:p-4">
               <h3 className="mb-3 px-2 text-sm font-bold text-gray-800">今日行程概览</h3>
               <div className="flex items-center justify-between px-2">
-                <SummaryItem icon="fa-car-side" label="行驶" value={summary.distance} />
+                <SummaryItem icon={commuteModeIcon(summary.mainMode)} label="行驶" value={summary.distance} />
                 <div className="h-8 w-px bg-gray-100" />
                 <SummaryItem icon="fa-regular fa-clock" label="通勤" value={summary.duration} />
                 <div className="h-8 w-px bg-gray-100" />

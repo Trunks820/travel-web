@@ -7,8 +7,7 @@ import { MorePreferences } from '../components/input/MorePreferences';
 import { RotatingBackground, useRotatingBackground, cityNameOfImage } from '../components/input/RotatingBackground';
 import { submitTrip, ApiRequestError } from '../services/api';
 import { useTripStore } from '../stores/tripStore';
-import { getRecentTrip } from '../utils/recentTrip';
-import type { CommuteMode, MustIncludeItem } from '../types/form';
+import type { RequestedCommuteMode, MustIncludeItem } from '../types/form';
 
 // 节奏滑块映射出的标签，与兴趣偏好同存于 preferences；回填时需从兴趣中剔除
 const PACE_TAGS = ['轻松', '适中', '紧凑'];
@@ -69,7 +68,6 @@ export default function InputPage() {
   const navigate = useNavigate();
   const setFormData = useTripStore((s) => s.setFormData);
   const clearResult = useTripStore((s) => s.clearResult);
-  const recentTrip = useMemo(() => getRecentTrip(), []);
   // 一次性读取上次提交的表单（来自 sessionStorage），用于失败/返回首页后回填，
   // 避免用户丢掉已填的选择。getState() 只读不订阅，不会触发额外重渲染。
   const stored = useMemo(() => useTripStore.getState().formData, []);
@@ -77,8 +75,9 @@ export default function InputPage() {
   const [cities, setCities] = useState<string[]>(
     stored?.to_city ? [stored.to_city] : ['重庆'],
   );
-  const [startDate, setStartDate] = useState(() => stored?.start_date || isoDateAfter(7));
-  const [endDate, setEndDate] = useState(() => stored?.end_date || isoDateAfter(13));
+  // 默认：今天出发，共 5 天（今天 + 4）。让用户进来即是一段可直接生成的合理行程
+  const [startDate, setStartDate] = useState(() => stored?.start_date || isoDateAfter(0));
+  const [endDate, setEndDate] = useState(() => stored?.end_date || isoDateAfter(4));
   const [preferences, setPreferences] = useState<string[]>(
     storedPrefs
       ? storedPrefs.filter((p) => !PACE_TAGS.includes(p))
@@ -92,12 +91,25 @@ export default function InputPage() {
   const [budget, setBudget] = useState(stored?.budget ?? 5000);
   // v0.8.9 更多偏好（折叠区，选填）。commute_mode 由 v0.8.10 后端接入，字段先行
   const [mustInclude, setMustInclude] = useState<MustIncludeItem[]>(stored?.must_include ?? []);
-  const [commuteMode, setCommuteMode] = useState<CommuteMode>(stored?.commute_mode ?? 'driving');
+  // 旧 stored formData 可能含已废弃的 "walking"，降级到 "driving"
+  const storedCommute = stored?.commute_mode;
+  const [commuteMode, setCommuteMode] = useState<RequestedCommuteMode>(
+    storedCommute === "driving" || storedCommute === "transit" || storedCommute === "cycling"
+      ? storedCommute
+      : "driving",
+  );
   const [dailyStart, setDailyStart] = useState(stored?.daily_start ?? '09:00');
   const [dailyEnd, setDailyEnd] = useState(stored?.daily_end ?? '21:00');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | undefined>(undefined);
+
+  // 目的城市变更时清空必去地点：已选地点绑定于上个城市（如重庆洪崖洞），
+  // 换城后语义失效，直接清空，避免带到新城市造成脏数据
+  const handleCitiesChange = (next: string[]) => {
+    if (next[0] !== cities[0]) setMustInclude([]);
+    setCities(next);
+  };
 
   const togglePreference = (pref: string) => {
     setPreferences(prev => {
@@ -212,26 +224,6 @@ export default function InputPage() {
 
         {/* 右侧：表单卡片 */}
         <div className="journal-card relative overflow-hidden rounded-3xl p-5 pl-8 animate-slide-up-delay-1 sm:p-8 sm:pl-10">
-          {recentTrip && (
-            <button
-              type="button"
-              onClick={() =>
-                navigate(`/result/${recentTrip.resultId}?job_id=${encodeURIComponent(recentTrip.jobId)}`)
-              }
-              className="group mb-6 flex w-full items-center gap-3 rounded-2xl border border-primary-100 bg-primary-50/70 px-4 py-3 text-left transition-colors hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 sm:mb-8"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white">
-                <i className="fas fa-clock-rotate-left" aria-hidden="true"></i>
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold text-gray-800">继续上次行程</span>
-                <span className="block truncate text-xs text-gray-600">
-                  {recentTrip.city} · {recentTrip.days}天 · 点击查看已生成的方案
-                </span>
-              </span>
-              <i className="fas fa-chevron-right text-gray-400 transition-transform group-hover:translate-x-0.5" aria-hidden="true"></i>
-            </button>
-          )}
           <div className="mb-6 flex items-start justify-between sm:mb-8">
             <div>
               <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">
@@ -251,7 +243,7 @@ export default function InputPage() {
                   <i className="fas fa-map-marker-alt text-primary-500 mr-2" aria-hidden="true"></i> 目的地
                 </label>
               </div>
-              <MultiCitySelect value={cities} onChange={setCities} multiCity={false} error={cityError} />
+              <MultiCitySelect value={cities} onChange={handleCitiesChange} multiCity={false} error={cityError} />
             </div>
 
             {/* 旅行时间 */}

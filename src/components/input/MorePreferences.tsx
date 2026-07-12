@@ -1,23 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchHotPlaces, type HotPlace } from "@/services/api";
-import type { CommuteMode, MustIncludeItem } from "@/types/form";
+import type { RequestedCommuteMode, MustIncludeItem } from "@/types/form";
 
 interface MorePreferencesProps {
   city: string;
   mustInclude: MustIncludeItem[];
   onMustIncludeChange: (v: MustIncludeItem[]) => void;
-  commuteMode: CommuteMode;
-  onCommuteModeChange: (v: CommuteMode) => void;
+  commuteMode: RequestedCommuteMode;
+  onCommuteModeChange: (v: RequestedCommuteMode) => void;
   dailyStart: string;
   dailyEnd: string;
   onDailyStartChange: (v: string) => void;
   onDailyEndChange: (v: string) => void;
 }
 
-const COMMUTE_OPTIONS: { value: CommuteMode; label: string; icon: string }[] = [
+const COMMUTE_OPTIONS: { value: RequestedCommuteMode; label: string; icon: string }[] = [
   { value: "driving", label: "自驾/打车", icon: "fas fa-car" },
   { value: "transit", label: "公共交通", icon: "fas fa-bus" },
-  { value: "walking", label: "步行优先", icon: "fas fa-person-walking" },
+  { value: "cycling", label: "骑行优先", icon: "fas fa-bicycle" },
 ];
 
 const MAX_MUST_INCLUDE = 5;
