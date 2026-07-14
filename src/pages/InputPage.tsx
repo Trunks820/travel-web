@@ -13,23 +13,21 @@ import type { RequestedCommuteMode, MustIncludeItem } from '../types/form';
 const PACE_TAGS = ['轻松', '适中', '紧凑'];
 
 const PREFERENCE_OPTIONS = [
-  { label: '自然风光', icon: 'fas fa-mountain' },
-  { label: '文化历史', icon: 'fas fa-university' },
-  { label: '美食', icon: 'fas fa-utensils' },
-  { label: '亲子', icon: 'fas fa-child' },
-  { label: '购物', icon: 'fas fa-shopping-bag' },
-  { label: 'citywalk', icon: 'fas fa-walking' },
-  { label: '拍照', icon: 'fas fa-camera' },
-  { label: '夜景', icon: 'fas fa-moon' },
+  '自然风光',
+  '文化历史',
+  '美食',
+  '亲子',
+  '购物',
+  'citywalk',
+  '拍照',
+  '夜景',
 ];
 
 function PreferenceBtn({
-  icon,
   label,
   active,
   onClick,
 }: {
-  icon: string;
   label: string;
   active: boolean;
   onClick: () => void;
@@ -39,17 +37,13 @@ function PreferenceBtn({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+      className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
         active
-          ? 'bg-primary-50 border-primary-400 text-primary-700 font-medium'
-          : 'bg-white border-gray-100 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+          ? 'border-primary-500 bg-primary-50 font-medium text-primary-700'
+          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
       }`}
     >
-      <i className={`${icon} ${active ? 'text-primary-500' : 'text-gray-400'}`} aria-hidden="true"></i>
-      <span>{label}</span>
-      {active && (
-        <i className="fas fa-check text-primary-500 ml-1 text-xs" aria-hidden="true"></i>
-      )}
+      {label}
     </button>
   );
 }
@@ -235,19 +229,15 @@ export default function InputPage() {
           <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
             {/* 目的地 */}
             <div>
-              <div className="flex justify-between items-center mb-3">
-                <label className="text-gray-700 font-bold flex items-center text-sm">
-                  <i className="fas fa-map-marker-alt text-primary-500 mr-2" aria-hidden="true"></i> 目的地
-                </label>
+              <div className="mb-3 flex items-center justify-between">
+                <label className="text-sm font-bold text-gray-700">目的地</label>
               </div>
               <MultiCitySelect value={cities} onChange={handleCitiesChange} multiCity={false} error={cityError} />
             </div>
 
             {/* 旅行时间 */}
             <div>
-              <label className="text-gray-700 font-bold flex items-center text-sm mb-3">
-                <i className="far fa-calendar-alt text-primary-500 mr-2" aria-hidden="true"></i> 旅行时间
-              </label>
+              <label className="mb-3 block text-sm font-bold text-gray-700">旅行时间</label>
               <DateRangeInput
                 startDate={startDate}
                 endDate={endDate}
@@ -266,8 +256,8 @@ export default function InputPage() {
 
             {/* 出行人数 */}
             <div>
-              <label className="text-gray-700 font-bold flex items-center text-sm mb-3" id="people-label">
-                <i className="fas fa-user-group text-primary-500 mr-2" aria-hidden="true"></i> 出行人数
+              <label className="mb-3 block text-sm font-bold text-gray-700" id="people-label">
+                出行人数
               </label>
               <div className="flex items-center gap-4" role="group" aria-labelledby="people-label">
                 <button
@@ -296,15 +286,14 @@ export default function InputPage() {
 
             {/* 旅行偏好 */}
             <div>
-              <label className="text-gray-700 font-bold flex items-center text-sm mb-3">
-                <i className="far fa-id-card text-primary-500 mr-2" aria-hidden="true"></i> 旅行偏好
-                <span className="font-normal text-gray-400 ml-1">(可选多选)</span>
+              <label className="mb-3 block text-sm font-bold text-gray-700">
+                旅行偏好
+                <span className="ml-1 font-normal text-gray-400">(可多选)</span>
               </label>
               <div className="flex flex-wrap gap-2">
-                {PREFERENCE_OPTIONS.map(({ label, icon }) => (
+                {PREFERENCE_OPTIONS.map((label) => (
                   <PreferenceBtn
                     key={label}
-                    icon={icon}
                     label={label}
                     active={preferences.includes(label)}
                     onClick={() => togglePreference(label)}
@@ -315,51 +304,43 @@ export default function InputPage() {
 
             {/* 节奏偏好 */}
             <div>
-              <div className="flex items-center mb-3">
-                <label className="text-gray-700 font-bold flex items-center text-sm" id="pace-label">
-                  <i className="fas fa-walking text-primary-500 mr-2" aria-hidden="true"></i> 节奏偏好
+              <div className="mb-3 flex items-center">
+                <label className="text-sm font-bold text-gray-700" id="pace-label">
+                  节奏偏好
                 </label>
-                <span className="text-xs text-gray-400 ml-3 font-normal">
-                  想要多紧凑的行程安排？
-                </span>
+                <span className="ml-3 text-xs font-normal text-gray-400">想要多紧凑的行程安排？</span>
               </div>
-              <div className="flex items-center space-x-4 px-2">
-                <div className="text-gray-600 flex flex-col items-center shrink-0" aria-hidden="true">
-                  <i className="fas fa-umbrella-beach text-sm mb-1"></i>
-                  <span className="text-[10px]">轻松悠闲</span>
-                </div>
+              <div className="flex items-center gap-3 px-1">
+                <span className="shrink-0 text-[11px] text-gray-500">轻松</span>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   value={pace}
-                  onChange={e => setPace(Number(e.target.value))}
+                  onChange={(e) => setPace(Number(e.target.value))}
                   aria-labelledby="pace-label"
                   aria-valuetext={pace < 34 ? '轻松悠闲' : pace < 67 ? '适中' : '紧凑充实'}
-                  className="flex-1 accent-primary-500 cursor-pointer"
+                  className="flex-1 cursor-pointer accent-primary-500"
                 />
-                <div className="text-gray-600 flex flex-col items-center shrink-0" aria-hidden="true">
-                  <i className="fas fa-running text-sm mb-1"></i>
-                  <span className="text-[10px]">紧凑充实</span>
-                </div>
+                <span className="shrink-0 text-[11px] text-gray-500">紧凑</span>
               </div>
             </div>
 
             {/* 预算范围 */}
             <div>
-              <div className="flex items-center mb-3">
-                <label className="text-gray-700 font-bold flex items-center text-sm" id="budget-label">
-                  <i className="far fa-money-bill-alt text-primary-500 mr-2" aria-hidden="true"></i> 预算范围
-                  <span className="font-normal text-gray-400 ml-1">(人均)</span>
+              <div className="mb-3 flex items-center">
+                <label className="text-sm font-bold text-gray-700" id="budget-label">
+                  预算范围
+                  <span className="ml-1 font-normal text-gray-400">(人均)</span>
                 </label>
-                <span className="text-xs text-gray-400 ml-3 font-normal">不含往返大交通</span>
+                <span className="ml-3 text-xs font-normal text-gray-400">不含往返大交通</span>
               </div>
               <div className="px-2">
                 <BudgetSlider min={1000} max={12000} value={budget} onChange={setBudget} labelId="budget-label" />
               </div>
             </div>
 
-            {/* 更多偏好（v0.8.9：必去地点/出行方式/时间窗，默认折叠） */}
+            {/* 更多偏好（必去地点/出行方式/时间窗，默认折叠） */}
             <MorePreferences
               city={cities[0] ?? ''}
               mustInclude={mustInclude}
@@ -374,63 +355,42 @@ export default function InputPage() {
 
             {/* 特殊需求 */}
             <div>
-              <div className="flex items-center mb-3 flex-wrap">
-                <label className="text-gray-700 font-bold flex items-center text-sm" htmlFor="trip-notes">
-                  <i className="far fa-comment-dots text-primary-500 mr-2" aria-hidden="true"></i> 特殊需求
-                  <span className="font-normal text-gray-400 ml-1">(选填)</span>
-                </label>
-                <span className="text-xs text-gray-400 ml-3 font-normal">
-                  例如：无障碍设施、素食、宠物友好等
-                </span>
-              </div>
+              <label className="mb-3 block text-sm font-bold text-gray-700" htmlFor="trip-notes">
+                特殊需求
+                <span className="ml-1 font-normal text-gray-400">(选填)</span>
+              </label>
               <textarea
                 id="trip-notes"
                 value={notes}
-                onChange={e => setNotes(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[60px] resize-none"
-                placeholder="如：无障碍、素食、带娃别太赶"
-              ></textarea>
+                onChange={(e) => setNotes(e.target.value)}
+                className="min-h-[60px] w-full resize-none rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="选填，补充你的出行说明"
+              />
             </div>
 
             {/* 生成按钮 */}
             <div aria-live="polite">
               {submitError && (
-                <p className="text-sm text-red-500 text-center">{submitError}</p>
+                <p className="text-center text-sm text-red-500">{submitError}</p>
               )}
             </div>
-            
-            <style>{`
-              @keyframes shimmer-sweep {
-                0% { transform: translateX(-150%) skewX(-15deg); }
-                100% { transform: translateX(250%) skewX(-15deg); }
-              }
-              .animate-shimmer-sweep {
-                animation: shimmer-sweep 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
-              }
-            `}</style>
-            
+
             <button
               type="submit"
               disabled={submitting}
-              className="relative overflow-hidden group w-full bg-accent-500 hover:bg-accent-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-accent-200 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
+              className="flex w-full items-center justify-center rounded-2xl bg-accent-500 py-4 font-bold text-white shadow-lg shadow-accent-200 transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
             >
-              {!submitting && (
-                <div className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-sweep" />
-              )}
               {submitting ? (
                 <>
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                  <span>正在提交...</span>
+                  <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  正在提交...
                 </>
               ) : (
-                <>
-                  <i className="fas fa-magic" aria-hidden="true"></i>
-                  <span>帮我排行程</span>
-                </>
+                '帮我排行程'
               )}
             </button>
 
-            <div className="text-center text-xs text-gray-600 flex items-center justify-center space-x-1 pt-2">
+            <div className="flex items-center justify-center space-x-1 pt-2 text-center text-xs text-gray-600">
               <i className="fas fa-shield-alt" aria-hidden="true"></i>
               <span>信息仅用于行程规划</span>
             </div>
