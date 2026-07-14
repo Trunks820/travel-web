@@ -12,6 +12,20 @@ const CITY_IMAGES: Record<string, string[]> = {
     'zhang-kaiyv-yT_9tsThivo-unsplash.jpg',
     'zhang-kaiyv-z4whdrqkO40-unsplash.jpg',
   ],
+  shanghai: [
+    'freeman-zhou-oV9hp8wXkPE-unsplash.jpg',
+    'hanny-naibaho-D7InODIWyK4-unsplash.jpg',
+    'nuno-alberto-MykFFC5zolE-unsplash.jpg',
+    'yifan-cong-GszVE92a5Rs-unsplash.jpg',
+    'zhou-xian-7tFFO6Mq5L4-unsplash.jpg',
+  ],
+  chongqing: [
+    'harrison-qi-E9dIbdSd7LU-unsplash.jpg',
+    'zhang-qc-EyScjFlzvtg-unsplash.jpg',
+    'albert-canite-RG2YD21o81E-unsplash.jpg',
+    'albert-canite-vMM4_VA8ogw-unsplash.jpg',
+    'andrea-sun-pMnpZayQJFE-unsplash.jpg',
+  ],
   chengdu: [
     'bamboo-joe-EoVw0eEM4lQ-unsplash.jpg',
     'kev1n-z-794u6VhyNws-unsplash.jpg',
@@ -26,27 +40,67 @@ const CITY_IMAGES: Record<string, string[]> = {
     'zhao-yangjun-FCi_wNGm9_Y-unsplash.jpg',
     'zhu-edward-peq-khnWDbg-unsplash.jpg',
   ],
-  shanghai: [
-    'freeman-zhou-oV9hp8wXkPE-unsplash.jpg',
-    'hanny-naibaho-D7InODIWyK4-unsplash.jpg',
-    'nuno-alberto-MykFFC5zolE-unsplash.jpg',
-    'yifan-cong-GszVE92a5Rs-unsplash.jpg',
-    'zhou-xian-7tFFO6Mq5L4-unsplash.jpg',
+  xian: [
+    'aoyu-zhang-KNpElyP6R20-unsplash.jpg',
+    'jun-ren-m8z_AnmlcpU-unsplash.jpg',
+    'jun-ren-GPWtsTz_lOc-unsplash.jpg',
+    'yihan-wang-2cvRysXC8Hk-unsplash.jpg',
+    'yux-xiang-zvVX7prwg4c-unsplash.jpg',
+  ],
+  nanjing: [
+    'jennifer-chen-Pnc2Uxb7PG0-unsplash.jpg',
+    'kenneth-yang-lJWJLkwIsng-unsplash.jpg',
+    'tianyang-zheng-OFoheOWxi2Y-unsplash.jpg',
+    'dendy-X8EPQsYL754-unsplash.jpg',
+    'tianyang-zheng-Oh71Xv1yWHU-unsplash.jpg',
+  ],
+  changsha: [
+    'zhe-zhang-TCaefwd87wE-unsplash.jpg',
+    'camillo-corsetti-antonini-3u6BRuwc5-k-unsplash.jpg',
+    'bo-zhang-wd4o3QlBsdc-unsplash.jpg',
+    'hyory-liu-McnNA_yRjY8-unsplash.jpg',
+    'tianyang-zheng-OFoheOWxi2Y-unsplash.jpg',
+  ],
+  qingdao: [
+    'r-hai-BZrJ5tcuJE0-unsplash.jpg',
+    'rockcyz-v6ceQ2Lj6b0-unsplash.jpg',
+    'guxxxxyz-Fwo8xRfRSfM-unsplash.jpg',
+    'hat-trick-obeOYXrKv7w-unsplash.jpg',
+    'hat-trick-OQlBGJ4tSSc-unsplash.jpg',
+  ],
+  guilin: [
+    'theodor-lundqvist-WHhbYArwFt8-unsplash.jpg',
+    'william-zhang--Qd91Sg6gZ8-unsplash.jpg',
+    'chopsticks-on-the-loose-_75I7lCDgY8-unsplash.jpg',
+    'manos-koutras-7jxuzSHtVC8-unsplash.jpg',
+    'robynne-o-pjsrHjXGnVs-unsplash.jpg',
   ],
 };
 
 const CITY_NAME_TO_FOLDER: Record<string, string> = {
   北京: 'beijing',
+  上海: 'shanghai',
+  重庆: 'chongqing',
   成都: 'chengdu',
   杭州: 'hangzhou',
-  上海: 'shanghai',
+  西安: 'xian',
+  南京: 'nanjing',
+  长沙: 'changsha',
+  青岛: 'qingdao',
+  桂林: 'guilin',
 };
 
 const FOLDER_TO_CITY_NAME: Record<string, string> = {
   beijing: '北京',
+  shanghai: '上海',
+  chongqing: '重庆',
   chengdu: '成都',
   hangzhou: '杭州',
-  shanghai: '上海',
+  xian: '西安',
+  nanjing: '南京',
+  changsha: '长沙',
+  qingdao: '青岛',
+  guilin: '桂林',
 };
 
 const ALL_IMAGES = Object.entries(CITY_IMAGES).flatMap(([folder, files]) =>

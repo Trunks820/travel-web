@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ProgressTimeline } from "@/components/planning/ProgressTimeline";
 import { BoardingPass } from "@/components/planning/BoardingPass";
@@ -20,6 +20,25 @@ export default function PlanningPage() {
   const formData = useTripStore((s) => s.formData);
 
   const destination = formData?.to_city ?? "目的地";
+  
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const quotes = useMemo(() => [
+    `正在为你翻阅 ${destination} 的当地指南...`,
+    `正在筛选 ${destination} 评分最高的必去景点...`,
+    `正在计算各景点之间的最优交通路线...`,
+    `正在根据你的偏好定制专属行程...`,
+    `正在为你搜罗地道的 ${destination} 美食...`,
+    `快好了，正在做最后的检查...`
+  ], [destination]);
+
+  useEffect(() => {
+    // 如果失败或超时就不再轮播
+    const timer = setInterval(() => {
+      setQuoteIndex((i) => (i + 1) % quotes.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, [quotes.length]);
+
   const { current: bgImage, incoming: bgIncoming } = useRotatingBackground(
     destination ? [destination] : [],
     "static",
@@ -133,12 +152,12 @@ export default function PlanningPage() {
         {/* 左：进度 */}
         <div className="order-2 animate-slide-up lg:order-1">
           <h1 className="mb-2 text-2xl font-bold text-gray-800 sm:text-3xl xl:text-4xl">{title}</h1>
-          <p className="mb-6 text-sm text-gray-600 sm:mb-10">
+          <p className="mb-6 text-sm text-gray-600 sm:mb-10 transition-opacity duration-300">
             {failed
               ? "可以调整需求后重新规划"
               : timedOut
                 ? "请稍后刷新查看，或重新规划"
-                : "AI 旅行管家正在逐步定制，通常需要 30-90 秒"}
+                : quotes[quoteIndex]}
           </p>
 
           <div aria-live="polite" aria-atomic="true">

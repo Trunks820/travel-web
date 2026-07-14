@@ -174,7 +174,7 @@ export default function PlanDetailPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
+    <div className="flex h-[calc(100vh_-_3.5rem)] flex-col overflow-hidden" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
       {/* 详情页标题条 */}
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">

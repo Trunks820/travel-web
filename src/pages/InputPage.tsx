@@ -35,26 +35,22 @@ function PreferenceBtn({
   onClick: () => void;
 }) {
   return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={onClick}
-        aria-pressed={active}
-        className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm transition-colors border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
-          active
-            ? 'bg-primary-50 border-primary-400 text-primary-600'
-            : 'bg-white border-gray-100 text-gray-600 hover:border-gray-300'
-        }`}
-      >
-        <i className={`${icon} ${active ? 'text-primary-500' : 'text-gray-400'}`} aria-hidden="true"></i>
-        <span>{label}</span>
-      </button>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+        active
+          ? 'bg-primary-50 border-primary-400 text-primary-700 font-medium'
+          : 'bg-white border-gray-100 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+      }`}
+    >
+      <i className={`${icon} ${active ? 'text-primary-500' : 'text-gray-400'}`} aria-hidden="true"></i>
+      <span>{label}</span>
       {active && (
-        <div className="absolute -top-1 -right-1 bg-primary-500 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] border-2 border-white pointer-events-none">
-          <i className="fas fa-check" aria-hidden="true"></i>
-        </div>
+        <i className="fas fa-check text-primary-500 ml-1 text-xs" aria-hidden="true"></i>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -75,9 +71,9 @@ export default function InputPage() {
   const [cities, setCities] = useState<string[]>(
     stored?.to_city ? [stored.to_city] : ['重庆'],
   );
-  // 默认：今天出发，共 5 天（今天 + 4）。让用户进来即是一段可直接生成的合理行程
-  const [startDate, setStartDate] = useState(() => stored?.start_date || isoDateAfter(0));
-  const [endDate, setEndDate] = useState(() => stored?.end_date || isoDateAfter(4));
+  // 默认：明天出发，共 3 天行程
+  const [startDate, setStartDate] = useState(() => stored?.start_date || isoDateAfter(1));
+  const [endDate, setEndDate] = useState(() => stored?.end_date || isoDateAfter(3));
   const [preferences, setPreferences] = useState<string[]>(
     storedPrefs
       ? storedPrefs.filter((p) => !PACE_TAGS.includes(p))
@@ -200,7 +196,7 @@ export default function InputPage() {
       <RotatingBackground current={bgImage} incoming={bgIncoming} />
 
       {/* 主体内容 */}
-      <main className="relative z-10 mx-auto grid max-w-[1400px] grid-cols-1 items-start gap-8 px-4 pb-16 pt-8 sm:px-8 lg:grid-cols-[5fr_7fr] lg:gap-12 lg:pb-24 lg:pt-16">
+      <main className="relative z-10 mx-auto grid max-w-[1400px] grid-cols-1 items-start gap-8 px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-8 sm:px-8 lg:grid-cols-[5fr_7fr] lg:gap-12 lg:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pt-16">
         {/* 左侧：品牌与特性（窄屏简化：保留标题，隐藏特性列表与签名） */}
         <div className="lg:pt-12 animate-slide-up">
           <div className="mb-6 lg:mb-12">
@@ -340,10 +336,7 @@ export default function InputPage() {
                   onChange={e => setPace(Number(e.target.value))}
                   aria-labelledby="pace-label"
                   aria-valuetext={pace < 34 ? '轻松悠闲' : pace < 67 ? '适中' : '紧凑充实'}
-                  className="custom-slider flex-1"
-                  style={{
-                    background: `linear-gradient(to right, var(--color-accent-400) 0%, var(--color-accent-400) ${pace}%, var(--color-sand-100) ${pace}%, var(--color-sand-100) 100%)`,
-                  }}
+                  className="flex-1 accent-primary-500 cursor-pointer"
                 />
                 <div className="text-gray-600 flex flex-col items-center shrink-0" aria-hidden="true">
                   <i className="fas fa-running text-sm mb-1"></i>
@@ -405,11 +398,25 @@ export default function InputPage() {
                 <p className="text-sm text-red-500 text-center">{submitError}</p>
               )}
             </div>
+            
+            <style>{`
+              @keyframes shimmer-sweep {
+                0% { transform: translateX(-150%) skewX(-15deg); }
+                100% { transform: translateX(250%) skewX(-15deg); }
+              }
+              .animate-shimmer-sweep {
+                animation: shimmer-sweep 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+              }
+            `}</style>
+            
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-accent-500 hover:bg-accent-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-accent-200 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
+              className="relative overflow-hidden group w-full bg-accent-500 hover:bg-accent-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center space-x-2 transition-colors shadow-lg shadow-accent-200 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
             >
+              {!submitting && (
+                <div className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer-sweep" />
+              )}
               {submitting ? (
                 <>
                   <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>

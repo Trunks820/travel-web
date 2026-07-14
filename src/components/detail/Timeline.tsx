@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { TripDay, TripPlace } from "@/types/trip";
 import { categoryIcon, isAnchorRole } from "@/constants/places";
 import { commuteModeName, commuteModeIcon, formatMinutes, formatDistance, cleanBrief } from "@/utils/format";
@@ -18,16 +18,24 @@ const PERIOD_BADGE_CLASS: Record<string, string> = {
   晚上: "bg-indigo-50 text-indigo-600",
 };
 
+/** md 及以上默认展开攻略；手机默认折叠。切 Day 时按当前断点重置。 */
+function useDesktopOpenDefault(dayKey: number) {
+  const [open, setOpen] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : true,
+  );
+
+  useEffect(() => {
+    setOpen(window.matchMedia("(min-width: 768px)").matches);
+  }, [dayKey]);
+
+  return [open, setOpen] as const;
+}
+
 export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
+  const [narrativeOpen, setNarrativeOpen] = useDesktopOpenDefault(day.day);
+
   return (
     <div className="px-5 py-5">
-      {/* Day 叙述：当天整体概览，置顶（各地点的具体体验见 activity_note） */}
-      {day.narrative && (
-        <p className="mb-4 rounded-xl bg-primary-50/50 p-3.5 text-[13px] leading-relaxed text-primary-700">
-          {day.narrative}
-        </p>
-      )}
-
       <div className="stagger relative space-y-1">
         {day.places.map((place, i) => {
           const leg = day.commute_legs.find((l) => l.from_place_id === place.place_id);
@@ -78,7 +86,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                 <button
                   type="button"
                   onClick={() => onPlaceClick?.(place)}
-                  className={`flex-1 rounded-xl border bg-white p-3.5 text-left transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                  className={`flex-1 rounded-xl border bg-white p-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
                     isActive
                       ? "border-primary-300 shadow-[0_2px_12px_rgba(15,118,110,0.12)] ring-1 ring-primary-200"
                       : "border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
@@ -171,9 +179,42 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
         })}
       </div>
 
+      {/* 当日攻略正文：时间轴之后，不改写内容；手机默认折叠、桌面默认展开 */}
+      {day.narrative && (
+        <div className="mt-6 rounded-2xl bg-amber-50/60 p-4 border border-amber-100/50">
+          <button
+            type="button"
+            onClick={() => setNarrativeOpen((v) => !v)}
+            className="flex w-full min-h-[44px] py-2 items-center justify-between gap-2 text-left md:pointer-events-none rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            aria-expanded={narrativeOpen}
+          >
+            <span className="text-[14px] font-bold text-amber-800 flex items-center gap-2">
+              <i className="fa-regular fa-lightbulb text-amber-500 text-lg" aria-hidden="true" />
+              {narrativeOpen ? "当日游玩贴士" : "查看当日游玩贴士"}
+            </span>
+            <i
+              className={`fa-solid fa-chevron-down text-[12px] text-amber-500 transition-transform md:hidden ${
+                narrativeOpen ? "rotate-180" : ""
+              }`}
+              aria-hidden="true"
+            />
+          </button>
+          {narrativeOpen && (
+            <div className="mt-3 text-[13px] leading-relaxed text-amber-900/80">
+              {day.narrative.split('\n').map((line, idx) => (
+                <p key={idx} className={idx > 0 ? "mt-1.5" : ""}>{line}</p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 当日通勤小结 */}
       {day.commute_summary && (
-        <p className="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-500">{day.commute_summary}</p>
+        <div className="mt-5 rounded-xl border border-dashed border-gray-200 bg-gray-50/50 p-3.5 flex items-start gap-2.5 text-xs text-gray-500">
+          <i className="fa-solid fa-car-side mt-0.5 text-gray-400" aria-hidden="true" />
+          <p className="leading-relaxed">{day.commute_summary}</p>
+        </div>
       )}
     </div>
   );
