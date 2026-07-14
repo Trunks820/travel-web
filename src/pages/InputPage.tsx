@@ -201,20 +201,20 @@ export default function InputPage() {
         <div className="lg:pt-12 animate-slide-up">
           <div className="mb-6 lg:mb-12">
             <h1 className="mb-3 text-3xl font-bold leading-tight text-gray-800 sm:text-4xl lg:mb-4 xl:text-5xl">
-              AI 智能规划
+              放下攻略，随时出发
               <br />
-              <span className="text-primary-500">更懂你的每一次旅行</span>
+              <span className="text-primary-500">路线和走法，我们来排</span>
             </h1>
-            <p className="text-base text-gray-600 sm:text-xl">云途 YunTu · 让旅行更简单，更美好</p>
+            <p className="text-base text-gray-600 sm:text-xl">云途 YunTu · 你的旅行管家</p>
           </div>
 
           <p className="mb-8 hidden text-lg leading-relaxed text-gray-600 lg:block">
-            说说你想去哪、想慢还是想赶，我们帮你把日子排进本子里。
+            填好城市和节奏，生成可跟着走的行程。
           </p>
 
           <div className="relative mt-20 hidden lg:inline-block">
             <p className="signature-font text-4xl text-primary-500 opacity-80 transform -rotate-6">
-              探索世界，遇见更好的自己
+              在路上，才是正经事
             </p>
           </div>
         </div>
@@ -224,10 +224,10 @@ export default function InputPage() {
           <div className="mb-6 flex items-start justify-between sm:mb-8">
             <div>
               <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">
-                生成你的专属行程
+                定制你的路书
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                告诉我们你的喜好，AI 为你量身打造完美旅程
+                告诉我们你的期待，剩下的交给我们
               </p>
             </div>
           </div>
@@ -388,7 +388,7 @@ export default function InputPage() {
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-primary-500 min-h-[60px] resize-none"
-                placeholder="请输入你的特殊需求..."
+                placeholder="如：无障碍、素食、带娃别太赶"
               ></textarea>
             </div>
 
@@ -425,14 +425,14 @@ export default function InputPage() {
               ) : (
                 <>
                   <i className="fas fa-magic" aria-hidden="true"></i>
-                  <span>生成专属行程</span>
+                  <span>帮我排行程</span>
                 </>
               )}
             </button>
 
             <div className="text-center text-xs text-gray-600 flex items-center justify-center space-x-1 pt-2">
               <i className="fas fa-shield-alt" aria-hidden="true"></i>
-              <span>信息安全保障 · 仅用于行程规划</span>
+              <span>信息仅用于行程规划</span>
             </div>
           </form>
         </div>

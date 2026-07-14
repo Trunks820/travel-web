@@ -25,7 +25,7 @@ export default function Header() {
                   : 'hover:text-gray-900 transition-colors'
               }
             >
-              AI 行程规划
+              行程规划
             </Link>
           </nav>
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PlanSummaryCard } from "@/components/result/PlanSummaryCard";
-import { ResultSkeleton } from "@/components/skeleton/ResultSkeleton";
+import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
 import { ShareDialog } from "@/components/share/ShareDialog";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
@@ -80,7 +80,7 @@ export default function ResultPage() {
     });
   }, [result, resultId, navigate, jobQuery]);
 
-  if (loading) return <ResultSkeleton />;
+  if (loading) return <DetailSkeleton />;
 
   if (error || !result || result.plans.length === 0) {
     const kind = error?.kind;
@@ -98,7 +98,7 @@ export default function ResultPage() {
     );
   }
 
-  if (result.plans.length === 1) return <ResultSkeleton />;
+  if (result.plans.length === 1) return <DetailSkeleton />;
 
   const { city, request, plans } = result;
   const images = cityImageList(city.name);

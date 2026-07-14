@@ -48,10 +48,18 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
           const brief = cleanBrief(place.brief);
 
           return (
-            <div key={place.place_id} style={{ "--i": i } as CSSProperties}>
-              <div className="flex gap-4">
+            <div key={place.place_id} className="relative group" style={{ "--i": i } as CSSProperties}>
+              {/* 连线：放在最外层，贯穿整个节点和通勤区域 */}
+              {i < day.places.length - 1 && (
+                <div
+                  className="absolute top-8 bottom-0 w-px bg-gray-200"
+                  style={{ left: "76px" }}
+                  aria-hidden="true"
+                />
+              )}
+              <div className="relative z-10 flex gap-4">
                 {/* 时段列（后端 period；无 schedule 的旧结果留白） */}
-                <div className="w-12 shrink-0 pt-2.5 text-right">
+                <div className="w-12 shrink-0 pt-2 text-right">
                   {period && (
                     <span
                       data-testid="period-badge"
@@ -65,14 +73,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                 </div>
 
                 {/* 节点 */}
-                <div className="relative shrink-0 pt-2.5">
-                  {/* 连线：从本圆点底部连到下一项圆点（最后一项不画，避免溢出到正文） */}
-                  {i < day.places.length - 1 && (
-                    <div
-                      className="absolute left-1/2 top-[34px] -bottom-1 w-px -translate-x-1/2 bg-gray-200"
-                      aria-hidden="true"
-                    />
-                  )}
+                <div className="relative shrink-0 pt-2">
                   <div
                     className={`relative z-10 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm ${
                       anchor ? "bg-primary-600" : "bg-accent-400"
@@ -82,31 +83,53 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                   </div>
                 </div>
 
-                {/* 内容卡（纯文字，无景点图） */}
+                {/* 停靠点：清单行；弱底 + 常显 chevron，避免裸文被当成不可点 */}
                 <button
                   type="button"
                   onClick={() => onPlaceClick?.(place)}
-                  className={`flex-1 rounded-xl border bg-white p-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                  aria-label={`查看${place.name}详情`}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`group/place min-w-0 flex-1 cursor-pointer rounded-lg border px-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1 ${
+                    exact || note || brief ? "py-2.5" : "py-2"
+                  } ${
                     isActive
-                      ? "border-primary-300 shadow-[0_2px_12px_rgba(15,118,110,0.12)] ring-1 ring-primary-200"
-                      : "border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
+                      ? "border-primary-200 bg-primary-50"
+                      : "border-transparent bg-gray-50/70 hover:border-gray-100 hover:bg-gray-100/80 active:bg-gray-100"
                   }`}
                 >
-                  <div className="mb-1 flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="text-base">{categoryIcon(place.category)}</span>
-                      <h3 className="truncate font-bold text-gray-800">{place.name}</h3>
-                    </div>
-                    {place.optional && (
-                      <span className="shrink-0 rounded bg-sand-100 px-1.5 py-0.5 text-[10px] text-sand-500">
-                        可选
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="shrink-0 text-sm" aria-hidden="true">
+                        {categoryIcon(place.category)}
                       </span>
-                    )}
+                      <h3
+                        className={`min-w-0 truncate text-sm font-semibold transition-colors ${
+                          isActive
+                            ? "text-primary-700"
+                            : "text-gray-800 group-hover/place:text-primary-700"
+                        }`}
+                      >
+                        {place.name}
+                      </h3>
+                      {place.optional && (
+                        <span className="shrink-0 rounded bg-white/80 px-1.5 py-0.5 text-[10px] text-gray-500">
+                          可选
+                        </span>
+                      )}
+                    </div>
+                    <i
+                      className={`fa-solid fa-chevron-right shrink-0 text-[10px] transition-transform ${
+                        isActive
+                          ? "translate-x-0.5 text-primary-500"
+                          : "text-gray-300 group-hover/place:translate-x-0.5 group-hover/place:text-primary-400"
+                      }`}
+                      aria-hidden="true"
+                    />
                   </div>
 
                   {/* 精确时间：仅受治理来源（reservation/event/transport/verified_venue_rule） */}
                   {exact && (
-                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-600 tabular-nums">
+                    <div className="mt-1 flex items-center gap-1.5 pl-5 text-[11px] font-medium text-gray-600 tabular-nums">
                       <i className="fa-regular fa-clock" aria-hidden="true" />
                       {exact.text}
                       <span className="rounded bg-primary-50 px-1 py-0.5 text-[10px] font-normal text-primary-600">
@@ -117,10 +140,12 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
 
                   {/* activity_note：本条路线中该地点的体验说明（1.5）；旧结果回退 brief */}
                   {note ? (
-                    <p className="text-[12px] leading-relaxed text-gray-600">{note}</p>
+                    <p className="mt-0.5 line-clamp-2 pl-5 text-[12px] leading-relaxed text-gray-500">
+                      {note}
+                    </p>
                   ) : (
                     brief && (
-                      <p className="line-clamp-2 text-[11px] leading-relaxed text-gray-600">
+                      <p className="mt-0.5 line-clamp-2 pl-5 text-[11px] leading-relaxed text-gray-500">
                         {brief}
                       </p>
                     )
@@ -128,49 +153,62 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                 </button>
               </div>
 
-              {/* 通勤段：线路/站点/换乘/耗时只在这里展示 */}
+              {/* 通勤段：与上下景点拉开间距，作为两站之间的桥梁，而非上站附属 */}
               {leg && (
-                <div className="flex gap-4 py-1.5">
+                <div className="relative z-10 mt-3 mb-3 flex gap-4 py-1">
                   <div className="w-12 shrink-0" />
                   <div className="w-6 shrink-0" />
                   <div className="flex flex-col gap-1">
-                    <div className="flex w-fit items-center gap-2 rounded-md border border-gray-100 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
-                      <i className={`fa-solid ${commuteModeIcon(leg.mode)} text-[10px] text-gray-400`} aria-hidden="true" />
+                    <div
+                      className="flex w-fit items-center gap-2 rounded-md border border-gray-100 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums"
+                      style={{ backgroundColor: "var(--color-bg-secondary)" }}
+                    >
+                      <i
+                        className={`fa-solid ${commuteModeIcon(leg.mode)} text-[10px] text-gray-400`}
+                        aria-hidden="true"
+                      />
                       {commuteModeName(leg.mode)} {formatMinutes(leg.duration_minutes)}
                       <span className="text-gray-300">|</span>
                       {formatDistance(leg.distance_meters)}
                     </div>
-                    {leg.mode === "transit" && (leg.transit_steps?.length ? (
-                      <div className="max-w-[280px] space-y-1">
-                        {leg.transit_steps.map((step, si) => (
-                          <p key={si} className="text-[10px] leading-relaxed text-gray-500">
-                            {step.kind === "bus" || step.kind === "rail" ? (
-                              <>
-                                <span className="font-medium text-gray-600">{step.line_name ?? commuteModeName(step.kind)}</span>
-                                {step.from_stop && step.to_stop && (
-                                  <span> · {step.from_stop} → {step.to_stop}</span>
-                                )}
-                                {step.stop_count != null && <span>（{step.stop_count}站）</span>}
-                                {step.duration_minutes != null && (
-                                  <span> {formatMinutes(step.duration_minutes)}</span>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {step.kind === "walking" ? "步行" : "换乘"}
-                                {step.duration_minutes != null && ` ${formatMinutes(step.duration_minutes)}`}
-                                {step.distance_meters != null && ` ${formatDistance(step.distance_meters)}`}
-                              </>
-                            )}
-                          </p>
-                        ))}
-                      </div>
-                    ) : leg.transit_summary ? (
-                      // provider 降级：展示后端提供的通用通勤提示
-                      <p className="max-w-[260px] text-[10px] leading-relaxed text-gray-400">
-                        {leg.transit_summary}
-                      </p>
-                    ) : null)}
+                    {leg.mode === "transit" &&
+                      (leg.transit_steps?.length ? (
+                        <div className="max-w-[280px] space-y-1">
+                          {leg.transit_steps.map((step, si) => (
+                            <p key={si} className="text-[10px] leading-relaxed text-gray-500">
+                              {step.kind === "bus" || step.kind === "rail" ? (
+                                <>
+                                  <span className="font-medium text-gray-600">
+                                    {step.line_name ?? commuteModeName(step.kind)}
+                                  </span>
+                                  {step.from_stop && step.to_stop && (
+                                    <span>
+                                      {" "}
+                                      · {step.from_stop} → {step.to_stop}
+                                    </span>
+                                  )}
+                                  {step.stop_count != null && <span>（{step.stop_count}站）</span>}
+                                  {step.duration_minutes != null && (
+                                    <span> {formatMinutes(step.duration_minutes)}</span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {step.kind === "walking" ? "步行" : "换乘"}
+                                  {step.duration_minutes != null &&
+                                    ` ${formatMinutes(step.duration_minutes)}`}
+                                  {step.distance_meters != null &&
+                                    ` ${formatDistance(step.distance_meters)}`}
+                                </>
+                              )}
+                            </p>
+                          ))}
+                        </div>
+                      ) : leg.transit_summary ? (
+                        <p className="max-w-[260px] text-[10px] leading-relaxed text-gray-400">
+                          {leg.transit_summary}
+                        </p>
+                      ) : null)}
                   </div>
                 </div>
               )}
@@ -181,15 +219,15 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
 
       {/* 当日攻略正文：时间轴之后，不改写内容；手机默认折叠、桌面默认展开 */}
       {day.narrative && (
-        <div className="mt-6 rounded-2xl bg-amber-50/60 p-4 border border-amber-100/50">
+        <div className="mt-6 rounded-2xl border border-amber-100/50 bg-amber-50/60 p-4">
           <button
             type="button"
             onClick={() => setNarrativeOpen((v) => !v)}
-            className="flex w-full min-h-[44px] py-2 items-center justify-between gap-2 text-left md:pointer-events-none rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-lg py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 md:pointer-events-none"
             aria-expanded={narrativeOpen}
           >
-            <span className="text-[14px] font-bold text-amber-800 flex items-center gap-2">
-              <i className="fa-regular fa-lightbulb text-amber-500 text-lg" aria-hidden="true" />
+            <span className="flex items-center gap-2 text-[14px] font-bold text-amber-800">
+              <i className="fa-regular fa-lightbulb text-lg text-amber-500" aria-hidden="true" />
               {narrativeOpen ? "当日游玩贴士" : "查看当日游玩贴士"}
             </span>
             <i
@@ -201,19 +239,13 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
           </button>
           {narrativeOpen && (
             <div className="mt-3 text-[13px] leading-relaxed text-amber-900/80">
-              {day.narrative.split('\n').map((line, idx) => (
-                <p key={idx} className={idx > 0 ? "mt-1.5" : ""}>{line}</p>
+              {day.narrative.split("\n").map((line, idx) => (
+                <p key={idx} className={idx > 0 ? "mt-1.5" : ""}>
+                  {line}
+                </p>
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* 当日通勤小结 */}
-      {day.commute_summary && (
-        <div className="mt-5 rounded-xl border border-dashed border-gray-200 bg-gray-50/50 p-3.5 flex items-start gap-2.5 text-xs text-gray-500">
-          <i className="fa-solid fa-car-side mt-0.5 text-gray-400" aria-hidden="true" />
-          <p className="leading-relaxed">{day.commute_summary}</p>
         </div>
       )}
     </div>
