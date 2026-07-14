@@ -59,24 +59,34 @@ function formatDisplay(iso: string): string {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function formatShort(iso: string): string {
+  const d = parseISO(iso);
+  if (!d) return "";
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
 export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange }: DateRangeInputProps) {
   const [open, setOpen] = useState(false);
   // 面板显示的月份（以 startDate 为锚，无则当月）
   const [viewDate, setViewDate] = useState<Date>(() => parseISO(startDate) ?? new Date());
   // 选择进行中的临时起点：点第一下存这里，点第二下补成完整区间
   const [pendingStart, setPendingStart] = useState<string | null>(null);
+  // 悬停日期：选定起点后预览 起点→悬停日 的区间
+  const [hoverIso, setHoverIso] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const today = useMemo(() => startOfDay(new Date()), []);
   const days = diffDays(startDate, endDate);
 
-  // 打开时把视图对齐到已选起点月份
-  useEffect(() => {
-    if (open) {
-      setViewDate(parseISO(startDate) ?? new Date());
-      setPendingStart(null);
-    }
-  }, [open, startDate]);
+  // 打开面板：视图对齐已选起点月份，重开一轮选择。
+  // 不能放进依赖 startDate 的 useEffect —— 第一次点击日期会改 startDate，
+  // effect 重跑会清掉 pendingStart，导致必须点两次才能锁定出发日期（历史 bug）
+  function openPanel() {
+    setViewDate(parseISO(startDate) ?? new Date());
+    setPendingStart(null);
+    setHoverIso(null);
+    setOpen(true);
+  }
 
   // 点击面板外关闭
   useEffect(() => {
@@ -101,36 +111,44 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
     if (day < today) return; // 不允许选过去
     const iso = toISO(day);
 
-    // 尚未开始新一轮选择：以本次点击作为新起点，等待选终点
+    // 第一下：锁定出发日期，立即生效（终点暂与起点同日），等待第二下选返程
     if (!pendingStart) {
       setPendingStart(iso);
+      setHoverIso(null);
       onStartChange(iso);
       onEndChange(iso);
       return;
     }
 
-    // 已有临时起点：本次点击落终点
+    // 第二下：无论点在起点前后都直接成区间（点早了就反向成段），一次完成
     const start = parseISO(pendingStart)!;
     if (day < start) {
-      // 点得比起点早 → 视为重设起点
-      setPendingStart(iso);
       onStartChange(iso);
+      onEndChange(pendingStart);
+    } else {
       onEndChange(iso);
-      return;
     }
-    onEndChange(iso);
     setPendingStart(null);
+    setHoverIso(null);
     setOpen(false); // 区间选定，收起
   }
 
   const grid = useMemo(() => monthGrid(viewDate.getFullYear(), viewDate.getMonth()), [viewDate]);
   const sIso = parseISO(startDate);
   const eIso = parseISO(endDate);
+  // 选择进行中：区间预览端点 = 临时起点 → 悬停日（悬停早于起点则反向）
+  const pStart = parseISO(pendingStart ?? "");
+  const pHover = parseISO(hoverIso ?? "");
+  const previewLo = pStart && pHover ? (pHover < pStart ? pHover : pStart) : pStart;
+  const previewHi = pStart && pHover ? (pHover < pStart ? pStart : pHover) : pStart;
+
+  const rangeLo = pendingStart ? previewLo : sIso;
+  const rangeHi = pendingStart ? previewHi : eIso;
 
   function inRange(day: Date): boolean {
-    if (!sIso || !eIso) return false;
+    if (!rangeLo || !rangeHi) return false;
     const t = day.getTime();
-    return t >= startOfDay(sIso).getTime() && t <= startOfDay(eIso).getTime();
+    return t >= startOfDay(rangeLo).getTime() && t <= startOfDay(rangeHi).getTime();
   }
 
   function prevMonth() {
@@ -146,7 +164,7 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
         {/* 触发区：整块可点，双日期 + 分隔 */}
         <button
           type="button"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => (open ? setOpen(false) : openPanel())}
           aria-haspopup="dialog"
           aria-expanded={open}
           className={`flex w-full items-center rounded-xl border bg-gray-50 px-3 py-2.5 text-left transition-colors sm:px-4 ${
@@ -200,28 +218,32 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
             </div>
 
             {/* 日期网格 */}
-            <div className="grid grid-cols-7 gap-y-1">
+            <div className="grid grid-cols-7 gap-y-1" onMouseLeave={() => setHoverIso(null)}>
               {grid.map((day) => {
                 const isCurMonth = day.getMonth() === viewDate.getMonth();
                 const isPast = day < today;
-                const isStart = sIso ? sameDay(day, sIso) : false;
-                const isEnd = eIso ? sameDay(day, eIso) : false;
+                const isStart = rangeLo ? sameDay(day, rangeLo) : false;
+                const isEnd = rangeHi ? sameDay(day, rangeHi) : false;
                 const isEndpoint = isStart || isEnd;
                 const isMid = inRange(day) && !isEndpoint;
                 const isToday = sameDay(day, today);
+                const hasSpan = rangeLo && rangeHi && !sameDay(rangeLo, rangeHi);
 
                 return (
                   <div
                     key={day.getTime()}
                     className={`flex justify-center ${
                       isMid ? "bg-primary-50" : ""
-                    } ${isStart && eIso && !sameDay(sIso!, eIso) ? "rounded-l-full bg-primary-50" : ""} ${
-                      isEnd && sIso && !sameDay(sIso, eIso!) ? "rounded-r-full bg-primary-50" : ""
+                    } ${isStart && hasSpan ? "rounded-l-full bg-primary-50" : ""} ${
+                      isEnd && hasSpan ? "rounded-r-full bg-primary-50" : ""
                     }`}
                   >
                     <button
                       type="button"
                       onClick={() => handlePick(day)}
+                      onMouseEnter={() => {
+                        if (pendingStart && !isPast) setHoverIso(toISO(day));
+                      }}
                       disabled={isPast}
                       aria-label={toISO(day)}
                       aria-pressed={isEndpoint}
@@ -247,23 +269,31 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
               })}
             </div>
 
-            {/* 底部：提示 + 今天快捷 */}
+            {/* 底部：分步提示 + 今天快捷 */}
             <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-              <span className="text-[11px] text-gray-400">
-                {pendingStart ? "请选择返程日期" : "点击选择出发日期"}
+              <span className="text-[11px] text-gray-500" aria-live="polite">
+                {pendingStart ? (
+                  <>
+                    <span className="font-medium text-primary-600">{formatShort(pendingStart)} 出发</span>
+                    {" · 再点一天作为返程"}
+                  </>
+                ) : (
+                  "点击选出发日期，再点返程日期"
+                )}
               </span>
               <button
                 type="button"
                 onClick={() => {
                   const iso = toISO(today);
                   setPendingStart(iso);
+                  setHoverIso(null);
                   onStartChange(iso);
                   onEndChange(iso);
                   setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
                 }}
                 className="text-xs font-medium text-primary-600 transition-colors hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 rounded"
               >
-                今天
+                今天出发
               </button>
             </div>
           </div>

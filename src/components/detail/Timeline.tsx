@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { TripDay, TripPlace } from "@/types/trip";
 import { categoryIcon, isAnchorRole } from "@/constants/places";
 import { commuteModeName, commuteModeIcon, formatMinutes, formatDistance, cleanBrief } from "@/utils/format";
-import { computeSchedule } from "@/utils/schedule";
+import { periodLabel, governedExactTime, exactTimeSourceLabel } from "@/utils/schedule";
 
 interface TimelineProps {
   day: TripDay;
@@ -10,24 +10,50 @@ interface TimelineProps {
   onPlaceClick?: (place: TripPlace) => void;
 }
 
-export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
-  const schedule = computeSchedule(day);
+/** 时段徽标配色：一天内的视觉节奏由浅入深 */
+const PERIOD_BADGE_CLASS: Record<string, string> = {
+  上午: "bg-amber-50 text-amber-600",
+  下午: "bg-sky-50 text-sky-600",
+  傍晚: "bg-orange-50 text-orange-600",
+  晚上: "bg-indigo-50 text-indigo-600",
+};
 
+export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
   return (
     <div className="px-5 py-5">
+      {/* Day 叙述：当天整体概览，置顶（各地点的具体体验见 activity_note） */}
+      {day.narrative && (
+        <p className="mb-4 rounded-xl bg-primary-50/50 p-3.5 text-[13px] leading-relaxed text-primary-700">
+          {day.narrative}
+        </p>
+      )}
+
       <div className="stagger relative space-y-1">
         {day.places.map((place, i) => {
-          const sched = schedule.get(place.place_id);
           const leg = day.commute_legs.find((l) => l.from_place_id === place.place_id);
           const anchor = isAnchorRole(place.role);
           const isActive = activePlaceId === place.place_id;
+          // 时段与精确时间只来自后端 schedule；1.4 结果无此字段则不显示任何时间
+          const period = periodLabel(place.schedule?.period);
+          const exact = governedExactTime(place.schedule);
+          const note = cleanBrief(place.activity_note);
+          const brief = cleanBrief(place.brief);
 
           return (
             <div key={place.place_id} style={{ "--i": i } as CSSProperties}>
               <div className="flex gap-4">
-                {/* 时刻列 */}
-                <div className="w-12 shrink-0 pt-2.5 text-right text-[13px] font-medium text-gray-600 tabular-nums">
-                  {sched?.arrive ?? ""}
+                {/* 时段列（后端 period；无 schedule 的旧结果留白） */}
+                <div className="w-12 shrink-0 pt-2.5 text-right">
+                  {period && (
+                    <span
+                      data-testid="period-badge"
+                      className={`inline-block rounded-md px-1.5 py-0.5 text-[11px] font-medium ${
+                        PERIOD_BADGE_CLASS[period] ?? "bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      {period}
+                    </span>
+                  )}
                 </div>
 
                 {/* 节点 */}
@@ -70,22 +96,31 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                     )}
                   </div>
 
-                  {sched && (
+                  {/* 精确时间：仅受治理来源（reservation/event/transport/verified_venue_rule） */}
+                  {exact && (
                     <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-gray-600 tabular-nums">
                       <i className="fa-regular fa-clock" aria-hidden="true" />
-                      {sched.arrive} - {sched.leave}
+                      {exact.text}
+                      <span className="rounded bg-primary-50 px-1 py-0.5 text-[10px] font-normal text-primary-600">
+                        {exactTimeSourceLabel(exact.source)}
+                      </span>
                     </div>
                   )}
 
-                  {cleanBrief(place.brief) && (
-                    <p className="line-clamp-2 text-[11px] leading-relaxed text-gray-600">
-                      {cleanBrief(place.brief)}
-                    </p>
+                  {/* activity_note：本条路线中该地点的体验说明（1.5）；旧结果回退 brief */}
+                  {note ? (
+                    <p className="text-[12px] leading-relaxed text-gray-600">{note}</p>
+                  ) : (
+                    brief && (
+                      <p className="line-clamp-2 text-[11px] leading-relaxed text-gray-600">
+                        {brief}
+                      </p>
+                    )
                   )}
                 </button>
               </div>
 
-              {/* 通勤段 */}
+              {/* 通勤段：线路/站点/换乘/耗时只在这里展示 */}
               {leg && (
                 <div className="flex gap-4 py-1.5">
                   <div className="w-12 shrink-0" />
@@ -97,11 +132,37 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                       <span className="text-gray-300">|</span>
                       {formatDistance(leg.distance_meters)}
                     </div>
-                    {leg.mode === "transit" && leg.transit_summary && (
+                    {leg.mode === "transit" && (leg.transit_steps?.length ? (
+                      <div className="max-w-[280px] space-y-1">
+                        {leg.transit_steps.map((step, si) => (
+                          <p key={si} className="text-[10px] leading-relaxed text-gray-500">
+                            {step.kind === "bus" || step.kind === "rail" ? (
+                              <>
+                                <span className="font-medium text-gray-600">{step.line_name ?? commuteModeName(step.kind)}</span>
+                                {step.from_stop && step.to_stop && (
+                                  <span> · {step.from_stop} → {step.to_stop}</span>
+                                )}
+                                {step.stop_count != null && <span>（{step.stop_count}站）</span>}
+                                {step.duration_minutes != null && (
+                                  <span> {formatMinutes(step.duration_minutes)}</span>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {step.kind === "walking" ? "步行" : "换乘"}
+                                {step.duration_minutes != null && ` ${formatMinutes(step.duration_minutes)}`}
+                                {step.distance_meters != null && ` ${formatDistance(step.distance_meters)}`}
+                              </>
+                            )}
+                          </p>
+                        ))}
+                      </div>
+                    ) : leg.transit_summary ? (
+                      // provider 降级：展示后端提供的通用通勤提示
                       <p className="max-w-[260px] text-[10px] leading-relaxed text-gray-400">
                         {leg.transit_summary}
                       </p>
-                    )}
+                    ) : null)}
                   </div>
                 </div>
               )}
@@ -110,14 +171,9 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
         })}
       </div>
 
-      {/* 当日通勤小结 + 叙述 */}
+      {/* 当日通勤小结 */}
       {day.commute_summary && (
         <p className="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-500">{day.commute_summary}</p>
-      )}
-      {day.narrative && (
-        <p className="mt-3 rounded-xl bg-primary-50/50 p-3.5 text-[13px] leading-relaxed text-primary-700">
-          {day.narrative}
-        </p>
       )}
     </div>
   );

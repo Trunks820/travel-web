@@ -66,7 +66,7 @@ export function MorePreferences({
 
   const selectedCount =
     (mustInclude.length > 0 ? 1 : 0) + (commuteMode !== "driving" ? 1 : 0) +
-    (dailyStart !== "09:00" || dailyEnd !== "21:00" ? 1 : 0);
+    (dailyStart || dailyEnd ? 1 : 0);
 
   return (
     <div className="rounded-xl border border-gray-100">
@@ -196,16 +196,35 @@ export function MorePreferences({
             </div>
           </div>
 
-          {/* 每日时间窗 */}
+          {/* 每日时间窗（v0.8.12：默认无固定时间，两端独立选填） */}
           <div>
-            <p className="mb-2 text-[13px] font-medium text-gray-700">时间习惯</p>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[13px] font-medium text-gray-700">
+                时间习惯
+                <span className="ml-1.5 font-normal text-gray-400">
+                  {dailyStart || dailyEnd ? "" : "未设置，默认无固定时间"}
+                </span>
+              </p>
+              {(dailyStart || dailyEnd) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDailyStartChange("");
+                    onDailyEndChange("");
+                  }}
+                  className="text-xs text-gray-400 transition-colors hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 rounded px-1"
+                >
+                  清除，恢复无固定时间
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
               <span>每天</span>
               <input
                 type="time"
                 value={dailyStart}
                 onChange={(e) => onDailyStartChange(e.target.value)}
-                aria-label="每天出发时间"
+                aria-label="每天出发时间（选填）"
                 className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
               <span>出发 ·</span>
@@ -213,11 +232,49 @@ export function MorePreferences({
                 type="time"
                 value={dailyEnd}
                 onChange={(e) => onDailyEndChange(e.target.value)}
-                aria-label="每天结束时间"
+                aria-label="每天结束时间（选填）"
                 className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
               <span>前结束</span>
             </div>
+            {/* 常用时段快捷（用户主动点选才生效，不是隐藏默认值） */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-gray-500">常用：</span>
+              {([
+                ["朝九晚九", "09:00", "21:00"],
+                ["睡到自然醒", "10:30", "22:00"],
+                ["只管晚上", "", "22:30"],
+              ] as const).map(([label, s, e]) => {
+                const active = dailyStart === s && dailyEnd === e;
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      onDailyStartChange(s);
+                      onDailyEndChange(e);
+                    }}
+                    className={`rounded-md border px-2 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                      active
+                        ? "border-primary-400 bg-primary-50 text-primary-600 font-medium"
+                        : "border-gray-100 bg-gray-50 text-gray-600 hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-600"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[11px] text-gray-400">
+              {dailyStart && dailyEnd
+                ? `每天 ${dailyStart} - ${dailyEnd} 内安排行程`
+                : dailyStart
+                  ? `不早于 ${dailyStart} 开始，结束时间不限`
+                  : dailyEnd
+                    ? `尽量在 ${dailyEnd} 前结束，开始时间不限`
+                    : "无固定时间：由 AI 根据行程节奏自由安排"}
+            </p>
           </div>
         </div>
       )}

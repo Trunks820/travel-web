@@ -5,6 +5,7 @@ import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
 import { PlaceDetailModal } from "@/components/detail/PlaceDetailModal";
 import { BudgetCard } from "@/components/detail/BudgetCard";
 import { WeatherCard } from "@/components/detail/WeatherCard";
+import { MustIncludeCard } from "@/components/detail/MustIncludeCard";
 import { ShareDialog } from "@/components/share/ShareDialog";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
@@ -13,6 +14,7 @@ import { useArtifact } from "@/hooks/useArtifact";
 import { saveBlob } from "@/utils/download";
 import { showToast } from "@/stores/toastStore";
 import { formatDistance, formatMinutes, commuteModeIcon } from "@/utils/format";
+import { timePreferencesLabel } from "@/utils/schedule";
 import type { TripPlace, TripPlan, TripResult } from "@/types/trip";
 
 const MapView = lazy(() =>
@@ -131,14 +133,16 @@ export default function PlanDetailPage() {
     };
   }, [currentDay]);
 
-  // PDF 就绪 → 下载并复位（复位后 phase 回 idle，不会重复触发）
+  // PDF 就绪 → 下载并复位（复位后 phase 回 idle，不会重复触发）。
+  // reset 是 useArtifact 内的稳定 useCallback，单独取出以满足 exhaustive-deps
+  const pdfReset = pdf.reset;
   useEffect(() => {
     if (pdf.phase === "ready" && pdf.blob && pdf.artifact) {
       saveBlob(pdf.blob, pdf.artifact.filename);
       showToast("PDF 已导出");
-      pdf.reset();
+      pdfReset();
     }
-  }, [pdf.phase, pdf.blob, pdf.artifact, pdf.reset]);
+  }, [pdf.phase, pdf.blob, pdf.artifact, pdfReset]);
 
   // PDF 生成失败 → 提示（保持 failed 态，用户可再次点击导出重试）
   useEffect(() => {
@@ -146,6 +150,11 @@ export default function PlanDetailPage() {
       showToast(pdf.error?.message ?? "导出失败，请重试", "error");
     }
   }, [pdf.phase, pdf.error]);
+
+  // 时间偏好徽标：1.5 无偏好显式"无固定时间"；1.4 缺字段不展示（不伪造）
+  const timePrefText = result
+    ? timePreferencesLabel(result.schema_version, result.time_preferences)
+    : null;
 
   if (loading) return <DetailSkeleton />;
 
@@ -183,6 +192,7 @@ export default function PlanDetailPage() {
             <h1 className="truncate font-display text-base font-bold text-gray-800 sm:text-lg">{plan.title}</h1>
             <p className="truncate text-xs text-gray-500">
               {result.city.name} · {result.request.days}天 · {people}人
+              {timePrefText ? ` · ${timePrefText}` : ""}
             </p>
           </div>
         </div>
@@ -231,6 +241,9 @@ export default function PlanDetailPage() {
           }`}
         >
           <BudgetCard data={budget} />
+          {result.must_include && result.must_include.length > 0 && (
+            <MustIncludeCard items={result.must_include} />
+          )}
           {weather && <WeatherCard data={weather} activeDay={effectiveDay} />}
           <button
             onClick={pdf.start}

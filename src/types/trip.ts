@@ -28,6 +28,52 @@ export interface TransitStep {
 }
 /** 后端 role 取值较多（anchor_activity/secondary_activity/meal_stop/photo_stop/optional_stop…），保留为开放字符串 */
 export type PlaceRole = string;
+
+/* ---------- Schema 1.5 停留时段（v0.8.12 契约） ---------- */
+
+/** 公开停留时段：上午/下午/傍晚/晚上。后端从路线推导，前端不得反推成钟点 */
+export type SchedulePeriod = "morning" | "afternoon" | "evening" | "night";
+
+/** 精确时间的受治理来源。只有这四种来源的 exact_* 才允许展示为确定时间 */
+export type ExactTimeSource =
+  | "reservation"
+  | "event"
+  | "transport"
+  | "verified_venue_rule";
+
+/**
+ * place.schedule（Schema 1.5）。exact_start/exact_end 通常为 null；
+ * 非空时必有 exact_time_source（后端 fail-closed 校验），但前端展示前仍须自行验证。
+ */
+export interface PlaceScheduleInfo {
+  period: SchedulePeriod;
+  exact_start?: string | null; // "HH:MM"
+  exact_end?: string | null; // "HH:MM"
+  exact_time_source?: ExactTimeSource | null;
+}
+
+/** must_include 项状态（v0.8.12：scheduled/not_scheduled 为交付状态，其余为记录状态） */
+export type MustIncludeStatus =
+  | "scheduled"
+  | "not_scheduled"
+  | "recorded_candidate"
+  | "recorded_unmatched"
+  | "cross_city";
+
+/** 结果里的必去地点回执。not_scheduled 时 reason 为用户可读原因 */
+export interface TripMustInclude {
+  name: string;
+  status: MustIncludeStatus;
+  place_id?: number | null;
+  reason?: string | null;
+  matched_city?: string | null;
+}
+
+/** 结果回显的时间偏好。daily_start/daily_end 均为 null 即"无固定时间" */
+export interface TripTimePreferences {
+  daily_start?: string | null;
+  daily_end?: string | null;
+}
 export type JobStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
 export type StageCode = "ANALYZING" | "PLANNING" | "COMPOSING" | "FINALIZING";
 
@@ -61,6 +107,10 @@ export interface TripPlace {
   optional: boolean;
   brief: string;
   stay_minutes?: number;
+  /** Schema 1.5：本条路线中该地点的体验说明；1.4 结果无此字段 */
+  activity_note?: string | null;
+  /** Schema 1.5：停留时段与受治理精确时间；1.4 结果无此字段 */
+  schedule?: PlaceScheduleInfo | null;
 }
 
 /** GET /trip/places/{id} 响应（v0.8.5 合同）。空字段前端按空态隐藏，后端不给假文案。 */
@@ -147,7 +197,11 @@ export interface TripResult {
     avoid: string[];
   };
   weather?: TripWeather | null;
+  /** Schema 1.5：请求时间偏好回显（无固定时间时两端均 null）；1.4 无此字段 */
+  time_preferences?: TripTimePreferences | null;
   plans: TripPlan[];
+  /** Schema 1.5：必去地点交付回执；1.4 无此字段 */
+  must_include?: TripMustInclude[] | null;
 }
 
 export interface AsyncSubmitResponse {

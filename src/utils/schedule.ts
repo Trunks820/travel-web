@@ -1,54 +1,100 @@
-import type { TripDay } from "@/types/trip";
+import type {
+  ExactTimeSource,
+  PlaceScheduleInfo,
+  SchedulePeriod,
+  TripTimePreferences,
+} from "@/types/trip";
 
 /**
- * 前端推算每个地点的近似到达/离开时刻。
- *
- * ⚠️ 后端 ResultPlace 目前不返回真实时刻与停留时长，这里按经验值估算，
- * 仅用于时间线视觉呈现。后端补充真实 schedule 字段后应替换本函数。
- *
- * 规则：从 DAY_START 起，锚点类停留 ANCHOR_STAY、其余 FILLER_STAY，
- * 每段之间加上对应 commute_leg 的真实 duration_minutes。
+ * v0.8.12：前端不再合成任何休闲时间线（旧 computeSchedule 的 09:00 累加已删除）。
+ * 时段与精确时间一律来自后端 place.schedule，前端只做展示映射与来源校验。
  */
 
-const DAY_START_MIN = 9 * 60; // 09:00
-const ANCHOR_STAY = 90; // 锚点类停留分钟
-const FILLER_STAY = 45; // 次要点停留分钟
+const PERIOD_LABEL: Record<SchedulePeriod, string> = {
+  morning: "上午",
+  afternoon: "下午",
+  evening: "傍晚",
+  night: "晚上",
+};
 
-const ANCHOR_ROLES = new Set(["anchor", "anchor_activity", "secondary_activity"]);
+const EXACT_TIME_SOURCES: ReadonlySet<string> = new Set<ExactTimeSource>([
+  "reservation",
+  "event",
+  "transport",
+  "verified_venue_rule",
+]);
 
-export interface PlaceSchedule {
-  placeId: number;
-  /** "09:00" */
-  arrive: string;
-  /** "11:30" */
-  leave: string;
+const HHMM_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
+/** 时段中文标签；未知/缺失（Schema 1.4）返回空串，调用方按无时段处理 */
+export function periodLabel(period: string | null | undefined): string {
+  if (!period) return "";
+  return PERIOD_LABEL[period as SchedulePeriod] ?? "";
 }
 
-function fmt(totalMin: number): string {
-  const h = Math.floor(totalMin / 60) % 24;
-  const m = totalMin % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+export interface GovernedExactTime {
+  /** "14:30" / "14:30 - 16:00" / "16:00 前" 之类的展示文本 */
+  text: string;
+  source: ExactTimeSource;
 }
 
-export function computeSchedule(day: TripDay): Map<number, PlaceSchedule> {
-  const result = new Map<number, PlaceSchedule>();
-  let cursor = DAY_START_MIN;
+/**
+ * 仅当 exact_time_source 为受治理来源且 exact_* 是合法 HH:MM 时返回展示文本，
+ * 其余情况一律返回 null（疑似时间文本不得显示成确定时间）。
+ */
+export function governedExactTime(
+  schedule: PlaceScheduleInfo | null | undefined,
+): GovernedExactTime | null {
+  if (!schedule) return null;
+  const source = schedule.exact_time_source;
+  if (!source || !EXACT_TIME_SOURCES.has(source)) return null;
 
-  day.places.forEach((place) => {
-    const stay = ANCHOR_ROLES.has(place.role) ? ANCHOR_STAY : FILLER_STAY;
-    const arrive = cursor;
-    const leave = cursor + stay;
-    result.set(place.place_id, {
-      placeId: place.place_id,
-      arrive: fmt(arrive),
-      leave: fmt(leave),
-    });
+  const start = schedule.exact_start && HHMM_RE.test(schedule.exact_start) ? schedule.exact_start : null;
+  const end = schedule.exact_end && HHMM_RE.test(schedule.exact_end) ? schedule.exact_end : null;
+  if (!start && !end) return null;
 
-    cursor = leave;
-    // 加上从本点出发的通勤时间
-    const leg = day.commute_legs.find((l) => l.from_place_id === place.place_id);
-    if (leg) cursor += leg.duration_minutes;
-  });
+  let text: string;
+  if (start && end) text = `${start} - ${end}`;
+  else if (start) text = `${start} 起`;
+  else text = `${end} 前`;
+  return { text, source };
+}
 
-  return result;
+/** 精确时间来源中文说明（展示在时间旁的小标注） */
+export function exactTimeSourceLabel(source: ExactTimeSource): string {
+  switch (source) {
+    case "reservation":
+      return "预约";
+    case "event":
+      return "活动";
+    case "transport":
+      return "交通";
+    case "verified_venue_rule":
+      return "场馆规则";
+  }
+}
+
+/** Schema 版本 ≥ 1.5 判定。非法/缺失版本号按旧版本处理 */
+export function isSchema15(version: string | null | undefined): boolean {
+  if (!version) return false;
+  const [maj, min] = String(version).split(".").map(Number);
+  if (!Number.isFinite(maj)) return false;
+  return maj > 1 || (maj === 1 && (min ?? 0) >= 5);
+}
+
+/**
+ * 结果页时间偏好文案。
+ * - 1.5 起后端保证无 time_preferences 即"无固定时间"，可如实展示；
+ * - 1.4 旧结果没有该字段，返回 null（不展示，不伪造断言）。
+ */
+export function timePreferencesLabel(
+  schemaVersion: string | null | undefined,
+  prefs: TripTimePreferences | null | undefined,
+): string | null {
+  const start = prefs?.daily_start || null;
+  const end = prefs?.daily_end || null;
+  if (start && end) return `每天 ${start} - ${end}`;
+  if (start) return `每天 ${start} 后出发`;
+  if (end) return `每天 ${end} 前结束`;
+  return isSchema15(schemaVersion) ? "无固定时间" : null;
 }

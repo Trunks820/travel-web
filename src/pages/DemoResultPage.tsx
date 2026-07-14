@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTripStore } from "@/stores/tripStore";
+import { V0812_FIXTURES } from "@/fixtures/v0812";
 import type { TripResult } from "@/types/trip";
 
 const MOCK_RESULT: TripResult = {
@@ -116,14 +117,29 @@ const MOCK_RESULT: TripResult = {
   ],
 };
 
+/**
+ * 验收/演示入口：
+ * - /demo 加载默认多方案 mock（历史行为不变）；
+ * - /demo?fixture=<key> 加载 v0.8.12 视觉验收 fixture，直进详情页。
+ *   可用 key 见 src/fixtures/v0812.ts（v15-notime / v15-exact / v14-legacy）。
+ */
 export default function DemoResultPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const setResult = useTripStore((s) => s.setResult);
+  const fixtureKey = searchParams.get("fixture");
 
   useEffect(() => {
+    const fixture = fixtureKey ? V0812_FIXTURES[fixtureKey] : null;
+    if (fixture) {
+      const id = String(fixture.result.result_id);
+      setResult(id, "demo", fixture.result);
+      navigate(`/plan/${id}/${fixture.result.plans[0].plan_id}?job_id=demo`, { replace: true });
+      return;
+    }
     setResult("999", "demo", MOCK_RESULT);
     navigate("/result/999?job_id=demo", { replace: true });
-  }, [setResult, navigate]);
+  }, [setResult, navigate, fixtureKey]);
 
   return null;
 }

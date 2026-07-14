@@ -98,8 +98,10 @@ export default function InputPage() {
       ? storedCommute
       : "driving",
   );
-  const [dailyStart, setDailyStart] = useState(stored?.daily_start ?? '09:00');
-  const [dailyEnd, setDailyEnd] = useState(stored?.daily_end ?? '21:00');
+  // v0.8.12：时间偏好默认为空（无固定时间）。空字符串 = 未设置，
+  // 提交时不发对应字段，绝不折算成 09:00/21:00 之类的默认钟点
+  const [dailyStart, setDailyStart] = useState(stored?.daily_start ?? '');
+  const [dailyEnd, setDailyEnd] = useState(stored?.daily_end ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cityError, setCityError] = useState<string | undefined>(undefined);
@@ -175,10 +177,9 @@ export default function InputPage() {
       // v0.8.9 更多偏好：仅在用户改过默认值时携带，未设置不发（契约：选填）
       ...(mustInclude.length > 0 && { must_include: mustInclude }),
       ...(commuteMode !== 'driving' && { commute_mode: commuteMode }),
-      ...((dailyStart !== '09:00' || dailyEnd !== '21:00') && {
-        daily_start: dailyStart,
-        daily_end: dailyEnd,
-      }),
+      // v0.8.12：开始/结束时间各自独立，填了才发；都不填即"无固定时间"
+      ...(dailyStart && { daily_start: dailyStart }),
+      ...(dailyEnd && { daily_end: dailyEnd }),
     };
     setFormData(formData);
     clearResult(); // 清掉上一条 job 的结果，避免 loading 阶段闪现旧城市

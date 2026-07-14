@@ -1,0 +1,132 @@
+{
+  "baseURL": "http://localhost:3012",
+  "baseline_errors_doc": "AMap 'Unimplemented type: 3' reproduced on unmodified HEAD via scripts/p6-probe-amap.mjs; pre-existing, excluded from new-error gate",
+  "scenarios": [
+    {
+      "name": "01-v15-无固定时间-Day1-单主景点",
+      "fixture": "v15-notime",
+      "errors": [],
+      "pass": true
+    },
+    {
+      "name": "02-v15-无固定时间-Day2-多停留点",
+      "fixture": "v15-notime",
+      "errors": [],
+      "pass": true
+    },
+    {
+      "name": "03-v15-partial-must-include",
+      "fixture": "v15-notime",
+      "errors": [],
+      "pass": true
+    },
+    {
+      "name": "04-v15-受治理精确时间",
+      "fixture": "v15-exact",
+      "errors": [],
+      "pass": true
+    },
+    {
+      "name": "05-v14-旧结果兼容",
+      "fixture": "v14-legacy",
+      "errors": [],
+      "pass": true
+    },
+    {
+      "name": "06-v14-Day2-transit明细",
+      "fixture": "v14-legacy",
+      "errors": [],
+      "pass": true
+    },
+    {
+      "name": "07-表单-空时间不提交daily字段",
+      "errors": [],
+      "pass": true
+    },
+    {
+      "name": "07b-表单-单边时间+回填+清除",
+      "errors": [],
+      "pass": true
+    }
+  ],
+  "formChecks": [
+    {
+      "case": "空时间提交",
+      "trip_request_keys": [
+        "to_city",
+        "start_date",
+        "end_date",
+        "days",
+        "people_count",
+        "preferences",
+        "avoid",
+        "notes",
+        "budget"
+      ],
+      "body": {
+        "to_city": "重庆",
+        "start_date": "2026-07-13",
+        "end_date": "2026-07-17",
+        "days": 5,
+        "people_count": 1,
+        "preferences": [
+          "自然风光",
+          "适中"
+        ],
+        "avoid": [],
+        "notes": "",
+        "budget": 5000
+      }
+    },
+    {
+      "case": "仅结束时间",
+      "trip_request_keys": [
+        "to_city",
+        "start_date",
+        "end_date",
+        "days",
+        "people_count",
+        "preferences",
+        "avoid",
+        "notes",
+        "budget",
+        "daily_end"
+      ],
+      "daily_end": "18:00"
+    }
+  ],
+  "newConsoleErrors": [],
+  "baselineConsoleErrors": [
+    {
+      "scenario": "01-v15-无固定时间-Day1-单主景点",
+      "text": "pageerror: Uncaught Error: Unimplemented type: 3"
+    },
+    {
+      "scenario": "02-v15-无固定时间-Day2-多停留点",
+      "text": "pageerror: Uncaught Error: Unimplemented type: 3"
+    },
+    {
+      "scenario": "03-v15-partial-must-include",
+      "text": "pageerror: Uncaught Error: Unimplemented type: 3"
+    },
+    {
+      "scenario": "04-v15-受治理精确时间",
+      "text": "pageerror: Uncaught Error: Unimplemented type: 3"
+    },
+    {
+      "scenario": "05-v14-旧结果兼容",
+      "text": "pageerror: Uncaught Error: Unimplemented type: 3"
+    },
+    {
+      "scenario": "06-v14-Day2-transit明细",
+      "text": "pageerror: Uncaught Error: Unimplemented type: 3"
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "newConsoleErrorCount": 0,
+    "baselineConsoleErrorCount": 6
+  }
+}
