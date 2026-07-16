@@ -123,6 +123,13 @@
     box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
   }
 
+  /* 首页右栏环境光：尊重系统「减少动态效果」 */
+  @media (prefers-reduced-motion: reduce) {
+    .editorial-ambient {
+      transition: none !important;
+    }
+  }
+
   .btn-primary {
     @apply rounded-xl bg-accent-500 px-6 py-3 text-sm font-semibold text-white
       transition-all duration-200 hover:bg-accent-600 hover:shadow-md

@@ -16,10 +16,10 @@ interface MorePreferencesProps {
   embedded?: boolean;
 }
 
-const COMMUTE_OPTIONS: { value: RequestedCommuteMode; label: string; icon: string }[] = [
-  { value: "driving", label: "自驾/打车", icon: "fas fa-car" },
-  { value: "transit", label: "公共交通", icon: "fas fa-bus" },
-  { value: "cycling", label: "骑行优先", icon: "fas fa-bicycle" },
+const COMMUTE_OPTIONS: { value: RequestedCommuteMode; label: string }[] = [
+  { value: "driving", label: "自驾/打车" },
+  { value: "transit", label: "公共交通" },
+  { value: "cycling", label: "骑行优先" },
 ];
 
 const MAX_MUST_INCLUDE = 5;
@@ -153,7 +153,7 @@ export function MorePreferences({
           市内出行方式
         </p>
         <div className="flex gap-2" role="radiogroup" aria-labelledby="commute-mode-label">
-          {COMMUTE_OPTIONS.map(({ value, label, icon }) => {
+          {COMMUTE_OPTIONS.map(({ value, label }) => {
             const active = commuteMode === value;
             return (
               <button
@@ -162,13 +162,12 @@ export function MorePreferences({
                 role="radio"
                 aria-checked={active}
                 onClick={() => onCommuteModeChange(value)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                className={`flex flex-1 items-center justify-center rounded-lg border px-2 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
                   active
                     ? "border-primary-400 bg-primary-50 font-medium text-primary-600"
                     : "border-gray-100 bg-white text-gray-600 hover:border-gray-300"
                 }`}
               >
-                <i className={`${icon} ${active ? "text-primary-500" : "text-gray-400"}`} aria-hidden="true" />
                 {label}
               </button>
             );
