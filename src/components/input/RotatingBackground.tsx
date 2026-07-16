@@ -116,6 +116,15 @@ function shuffle<T>(arr: T[]): T[] {
   return result;
 }
 
+/** 取某城本地风景图 URL（明信片/等待页等共用） */
+export function getCityPhotoUrls(city: string, count = 4): string[] {
+  const folder = CITY_NAME_TO_FOLDER[city];
+  if (folder && CITY_IMAGES[folder]?.length) {
+    return CITY_IMAGES[folder].slice(0, count).map((f) => `/city/${folder}/${f}`);
+  }
+  return ALL_IMAGES.slice(0, count);
+}
+
 function resolveCityPool(cities: string[]): string[] {
   return cities.flatMap((city) => {
     const entry = Object.entries(CITY_NAME_TO_FOLDER).find(

@@ -35,7 +35,7 @@ export function BudgetSlider({ min = 1000, max = 12000, value: initial = 5000, o
         value={value}
         onChange={(e) => handleChange(Number(e.target.value))}
         aria-labelledby={labelId}
-        aria-valuetext={`人均 ¥${value.toLocaleString()}`}
+        aria-valuetext={`¥${value.toLocaleString()}`}
         className="custom-slider"
         style={{
           background: `linear-gradient(to right, var(--color-accent-400) 0%, var(--color-accent-400) ${percent}%, var(--color-sand-100) ${percent}%, var(--color-sand-100) 100%)`,

@@ -117,10 +117,17 @@ function useImageAmbientColor(imageUrl: string | undefined, alpha = 0.12): strin
   return color;
 }
 
-/** PC 右栏 hybrid 表面：路书纸 + 轻噪点 + 左缘环境光 */
+/**
+ * PC 右栏 hybrid 表面：路书纸 + 轻噪点 + 左缘环境光
+ * 必须 fixed 钉在视口右半，不能 absolute 塞进右侧滚动容器——
+ * 否则展开「更多偏好」后背景会跟着内容滚走，露出底部白断层。
+ */
 function HybridPanelSurface({ ambientColor }: { ambientColor: string }) {
   return (
-    <div className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block" aria-hidden="true">
+    <div
+      className="pointer-events-none fixed right-0 top-0 z-0 hidden h-screen w-5/12 overflow-hidden lg:block"
+      aria-hidden="true"
+    >
       <div className="absolute inset-0 bg-[#f5f2ec]" />
       <div
         className="absolute inset-0 opacity-[0.07] mix-blend-multiply"
@@ -297,10 +304,12 @@ export default function InputPage() {
         </div>
       </div>
 
-      {/* 右栏 / 手机表单 */}
-      <div className="relative z-10 w-full bg-sand-50 px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-5 sm:px-8 lg:ml-[58.333333%] lg:h-screen lg:w-5/12 lg:overflow-y-auto lg:overscroll-contain lg:bg-transparent lg:px-12 lg:pb-16 lg:pt-14">
-        <HybridPanelSurface ambientColor={ambientColor} />
+      {/* PC 右栏画册背景：fixed 钉在视口，不随表单滚动 */}
+      <HybridPanelSurface ambientColor={ambientColor} />
 
+      {/* 右栏 / 手机表单（仅内容滚动） */}
+      {/* 手机底部 sticky CTA 较高，多留一点，避免展开「更多偏好」后最后几项被挡住 */}
+      <div className="relative z-10 w-full bg-sand-50 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-5 sm:px-8 lg:ml-[58.333333%] lg:h-screen lg:w-5/12 lg:overflow-y-auto lg:overscroll-contain lg:bg-transparent lg:px-12 lg:pb-16 lg:pt-14">
         <div className="relative z-[1]">
           <div className="mb-6 lg:mb-10">
             <h1 className="font-display text-2xl font-bold leading-snug text-gray-800 sm:text-3xl lg:text-4xl">
@@ -421,7 +430,6 @@ export default function InputPage() {
               <div className="mb-3 flex items-center">
                 <label className="text-sm font-bold text-gray-700" id="budget-label">
                   预算范围
-                  <span className="ml-1 font-normal text-gray-400">(人均)</span>
                 </label>
                 <span className="ml-3 text-xs font-normal text-gray-400">不含往返大交通</span>
               </div>

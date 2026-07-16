@@ -24,6 +24,57 @@ const COMMUTE_OPTIONS: { value: RequestedCommuteMode; label: string }[] = [
 
 const MAX_MUST_INCLUDE = 5;
 
+/** 可选时间：空态不露出浏览器 --:--，点击整块打开原生 time 选择 */
+function TimeOptionalInput({
+  value,
+  onChange,
+  ariaLabel,
+  emptyLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  ariaLabel: string;
+  emptyLabel: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function openPicker() {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    try {
+      el.showPicker?.();
+    } catch {
+      /* 部分环境无 showPicker */
+    }
+  }
+
+  return (
+    <div className="relative inline-flex h-9 min-w-[6.5rem] items-stretch">
+      <input
+        ref={inputRef}
+        type="time"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={ariaLabel}
+        className={`w-full rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 ${
+          value ? "text-gray-800" : "text-transparent caret-transparent"
+        }`}
+      />
+      {!value && (
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={openPicker}
+          className="absolute inset-0 z-[1] flex items-center justify-center rounded-lg bg-gray-50 text-sm text-gray-400 hover:bg-gray-100/80"
+        >
+          {emptyLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function MorePreferences({
   city,
   mustInclude,
@@ -40,6 +91,8 @@ export function MorePreferences({
   const [hotPlaces, setHotPlaces] = useState<HotPlace[]>([]);
   const [input, setInput] = useState("");
   const fetchedCityRef = useRef<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const panelOpen = embedded || open;
 
@@ -58,6 +111,17 @@ export function MorePreferences({
       cancelled = true;
     };
   }, [panelOpen, city]);
+
+  // 展开后滚入可视区，避免被手机底部 sticky CTA 挡住
+  useEffect(() => {
+    if (!open || embedded) return;
+    const id = window.setTimeout(() => {
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      // 若仍贴底，再滚一点让「时间习惯」完整露出
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, 80);
+    return () => clearTimeout(id);
+  }, [open, embedded]);
 
   const full = mustInclude.length >= MAX_MUST_INCLUDE;
 
@@ -196,22 +260,21 @@ export function MorePreferences({
             </button>
           )}
         </div>
+        {/* 空 time 在 PC 上会露出原生 --:--/时钟，空态用遮罩按钮点开选择 */}
         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
           <span>每天</span>
-          <input
-            type="time"
+          <TimeOptionalInput
             value={dailyStart}
-            onChange={(e) => onDailyStartChange(e.target.value)}
-            aria-label="每天出发时间（选填）"
-            className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+            onChange={onDailyStartChange}
+            ariaLabel="每天出发时间（选填）"
+            emptyLabel="选填"
           />
           <span>出发 ·</span>
-          <input
-            type="time"
+          <TimeOptionalInput
             value={dailyEnd}
-            onChange={(e) => onDailyEndChange(e.target.value)}
-            aria-label="每天结束时间（选填）"
-            className="rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+            onChange={onDailyEndChange}
+            ariaLabel="每天结束时间（选填）"
+            emptyLabel="选填"
           />
           <span>前结束</span>
         </div>
@@ -261,7 +324,7 @@ export function MorePreferences({
   if (embedded) return body;
 
   return (
-    <div className="rounded-xl border border-gray-100">
+    <div ref={rootRef} className="rounded-xl border border-gray-100">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -288,7 +351,11 @@ export function MorePreferences({
           aria-hidden="true"
         />
       </button>
-      {open && body}
+      {open && (
+        <div ref={panelRef} className="pb-1">
+          {body}
+        </div>
+      )}
     </div>
   );
 }
