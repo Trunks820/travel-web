@@ -95,9 +95,9 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
+      <div className="fixed inset-0 z-[110] bg-gray-900/60 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
       <div
-        className="fixed inset-x-0 bottom-0 z-50 animate-slide-up lg:inset-0 lg:flex lg:items-center lg:justify-center"
+        className="fixed inset-x-0 bottom-0 z-[110] animate-slide-up lg:inset-0 lg:flex lg:items-center lg:justify-center"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <div
@@ -106,36 +106,37 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
           aria-modal="true"
           aria-label={place.name}
           tabIndex={-1}
-          className="card max-h-[85vh] overflow-y-auto rounded-t-3xl outline-none lg:max-w-lg lg:rounded-3xl"
-          style={{ overscrollBehavior: "contain" }}
+          className="flex w-full flex-col bg-white shadow-2xl max-h-[85vh] overflow-hidden rounded-t-[2rem] outline-none lg:max-w-md lg:rounded-[2rem]"
         >
-          <div className="p-6">
-            <div className="mb-4 flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{categoryIcon(typeLabel)}</span>
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8" style={{ overscrollBehavior: "contain" }}>
+            <div className="mb-8 flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sand-100/50 text-2xl shadow-sm">
+                  {categoryIcon(typeLabel)}
+                </div>
                 <div>
-                  <h2 className="font-display text-xl font-bold text-primary-800">{place.name}</h2>
-                  <p className="mt-1 flex items-center gap-2 text-sm text-sand-600">
-                    <span>{typeLabel}</span>
+                  <h2 className="font-display text-2xl font-bold tracking-tight text-gray-900">{place.name}</h2>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-gray-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                      {typeLabel}
+                    </span>
                     {detail?.district && (
-                      <span className="text-sand-400">· {detail.district}</span>
+                      <span className="text-xs font-medium text-gray-400">· {detail.district}</span>
                     )}
                     {isAnchorRole(place.role) && (
-                      <span className="rounded bg-primary-50 px-1.5 py-0.5 text-[11px] text-primary-600">
+                      <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-bold tracking-widest text-primary-700">
                         核心景点
                       </span>
                     )}
-                  </p>
+                  </div>
                 </div>
               </div>
               <button
                 onClick={onClose}
                 aria-label="关闭"
-                className="rounded-lg p-2 text-sand-400 transition-colors hover:bg-sand-100 hover:text-sand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-50 text-gray-400 transition-all hover:bg-gray-200 hover:scale-105 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
               >
-                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <i className="fa-solid fa-times" aria-hidden="true" />
               </button>
             </div>
 
@@ -192,31 +193,38 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
               </div>
             )}
 
-            {/* 坐标改为高德地图链接 */}
-            {place.longitude != null && place.latitude != null && (
+            {/* loading / 无更多详情 */}
+            {loading && (
+              <div className="mt-8 flex justify-center border-t border-gray-100 pt-8">
+                <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  <i className="fa-solid fa-circle-notch fa-spin text-primary-500" aria-hidden="true" />
+                  Loading Details
+                </p>
+              </div>
+            )}
+            {!loading && !hasExtra && (
+              <div className="mt-8 flex justify-center border-t border-gray-100 pt-8">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
+                  End of Details
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* 底部吸顶按钮：坐标改为高德地图链接 */}
+          {place.longitude != null && place.latitude != null && (
+            <div className="border-t border-gray-100 bg-white p-4 sm:px-8 sm:py-5">
               <a
                 href={`https://uri.amap.com/marker?position=${place.longitude},${place.latitude}&name=${encodeURIComponent(place.name)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded text-xs text-primary-600 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-sand-100 px-5 py-3.5 text-sm font-bold text-gray-700 transition-colors hover:bg-sand-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
               >
-                <i className="fa-solid fa-location-dot" aria-hidden="true" />
-                在高德地图中查看
+                <i className="fa-solid fa-location-arrow text-primary-600" aria-hidden="true" />
+                在高德地图中查看路线
               </a>
-            )}
-
-            {/* loading / 无更多详情 */}
-            {loading && (
-              <p className="mt-4 flex items-center gap-2 border-t border-primary-50 pt-3 text-[11px] text-sand-400">
-                <i className="fa-solid fa-spinner fa-spin" aria-hidden="true" /> 正在加载详情…
-              </p>
-            )}
-            {!loading && !hasExtra && (
-              <p className="mt-4 border-t border-primary-50 pt-3 text-[11px] text-sand-400">
-                暂无更多详情
-              </p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </>

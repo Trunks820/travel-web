@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+/**
+ * 方案详情（杂志阅读流）
+ * 路由：/plan/:resultId/:planId
+ * 旧三栏详情见 PlanDetailClassicPage（/demo/detail-classic）
+ */
+import { useEffect, useMemo, useState, lazy, Suspense, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Timeline } from "@/components/detail/Timeline";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
 import { PlaceDetailModal } from "@/components/detail/PlaceDetailModal";
-import { BudgetCard } from "@/components/detail/BudgetCard";
-import { WeatherCard } from "@/components/detail/WeatherCard";
-import { MustIncludeCard } from "@/components/detail/MustIncludeCard";
 import { ShareDialog } from "@/components/share/ShareDialog";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
@@ -13,13 +16,55 @@ import { mockBudget } from "@/services/mockBudget";
 import { useArtifact } from "@/hooks/useArtifact";
 import { saveBlob } from "@/utils/download";
 import { showToast } from "@/stores/toastStore";
-import { formatDistance, formatMinutes, commuteModeIcon } from "@/utils/format";
+import { getCityPhotoUrls } from "@/components/input/RotatingBackground";
+import { weatherIcon } from "@/constants/weather";
+import {
+  formatDistance,
+  formatMinutes,
+  commuteModeName,
+  commuteModeIcon,
+} from "@/utils/format";
 import { timePreferencesLabel } from "@/utils/schedule";
-import type { TripPlace, TripPlan, TripResult } from "@/types/trip";
+import type { TripDay, TripPlace, TripPlan, TripResult, WeatherDay } from "@/types/trip";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const MapView = lazy(() =>
   import("@/components/detail/MapView").then((m) => ({ default: m.MapView })),
 );
+
+const PACE_LABEL: Record<string, string> = {
+  RELAXED: "轻松",
+  MODERATE: "适中",
+  INTENSIVE: "紧凑",
+  PACKED: "紧凑",
+};
+
+const PERIOD_LABEL: Record<string, string> = {
+  morning: "上午",
+  afternoon: "下午",
+  evening: "傍晚",
+  night: "夜间",
+};
+
+function placeTimeLabel(place: TripPlace): string | null {
+  const s = place.schedule;
+  if (!s) return null;
+  if (s.exact_start) {
+    return s.exact_end ? `${s.exact_start} – ${s.exact_end}` : s.exact_start;
+  }
+  if (s.period && PERIOD_LABEL[s.period]) return PERIOD_LABEL[s.period];
+  return null;
+}
+
+function dayWeatherLabel(
+  day: number,
+  weatherDays: WeatherDay[] | undefined,
+): string | null {
+  const w = weatherDays?.find((d) => d.day === day);
+  if (!w) return null;
+  return `${weatherIcon(w.icon_code)} ${w.temp_max_c}°C`;
+}
 
 export default function PlanDetailPage() {
   const { resultId, planId } = useParams<{ resultId: string; planId: string }>();
@@ -29,34 +74,31 @@ export default function PlanDetailPage() {
   const navigate = useNavigate();
   const storeResult = useTripStore((s) => s.result);
   const setResult = useTripStore((s) => s.setResult);
-  const selectedDay = useTripStore((s) => s.selectedDay);
-  const selectDay = useTripStore((s) => s.selectDay);
 
   const [fetchedResult, setFetchedResult] = useState<TripResult | null>(null);
-  // 初始即处于加载态（除非稍后 effect 命中缓存），避免直连 URL 首帧闪现"方案未找到"
   const [loading, setLoading] = useState(true);
-  // 结果加载错误：notfound=攻略不存在(404)；unsupported=旧版本生成不兼容(422)；generic=其他
-  const [error, setError] = useState<{ kind: "notfound" | "unsupported" | "generic"; message: string } | null>(null);
+  const [error, setError] = useState<{
+    kind: "notfound" | "unsupported" | "generic";
+    message: string;
+  } | null>(null);
+
+  const [activeTab, setActiveTab] = useState("overview");
+  const [showMap, setShowMap] = useState(false);
+  const [mapDay, setMapDay] = useState(1);
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const [detailPlace, setDetailPlace] = useState<TripPlace | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const pdf = useArtifact(resultId, "pdf");
-  // 窄屏单栏切换：行程 / 地图 / 概览（桌面端忽略，始终三栏并排）
-  const [mobileTab, setMobileTab] = useState<"itinerary" | "map" | "overview">("itinerary");
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // store 缓存仅在 resultId+jobId 与当前 URL 一致时复用，否则强制 fetch，
-  // 防止上一条 job 的方案污染当前详情页
+  const pdf = useArtifact(resultId, "pdf");
+
   const matched =
     storeResult &&
     storeResult.resultId === resultId &&
     storeResult.jobId === (jobId ?? "");
-
   const result = matched ? storeResult.data : fetchedResult;
 
   useEffect(() => {
-    // resultId/jobId 变化时重置本地态并取消旧请求，防止组件复用时旧数据/慢响应污染新页面。
-    // 缓存命中用 getState() 读、不订阅 matched：否则 fetch 成功写 store 会翻转 matched
-    // 触发本 effect 重跑，cleanup 把 cancelled 置 true，finally 里 setLoading(false) 被跳过，骨架屏卡死
     setError(null);
     const cached = useTripStore.getState().result;
     const hit =
@@ -80,11 +122,16 @@ export default function PlanDetailPage() {
       .catch((err) => {
         if (cancelled) return;
         if (err instanceof ApiRequestError) {
-          // 404 攻略不存在；422 + RESULT_CONTRACT_UNSUPPORTED 旧版本生成不兼容（v0.8.3 契约）
           if (err.status === 404) {
             setError({ kind: "notfound", message: "攻略不存在" });
-          } else if (err.status === 422 && err.code === "RESULT_CONTRACT_UNSUPPORTED") {
-            setError({ kind: "unsupported", message: "该攻略由旧版本生成，暂不支持打开，请重新生成" });
+          } else if (
+            err.status === 422 &&
+            err.code === "RESULT_CONTRACT_UNSUPPORTED"
+          ) {
+            setError({
+              kind: "unsupported",
+              message: "该攻略由旧版本生成，暂不支持打开，请重新生成",
+            });
           } else {
             setError({ kind: "generic", message: err.message });
           }
@@ -92,49 +139,91 @@ export default function PlanDetailPage() {
           setError({ kind: "generic", message: "加载失败" });
         }
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [resultId, jobId, setResult]);
 
-  // selectedDay 跨行程残留校验：上个行程选了 Day 3，新行程只有 2 天时回退 Day 1
-  const plan: TripPlan | undefined = result?.plans.find((p) => p.plan_id === planId);
-  const dayValid = plan?.days.some((d) => d.day === selectedDay);
-  const effectiveDay = (dayValid ? selectedDay : 0) || plan?.days[0]?.day || 1;
-  const currentDay = plan?.days.find((d) => d.day === effectiveDay) ?? plan?.days[0];
-
+  const plan: TripPlan | undefined = result?.plans.find(
+    (p) => p.plan_id === planId,
+  );
   const people = result?.request.people_count ?? 1;
-  const budget = useMemo(() => (plan ? mockBudget(plan, people) : null), [plan, people]);
-  // 天气来自后端 TripResult.weather。有数据则渲染预报；status 非 ok（日期太远/未开启等）
-  // 渲染友好说明而非整卡消失，让用户知道"为什么没有天气"
-  const weather = result?.weather ?? null;
+  const budget = useMemo(
+    () => (plan ? mockBudget(plan, people) : null),
+    [plan, people],
+  );
+  const city = result?.city.name ?? "";
+  const cityCovers = useMemo(
+    () => (city ? getCityPhotoUrls(city, 4) : []),
+    [city],
+  );
+  const weatherDays =
+    result?.weather?.status === "ok" && result.weather.days.length > 0
+      ? result.weather.days
+      : undefined;
+  const timePrefText = result
+    ? timePreferencesLabel(result.schema_version, result.time_preferences)
+    : null;
 
-  // 今日行程概览（真实数据：里程/用时来自 commute_legs，景点数来自 places）
-  const summary = useMemo(() => {
-    if (!currentDay) return null;
-    const meters = currentDay.commute_legs.reduce((s, l) => s + l.distance_meters, 0);
-    const minutes = currentDay.commute_legs.reduce((s, l) => s + l.duration_minutes, 0);
-    // 当天主要出行方式：取各段里出现最多的 mode，用于概览「行驶」图标，
-    // 避免固定车图标与实际公交/步行不符
-    const modeCount = new Map<string, number>();
-    for (const l of currentDay.commute_legs) {
-      modeCount.set(l.mode, (modeCount.get(l.mode) ?? 0) + 1);
-    }
-    let mainMode = "driving";
-    let max = 0;
-    for (const [mode, count] of modeCount) {
-      if (count > max) { max = count; mainMode = mode; }
-    }
-    return {
-      distance: formatDistance(meters),
-      duration: formatMinutes(minutes),
-      spots: currentDay.places.length,
-      legs: currentDay.commute_legs.length,
-      mainMode,
+  const dayForMap: TripDay | undefined =
+    plan?.days.find((d) => d.day === mapDay) ?? plan?.days[0];
+
+  // plan 就绪后，初始化地图日
+  useEffect(() => {
+    if (plan?.days[0]?.day != null) setMapDay(plan.days[0].day);
+  }, [plan?.plan_id]);
+
+  // GSAP 微动效（数据就绪后绑定）
+  useEffect(() => {
+    if (loading || !plan) return;
+    const timeout = setTimeout(() => {
+      const ctx = gsap.context(() => {
+        gsap.utils.toArray<HTMLElement>(".reveal-up").forEach((el) => {
+          gsap.fromTo(
+            el,
+            { y: 40, opacity: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              duration: 0.8,
+              ease: "power3.out",
+              scrollTrigger: {
+                trigger: el,
+                start: "top 85%",
+                toggleActions: "play none none reverse",
+              },
+            },
+          );
+        });
+        gsap.utils.toArray<HTMLElement>(".parallax-img").forEach((img) => {
+          gsap.to(img, {
+            y: "15%",
+            ease: "none",
+            scrollTrigger: {
+              trigger: img.parentElement,
+              start: "top bottom",
+              end: "bottom top",
+              scrub: true,
+            },
+          });
+        });
+      }, containerRef);
+      return () => ctx.revert();
+    }, 100);
+    return () => clearTimeout(timeout);
+  }, [loading, plan?.plan_id]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showMap) setShowMap(false);
     };
-  }, [currentDay]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showMap]);
 
-  // PDF 就绪 → 下载并复位（复位后 phase 回 idle，不会重复触发）。
-  // reset 是 useArtifact 内的稳定 useCallback，单独取出以满足 exhaustive-deps
   const pdfReset = pdf.reset;
   useEffect(() => {
     if (pdf.phase === "ready" && pdf.blob && pdf.artifact) {
@@ -144,23 +233,69 @@ export default function PlanDetailPage() {
     }
   }, [pdf.phase, pdf.blob, pdf.artifact, pdfReset]);
 
-  // PDF 生成失败 → 提示（保持 failed 态，用户可再次点击导出重试）
   useEffect(() => {
     if (pdf.phase === "failed") {
       showToast(pdf.error?.message ?? "导出失败，请重试", "error");
     }
   }, [pdf.phase, pdf.error]);
 
-  // 时间偏好徽标：1.5 无偏好显式"无固定时间"；1.4 缺字段不展示（不伪造）
-  const timePrefText = result
-    ? timePreferencesLabel(result.schema_version, result.time_preferences)
-    : null;
+  // scroll spy
+  useEffect(() => {
+    if (!plan) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const id = entry.target.id;
+          setActiveTab(id);
+          if (id.startsWith("day-")) {
+            const n = Number(id.replace("day-", ""));
+            if (!Number.isNaN(n)) setMapDay(n);
+          }
+        });
+      },
+      { rootMargin: "-120px 0px -50% 0px", threshold: 0 },
+    );
+    const ids = [
+      "overview",
+      ...plan.days.map((d) => `day-${d.day}`),
+      "budget",
+      ...(result?.must_include?.length ? ["must-include"] : []),
+    ];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [plan, result?.must_include?.length]);
+
+  function scrollTo(id: string) {
+    setActiveTab(id);
+    if (id.startsWith("day-")) {
+      const n = Number(id.replace("day-", ""));
+      if (!Number.isNaN(n)) setMapDay(n);
+    }
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openPlace(placeId: number) {
+    if (!plan) return;
+    setActivePlaceId(placeId);
+    const found =
+      plan.days.flatMap((d) => d.places).find((p) => p.place_id === placeId) ??
+      null;
+    if (found) {
+      setShowMap(false);
+      setDetailPlace(found);
+    }
+  }
 
   if (loading) return <DetailSkeleton />;
 
-  if (error || !result || !plan || !currentDay || !budget) {
+  if (error || !result || !plan || !budget) {
     const kind = error?.kind ?? "generic";
-    const icon = kind === "notfound" ? "🔍" : kind === "unsupported" ? "🕰️" : "📋";
+    const icon =
+      kind === "notfound" ? "🔍" : kind === "unsupported" ? "🕰️" : "📋";
     const message = error?.message ?? "方案未找到";
     return (
       <div className="empty-state animate-fade-in">
@@ -173,177 +308,477 @@ export default function PlanDetailPage() {
     );
   }
 
+  const backPath =
+    result.plans.length > 1
+      ? `/result/${resultId}${jobQuery}`
+      : `/`;
+
   return (
-    <div className="flex h-[calc(100vh_-_3.5rem)] flex-col overflow-hidden" style={{ backgroundColor: 'var(--color-bg-secondary)' }}>
-      {/* 详情页标题条 */}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-3 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          {result.plans.length > 1 && (
-            <button
-              onClick={() => navigate(`/result/${resultId}${jobQuery}`)}
-              aria-label="返回方案"
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-sand-500 transition-colors hover:bg-primary-50 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+    <div
+      ref={containerRef}
+      className="min-h-screen bg-sand-50 font-body text-gray-800 selection:bg-primary-100"
+    >
+      {/* 顶栏 */}
+      <nav className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-5 py-5 sm:px-10">
+        <button
+          type="button"
+          onClick={() => navigate(backPath)}
+          className="text-sm font-medium text-primary-700 transition-opacity hover:opacity-70"
+        >
+          ← {result.plans.length > 1 ? "返回方案" : "返回首页"}
+        </button>
+        <span className="font-display text-xs tracking-[0.18em] text-primary-600/80">
+          云途 · 路书
+        </span>
+      </nav>
+
+      {/* Hero */}
+      <header
+        id="overview"
+        className="mx-auto max-w-3xl scroll-mt-24 px-5 pb-12 pt-28 text-center sm:px-8 sm:pt-32 reveal-up"
+      >
+        <p className="mb-3 text-xs font-medium tracking-widest text-primary-600">
+          {city}
+          {result.request.days ? ` · ${result.request.days} 天` : ""}
+          {people ? ` · ${people} 人` : ""}
+          {timePrefText ? ` · ${timePrefText}` : ""}
+        </p>
+        <h1 className="font-display mb-4 text-3xl font-bold leading-tight tracking-tight text-gray-900 sm:text-5xl">
+          {plan.title}
+        </h1>
+        <p className="mx-auto mb-6 max-w-2xl text-base leading-relaxed text-gray-600 sm:text-lg">
+          {plan.summary}
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {plan.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full border border-primary-200 bg-primary-50/80 px-3 py-1 text-xs font-medium text-primary-700"
             >
-              <i className="fa-solid fa-chevron-left text-xs" aria-hidden="true" />
-              <span className="hidden sm:inline">返回方案</span>
-            </button>
+              {tag}
+            </span>
+          ))}
+          {plan.pace?.level && (
+            <span className="rounded-full border border-accent-200 bg-accent-50 px-3 py-1 text-xs font-medium text-accent-700">
+              节奏 {PACE_LABEL[plan.pace.level] ?? plan.pace.level}
+            </span>
           )}
-          <div className="min-w-0">
-            <h1 className="truncate font-display text-base font-bold text-gray-800 sm:text-lg">{plan.title}</h1>
-            <p className="truncate text-xs text-gray-500">
-              {result.city.name} · {result.request.days}天 · {people}人
-              {timePrefText ? ` · ${timePrefText}` : ""}
+          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
+            {plan.days.length} 日行程
+          </span>
+        </div>
+      </header>
+
+      {/* Sticky 导航 */}
+      <div className="sticky top-14 z-40 bg-sand-50/80 shadow-sm shadow-gray-900/5 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-5 sm:px-8">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto hide-scrollbar py-3.5 pr-4">
+            {(
+              [
+                ["overview", "概览"],
+                ...plan.days.map(
+                  (d) =>
+                    [`day-${d.day}`, `第 ${d.day} 天`] as [string, string],
+                ),
+                ["budget", "预算"],
+                ...(result.must_include?.length
+                  ? ([["must-include", "必去"]] as [string, string][])
+                  : []),
+              ] as [string, string][]
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => scrollTo(id)}
+                className={`rounded-full px-4 py-1.5 text-[11px] font-bold tracking-wide transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                  activeTab === id
+                    ? "bg-gray-900 text-white shadow-md"
+                    : "text-gray-400 hover:bg-gray-200/50 hover:text-gray-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="ml-2 flex shrink-0 items-center gap-3 border-l border-gray-200/60 pl-5">
+            <button
+              type="button"
+              className="hidden h-8 items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-[11px] font-bold tracking-wide text-gray-700 shadow-sm transition-all hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 sm:flex"
+              title="导出 PDF"
+              disabled={pdf.loading}
+              onClick={() => pdf.start()}
+            >
+              <i
+                className={`fas ${pdf.loading ? "fa-spinner fa-spin" : "fa-file-pdf"} text-gray-400`}
+                aria-hidden="true"
+              />
+              <span>{pdf.loading ? "导出中" : "PDF"}</span>
+            </button>
+            <button
+              type="button"
+              className="flex h-8 items-center justify-center gap-2 rounded-full bg-primary-600 px-5 text-[11px] font-bold tracking-wide text-white shadow-md shadow-primary-600/20 transition-all hover:scale-105 hover:bg-primary-700"
+              title="分享 AI 长图"
+              onClick={() => setShareOpen(true)}
+            >
+              <i className="fas fa-sparkles text-primary-200" aria-hidden="true" />
+              <span>分享 AI 长图</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-3xl space-y-24 px-5 py-10 pb-36 sm:px-8 sm:py-14">
+        {plan.days.map((day, dayIndex) => {
+          const weatherLabel = dayWeatherLabel(day.day, weatherDays);
+          return (
+            <section
+              key={day.day}
+              id={`day-${day.day}`}
+              className="scroll-mt-24"
+            >
+              <div className="mb-8 reveal-up">
+                <div className="mb-5 flex flex-col items-start gap-1.5">
+                  <span className="font-display text-[11px] font-bold uppercase tracking-[0.2em] text-gray-500">
+                    第 {String(day.day).padStart(2, "0")} 天
+                    {weatherLabel && (
+                      <>
+                        <span className="mx-1 text-gray-300">|</span>
+                        {weatherLabel}
+                      </>
+                    )}
+                  </span>
+                  <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+                    {day.title}
+                  </h2>
+                </div>
+                {cityCovers.length > 0 && (
+                  <div className="mb-5 aspect-[2.2/1] w-full overflow-hidden rounded-2xl shadow-soft">
+                    <img
+                      src={cityCovers[dayIndex % cityCovers.length]}
+                      alt={`${city} 第 ${day.day} 天`}
+                      loading={dayIndex === 0 ? "eager" : "lazy"}
+                      className="parallax-img -mt-[10%] h-[120%] w-full object-cover"
+                    />
+                  </div>
+                )}
+                {day.narrative && (
+                  <p className="text-base leading-relaxed text-gray-600">
+                    {day.narrative}
+                  </p>
+                )}
+                {day.commute_summary && (
+                  <p className="mt-2 text-xs text-gray-400">
+                    <i
+                      className="fas fa-route mr-1.5 text-primary-500"
+                      aria-hidden="true"
+                    />
+                    {day.commute_summary}
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-10 space-y-12 sm:space-y-14">
+                {day.places.map((place, placeIndex) => {
+                  const nextLeg = day.commute_legs?.find(
+                    (l) => l.from_place_id === place.place_id,
+                  );
+                  const timeLabel = placeTimeLabel(place);
+                  return (
+                    <div key={place.place_id} className="relative reveal-up">
+                      <div className="mb-2 flex flex-wrap items-center gap-3 sm:gap-4">
+                        <span className="font-display text-2xl font-bold tabular-nums leading-none text-primary-200 opacity-60 sm:text-3xl">
+                          {String(placeIndex + 1).padStart(2, "0")}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => openPlace(place.place_id)}
+                          className="group rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                        >
+                          <h3 className="text-xl font-bold leading-none text-gray-900 transition-colors group-hover:text-primary-700 sm:text-2xl">
+                            {place.name}
+                            <i
+                              className="fas fa-chevron-right ml-2 text-[10px] text-gray-300 transition-colors group-hover:text-primary-500"
+                              aria-hidden="true"
+                            />
+                          </h3>
+                        </button>
+                        {place.optional && (
+                          <span className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] text-gray-400">
+                            可选
+                          </span>
+                        )}
+                        {timeLabel && (
+                          <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-700">
+                            {timeLabel}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="pl-[2.25rem] sm:pl-[2.75rem]">
+                        {place.brief && (
+                          <p className="mb-2 text-sm text-gray-500">
+                            {place.brief}
+                          </p>
+                        )}
+                        {place.activity_note && (
+                          <p className="text-sm leading-relaxed text-gray-600">
+                            {place.activity_note}
+                          </p>
+                        )}
+                      </div>
+
+                      {nextLeg && (
+                        <div className="ml-[2.25rem] mt-6 flex flex-wrap items-center gap-2.5 border-t border-primary-100/60 pt-4 text-[13px] text-primary-700/70 sm:ml-[2.75rem]">
+                          <i
+                            className={`fa-solid ${commuteModeIcon(nextLeg.mode)} text-primary-400`}
+                            aria-hidden="true"
+                          />
+                          <span className="font-medium tracking-wide">
+                            {commuteModeName(nextLeg.mode)} ·{" "}
+                            {formatMinutes(nextLeg.duration_minutes)}
+                          </span>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-gray-500">
+                            {formatDistance(nextLeg.distance_meters)}
+                          </span>
+                          {nextLeg.transit_summary && (
+                            <span className="w-full text-xs text-gray-400 sm:w-auto">
+                              {nextLeg.transit_summary}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+
+        {/* 预算 */}
+        <section
+          id="budget"
+          className="scroll-mt-24 border-t border-primary-100/50 pt-6 reveal-up"
+        >
+          <h2 className="font-display mb-8 text-3xl font-bold text-gray-900">
+            预算参考
+          </h2>
+          <div className="pl-1 sm:pl-2">
+            <p className="mb-2 text-[11px] uppercase tracking-widest text-gray-400">
+              估算合计 · {budget.people} 人
+            </p>
+            <div className="mb-3 font-display text-5xl font-light tabular-nums tracking-tight text-gray-900 sm:text-6xl">
+              <span className="mr-1 text-3xl text-gray-400">¥</span>
+              {budget.total.toLocaleString()}
+            </div>
+            <p className="mb-10 text-xs tabular-nums text-gray-500">
+              参考总预算 ¥ {budget.budgetCap.toLocaleString()} · 约占{" "}
+              {budget.usedPercent}%
+            </p>
+            <div className="space-y-5">
+              {budget.breakdown.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center gap-4 border-b border-gray-200/60 pb-4 text-sm last:border-0"
+                >
+                  <i
+                    className={`fa-solid ${item.icon} w-5 text-center text-primary-300/80`}
+                    aria-hidden="true"
+                  />
+                  <span className="w-16 tracking-wide text-gray-500">
+                    {item.label}
+                  </span>
+                  <div className="mx-2 h-1 flex-1 overflow-hidden rounded-full bg-gray-100/80">
+                    <div
+                      className="h-1 rounded-full bg-primary-400"
+                      style={{ width: `${item.percentage}%` }}
+                    />
+                  </div>
+                  <span className="w-20 text-right font-mono text-gray-800">
+                    ¥ {item.amount.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-8 text-[11px] uppercase tracking-wide text-gray-400">
+              预算为估算参考，实际花费以出行为准
+            </p>
+          </div>
+        </section>
+
+        {/* 必去落实 */}
+        {result.must_include && result.must_include.length > 0 && (
+          <section
+            id="must-include"
+            className="scroll-mt-24 border-t border-primary-100/50 pb-8 pt-6 reveal-up"
+          >
+            <h2 className="font-display mb-6 text-3xl font-bold text-gray-900">
+              必去地点落实
+            </h2>
+            <ul className="space-y-4 pl-1 sm:pl-2">
+              {result.must_include.map((item) => {
+                const ok = item.status === "scheduled";
+                const badge =
+                  item.status === "scheduled"
+                    ? "已排入"
+                    : item.status === "cross_city"
+                      ? "跨城"
+                      : "未排入";
+                return (
+                  <li
+                    key={item.name}
+                    className="flex items-start gap-4 border-b border-gray-200/60 pb-4 last:border-0"
+                  >
+                    <span
+                      className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
+                        ok
+                          ? "bg-primary-50 text-primary-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {badge}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-gray-900">{item.name}</p>
+                      {"reason" in item && item.reason && (
+                        <p className="mt-1 text-sm text-gray-500">
+                          {item.reason}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+      </main>
+
+      {/* 地图 FAB */}
+      <div className="fixed bottom-8 right-5 z-50 flex flex-col items-end gap-3 sm:right-8">
+        <button
+          type="button"
+          onClick={() => {
+            setShowMap(true);
+            setActivePlaceId(dayForMap?.places[0]?.place_id ?? null);
+          }}
+          className="flex items-center gap-2.5 rounded-full bg-primary-600 py-3.5 pl-5 pr-6 text-white shadow-xl shadow-primary-600/25 transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2"
+        >
+          <i
+            className="fas fa-map-marked-alt text-primary-100"
+            aria-hidden="true"
+          />
+          <span className="text-xs font-bold tracking-wide">查看地图</span>
+        </button>
+      </div>
+
+      {/* 地图浮层 */}
+      <div
+        className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-300 sm:p-6 ${
+          showMap
+            ? "pointer-events-auto bg-gray-900/60 opacity-100 backdrop-blur-sm"
+            : "pointer-events-none opacity-0"
+        }`}
+        aria-hidden={!showMap}
+      >
+        <div
+          className={`flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-gray-800 shadow-2xl transition-transform duration-300 ${
+            showMap ? "translate-y-0 scale-100" : "translate-y-4 scale-95"
+          }`}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="z-10 flex items-center justify-between gap-3 border-b border-white/5 bg-gray-900/60 px-6 py-4 backdrop-blur-md">
+            <div className="flex min-w-0 items-center gap-4">
+              <h3 className="font-display truncate text-lg font-medium text-white">
+                {city} 地图
+              </h3>
+              <div className="hidden flex-wrap gap-1.5 border-l border-white/10 pl-4 sm:flex">
+                {plan.days.map((d) => (
+                  <button
+                    type="button"
+                    key={d.day}
+                    onClick={() => setMapDay(d.day)}
+                    tabIndex={showMap ? 0 : -1}
+                    className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
+                      mapDay === d.day
+                        ? "bg-primary-500 text-white"
+                        : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    第 {d.day} 天
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMap(false)}
+              tabIndex={showMap ? 0 : -1}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/80 transition-all hover:scale-105 hover:bg-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              aria-label="关闭地图"
+            >
+              <i className="fas fa-times" aria-hidden="true" />
+            </button>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto border-b border-white/5 bg-gray-900/40 px-4 py-3 hide-scrollbar sm:hidden">
+            {plan.days.map((d) => (
+              <button
+                type="button"
+                key={d.day}
+                onClick={() => setMapDay(d.day)}
+                tabIndex={showMap ? 0 : -1}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
+                  mapDay === d.day
+                    ? "bg-primary-500 text-white"
+                    : "bg-white/5 text-white/50"
+                }`}
+              >
+                第 {d.day} 天
+              </button>
+            ))}
+          </div>
+
+          <div className="relative min-h-0 flex-1 bg-gray-800">
+            {dayForMap && (
+              <Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center text-sm uppercase tracking-widest text-white/40">
+                    地图加载中…
+                  </div>
+                }
+              >
+                <MapView
+                  day={dayForMap}
+                  activePlaceId={activePlaceId}
+                  onMarkerClick={(id) => openPlace(id)}
+                />
+              </Suspense>
+            )}
+          </div>
+
+          <div className="border-t border-white/5 bg-gray-900/60 px-6 py-2 backdrop-blur-md">
+            <p className="text-center text-[10px] uppercase tracking-widest text-white/40">
+              点击标记查看地点详情
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1 text-sm font-medium text-gray-600 sm:gap-4">
-          <button aria-label="分享" onClick={() => setShareOpen(true)} className="flex items-center gap-1.5 rounded-lg p-2 text-gray-600 transition-colors hover:bg-primary-50 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 sm:p-0">
-            <i className="fa-solid fa-share-nodes" aria-hidden="true" /> <span className="hidden sm:inline">分享</span>
-          </button>
-          <button aria-label="收藏（即将上线）" disabled title="即将上线" className="flex items-center gap-1.5 rounded-lg p-2 text-gray-400 cursor-not-allowed opacity-60 sm:p-0">
-            <i className="fa-regular fa-star" aria-hidden="true" /> <span className="hidden sm:inline">收藏</span>
-          </button>
-        </div>
       </div>
 
-      {/* 窄屏/平板 Tab 切换（≥lg 隐藏，始终三栏并排） */}
-      <div role="tablist" aria-label="详情视图" className="flex shrink-0 border-b border-gray-100 bg-white lg:hidden">
-        {([
-          ["itinerary", "fa-route", "行程"],
-          ["map", "fa-map-location-dot", "地图"],
-          ["overview", "fa-wallet", "概览"],
-        ] as const).map(([key, icon, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={mobileTab === key}
-            aria-controls={`tabpanel-${key}`}
-            onClick={() => setMobileTab(key)}
-            className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-300 ${
-              mobileTab === key
-                ? "border-b-2 border-primary-600 text-primary-600"
-                : "text-gray-500"
-            }`}
-          >
-            <i className={`fa-solid ${icon} text-xs`} aria-hidden="true" /> {label}
-          </button>
-        ))}
-      </div>
-
-      {/* 三栏（桌面）/ 单栏切换（窄屏） */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* 左栏：预算 + 天气 + 导出 —— 桌面常驻；窄屏归入「概览」Tab */}
-        <aside
-          id="tabpanel-overview"
-          role="tabpanel"
-          className={`w-full shrink-0 flex-col gap-4 overflow-y-auto border-r border-gray-100 p-4 lg:flex lg:w-[300px] ${
-            mobileTab === "overview" ? "flex" : "hidden"
-          }`}
-        >
-          <BudgetCard data={budget} />
-          {result.must_include && result.must_include.length > 0 && (
-            <MustIncludeCard items={result.must_include} />
-          )}
-          {weather && <WeatherCard data={weather} activeDay={effectiveDay} />}
-          <button
-            onClick={pdf.start}
-            disabled={pdf.loading}
-            className="mt-auto flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 py-3.5 text-sm font-semibold text-white shadow-md transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2"
-          >
-            <i className={pdf.loading ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-download"} aria-hidden="true" />
-            {pdf.loading ? "正在导出..." : "导出行程"}
-          </button>
-        </aside>
-
-        {/* 中栏：Day 标签 + 时间线 —— 桌面常驻；窄屏「行程」Tab */}
-        <section
-          id="tabpanel-itinerary"
-          role="tabpanel"
-          className={`w-full shrink-0 flex-col border-r border-gray-100 bg-white lg:flex lg:w-[480px] xl:w-[560px] ${
-            mobileTab === "itinerary" ? "flex" : "hidden"
-          }`}
-        >
-          <div className="hide-scrollbar flex shrink-0 gap-2 overflow-x-auto border-b border-gray-100 p-3">
-            {plan.days.map((d) => {
-              const active = effectiveDay === d.day;
-              return (
-                <button
-                  key={d.day}
-                  onClick={() => { selectDay(d.day); setActivePlaceId(null); }}
-                  className={`flex min-w-[68px] shrink-0 flex-col items-center justify-center rounded-xl border px-1.5 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
-                    active
-                      ? "border-primary-600 bg-primary-600 text-white shadow-md"
-                      : "border-gray-100 bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className={`text-[13px] font-bold ${active ? "text-white" : "text-gray-800"}`}>
-                    Day {d.day}
-                  </span>
-                  <span className={`mt-0.5 max-w-[60px] truncate text-[10px] ${active ? "text-primary-50" : "text-gray-400"}`}>
-                    {d.title}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            <Timeline
-              day={currentDay}
-              activePlaceId={activePlaceId}
-              onPlaceClick={(place) => {
-                setActivePlaceId(place.place_id);
-                setDetailPlace(place);
-              }}
-            />
-          </div>
-        </section>
-
-        {/* 右栏：地图占满 + 概览条 —— 桌面常驻；窄屏「地图」Tab */}
-        <section id="tabpanel-map" role="tabpanel" className={`relative flex-1 lg:block ${mobileTab === "map" ? "block" : "hidden"}`}>
-          <Suspense
-            fallback={
-              <div className="flex h-full items-center justify-center" style={{ backgroundColor: 'var(--color-bg-tertiary)' }}>
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-200 border-t-primary-500" />
-              </div>
-            }
-          >
-            <MapView day={currentDay} activePlaceId={activePlaceId} onMarkerClick={setActivePlaceId} />
-          </Suspense>
-
-          {/* 今日行程概览（真实数据） */}
-          {summary && (
-            <div className="absolute inset-x-3 bottom-3 z-10 rounded-2xl border border-white bg-white/95 p-3 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md sm:inset-x-5 sm:bottom-5 sm:p-4">
-              <h3 className="mb-3 px-2 text-sm font-bold text-gray-800">今日行程概览</h3>
-              <div className="flex items-center justify-between px-2">
-                <SummaryItem icon={commuteModeIcon(summary.mainMode)} label="行驶" value={summary.distance} />
-                <div className="h-8 w-px bg-gray-100" />
-                <SummaryItem icon="fa-regular fa-clock" label="通勤" value={summary.duration} />
-                <div className="h-8 w-px bg-gray-100" />
-                <SummaryItem icon="fa-map-location-dot" label="景点" value={`${summary.spots}个`} />
-                <div className="h-8 w-px bg-gray-100" />
-                <SummaryItem icon="fa-route" label="路段" value={`${summary.legs}段`} />
-              </div>
-            </div>
-          )}
-        </section>
-      </div>
-
-      <PlaceDetailModal place={detailPlace} onClose={() => setDetailPlace(null)} />
-      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} recordId={String(result.result_id)} />
-    </div>
-  );
-}
-
-function SummaryItem({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="text-[20px] text-primary-600 opacity-90">
-        <i className={icon.startsWith("fa-regular") ? icon : `fa-solid ${icon}`} aria-hidden="true" />
-      </div>
-      <div className="flex flex-col justify-center">
-        <span className="mb-0.5 text-[10px] font-medium text-gray-400">{label}</span>
-        <span className="text-sm font-bold leading-none text-gray-800">{value}</span>
-      </div>
+      <PlaceDetailModal
+        place={detailPlace}
+        onClose={() => setDetailPlace(null)}
+      />
+      {resultId && (
+        <ShareDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          recordId={resultId}
+        />
+      )}
     </div>
   );
 }
