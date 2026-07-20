@@ -65,7 +65,7 @@ server {
     }
 
     # 静态资源缓存
-    location ~* \.(js|css|png|svg|ico|woff2)$ {
+    location ~* \.(js|css|png|jpg|jpeg|webp|avif|svg|ico|woff2)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
     }

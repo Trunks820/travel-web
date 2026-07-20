@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 const FALLBACK_IMAGE = '/hero-bg.jpg';
 const ROTATE_INTERVAL_MS = 15000;
 const FADE_MS = 1500;
+const LOAD_TIMEOUT_MS = 8000;
+const MAX_CONSECUTIVE_ERRORS = 3;
 
 const CITY_IMAGES: Record<string, string[]> = {
   beijing: [
@@ -107,6 +109,28 @@ const ALL_IMAGES = Object.entries(CITY_IMAGES).flatMap(([folder, files]) =>
   files.map((f) => `/city/${folder}/${f}`)
 );
 
+let isWebpSupported = true;
+try {
+  const elem = document.createElement('canvas');
+  if (elem.getContext && elem.getContext('2d')) {
+    isWebpSupported = elem.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  }
+} catch (e) {
+  // fallback to true
+}
+
+export function resolveOptimalUrl(url: string): string {
+  if (!url.startsWith('/city/')) return url;
+  if (!url.endsWith('.jpg')) return url;
+
+  // 根据当前视口宽度决定是否使用移动端小图
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  const suffix = isMobile ? '.mobile' : '';
+  const ext = isWebpSupported ? '.webp' : '.jpg';
+
+  return url.replace('/city/', '/city-opt/').replace('.jpg', `${suffix}${ext}`);
+}
+
 function shuffle<T>(arr: T[]): T[] {
   const result = [...arr];
   for (let i = result.length - 1; i > 0; i--) {
@@ -120,9 +144,9 @@ function shuffle<T>(arr: T[]): T[] {
 export function getCityPhotoUrls(city: string, count = 4): string[] {
   const folder = CITY_NAME_TO_FOLDER[city];
   if (folder && CITY_IMAGES[folder]?.length) {
-    return CITY_IMAGES[folder].slice(0, count).map((f) => `/city/${folder}/${f}`);
+    return CITY_IMAGES[folder].slice(0, count).map((f) => resolveOptimalUrl(`/city/${folder}/${f}`));
   }
-  return ALL_IMAGES.slice(0, count);
+  return ALL_IMAGES.slice(0, count).map(resolveOptimalUrl);
 }
 
 function resolveCityPool(cities: string[]): string[] {
@@ -133,12 +157,12 @@ function resolveCityPool(cities: string[]): string[] {
     );
     if (!entry) return [];
     const folder = entry[1];
-    return CITY_IMAGES[folder].map((f) => `/city/${folder}/${f}`);
+    return CITY_IMAGES[folder].map((f) => resolveOptimalUrl(`/city/${folder}/${f}`));
   });
 }
 
 export function cityNameOfImage(url: string): string | null {
-  const match = url.match(/^\/city\/([^/]+)\//);
+  const match = url.match(/^\/city(?:-opt)?\/([^/]+)\//);
   return match ? (FOLDER_TO_CITY_NAME[match[1]] ?? null) : null;
 }
 
@@ -153,12 +177,12 @@ export function cityImageList(city: string): string[] {
   );
   if (entry) {
     const folder = entry[1];
-    return CITY_IMAGES[folder].map((f) => `/city/${folder}/${f}`);
+    return CITY_IMAGES[folder].map((f) => resolveOptimalUrl(`/city/${folder}/${f}`));
   }
   // 未命中：用城市名生成确定性偏移，轮转全部图，保证稳定且不全是同一张
   const seed = Array.from(city).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   const offset = seed % ALL_IMAGES.length;
-  return [...ALL_IMAGES.slice(offset), ...ALL_IMAGES.slice(0, offset)];
+  return [...ALL_IMAGES.slice(offset), ...ALL_IMAGES.slice(0, offset)].map(resolveOptimalUrl);
 }
 
 export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' | 'static' = 'shuffle') {
@@ -166,7 +190,7 @@ export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' 
     const cityPool = resolveCityPool(cities);
     if (cityPool.length > 0) return cityPool;
     if (fallbackMode === 'static') return [FALLBACK_IMAGE];
-    return shuffle([FALLBACK_IMAGE, ...ALL_IMAGES]);
+    return shuffle([FALLBACK_IMAGE, ...ALL_IMAGES.map(resolveOptimalUrl)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cities.join('|'), fallbackMode]);
 
@@ -182,6 +206,7 @@ export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' 
         const url = pool[0];
         const img = new Image();
         img.onload = () => setCurrent(url);
+        img.onerror = () => { /* 减少动态模式下静默忽略 */ };
         img.src = url;
       }
       return;
@@ -189,8 +214,33 @@ export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' 
 
     let cancelled = false;
     let idx = 0;
+    let activeImg: HTMLImageElement | null = null;
+    let activeTimeout: ReturnType<typeof setTimeout> | null = null;
+    let consecutiveErrors = 0;
+
+    /** 清理上一次未完成的图片加载，防止旧回调干扰新请求 */
+    const cleanupLoad = () => {
+      if (activeImg) {
+        activeImg.onload = null;
+        activeImg.onerror = null;
+        activeImg = null;
+      }
+      if (activeTimeout) {
+        clearTimeout(activeTimeout);
+        activeTimeout = null;
+      }
+    };
 
     const advance = () => {
+      // 清理上一次未完成的加载，防止竞态
+      cleanupLoad();
+
+      // 连续失败过多时暂停，等下一轮 interval 再试
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        consecutiveErrors = 0;
+        return;
+      }
+
       let url = pool[idx % pool.length];
       idx++;
       if (url === currentRef.current && pool.length > 1) {
@@ -198,11 +248,35 @@ export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' 
         idx++;
       }
       if (url === currentRef.current) return;
+
       const img = new Image();
+      activeImg = img;
+      const targetUrl = url;
+
       img.onload = () => {
-        if (!cancelled) setIncoming(url);
+        if (!cancelled && img === activeImg) {
+          consecutiveErrors = 0;
+          setIncoming(targetUrl);
+        }
+        cleanupLoad();
       };
-      img.src = url;
+
+      img.onerror = () => {
+        if (!cancelled && img === activeImg) {
+          consecutiveErrors++;
+          advance(); // 跳到池中下一张
+        }
+      };
+
+      // 超时降级：LOAD_TIMEOUT_MS 内未加载完则跳过这张
+      activeTimeout = setTimeout(() => {
+        if (!cancelled && img === activeImg) {
+          consecutiveErrors++;
+          advance(); // 尝试下一张（通常更小的图）
+        }
+      }, LOAD_TIMEOUT_MS);
+
+      img.src = targetUrl;
     };
 
     // 城市切换后当前图不在池中时，立即换一张
@@ -212,6 +286,7 @@ export function useRotatingBackground(cities: string[], fallbackMode: 'shuffle' 
     return () => {
       cancelled = true;
       clearInterval(timer);
+      cleanupLoad();
     };
   }, [pool]);
 
