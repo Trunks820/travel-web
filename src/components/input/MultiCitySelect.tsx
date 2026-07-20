@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { SUPPORTED_CITIES } from "@/constants/preferences";
+import { cityImageList } from "@/components/input/RotatingBackground";
 
 interface MultiCitySelectProps {
   value: string[];
@@ -40,6 +41,16 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
 
   function removeCity(city: string) {
     onChange(value.filter((c) => c !== city));
+  }
+
+  function prefetchCity(city: string) {
+    if (typeof window !== "undefined") {
+      const urls = cityImageList(city);
+      if (urls.length > 0) {
+        const img = new Image();
+        img.src = urls[0];
+      }
+    }
   }
 
   const available = SUPPORTED_CITIES.filter((c) => !value.includes(c));
@@ -101,6 +112,7 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
                       role="option"
                       aria-selected={false}
                       onClick={() => addCity(city)}
+                      onMouseEnter={() => prefetchCity(city)}
                       className="rounded-lg px-2 py-1.5 text-sm text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition-colors text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
                     >
                       {city}
@@ -121,6 +133,7 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
             key={city}
             type="button"
             onClick={() => addCity(city)}
+            onMouseEnter={() => prefetchCity(city)}
             className="rounded-md bg-gray-50 border border-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
           >
             {city}

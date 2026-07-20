@@ -211,7 +211,7 @@
   }
 
   .animate-bg-fade-in {
-    animation: fadeIn 1.5s ease-in-out both;
+    animation: fadeIn 0.5s ease-in-out both;
   }
 
   /* 依次入场：父元素给 .stagger，子项设 style={{'--i': index}} */

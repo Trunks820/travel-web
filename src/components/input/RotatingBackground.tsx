@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 const FALLBACK_IMAGE = '/hero-bg.jpg';
 const ROTATE_INTERVAL_MS = 15000;
-const FADE_MS = 1500;
+const FADE_MS = 500;
 const LOAD_TIMEOUT_MS = 8000;
 const MAX_CONSECUTIVE_ERRORS = 3;
 
