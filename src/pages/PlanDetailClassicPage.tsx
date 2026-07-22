@@ -99,7 +99,7 @@ export default function PlanDetailClassicPage() {
 
   return (
     <div
-      className="flex h-[calc(100vh_-_3.5rem)] flex-col overflow-hidden"
+      className="flex h-screen flex-col overflow-hidden"
       style={{ backgroundColor: "var(--color-bg-secondary)" }}
     >
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-3 sm:px-6">

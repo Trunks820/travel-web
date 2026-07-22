@@ -4,9 +4,19 @@ import Header from "./components/layout/Header";
 import { Toast } from "./components/feedback/Toast";
 import { useOnline } from "./hooks/useOnline";
 
+/** 沉浸式页面自带顶栏/全屏背景，隐藏全局 Header 避免双层栏 */
+function isImmersiveRoute(pathname: string): boolean {
+  return (
+    pathname.startsWith("/planning/") ||
+    pathname.startsWith("/plan/") ||
+    pathname.startsWith("/demo/detail")
+  );
+}
+
 export default function App() {
   const online = useOnline();
   const location = useLocation();
+  const immersive = isImmersiveRoute(location.pathname);
 
   return (
     <div className="min-h-screen bg-white">
@@ -15,8 +25,8 @@ export default function App() {
           网络连接已断开，请检查网络设置
         </div>
       )}
-      <Header />
-      <div className="pt-14">
+      {!immersive && <Header />}
+      <div className={immersive ? undefined : "pt-14"}>
         <ErrorBoundary>
           <div key={location.pathname} className="page-enter">
             <Outlet />

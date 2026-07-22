@@ -327,9 +327,17 @@ export default function PlanDetailPage() {
         >
           ← {result.plans.length > 1 ? "返回方案" : "返回首页"}
         </button>
-        <span className="font-display text-xs tracking-[0.18em] text-primary-600/80">
-          云途 · 路书
-        </span>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          aria-label="返回云途首页"
+          className="flex items-center gap-1.5 transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2 rounded"
+        >
+          <img src="/logo.svg" alt="" className="h-5 w-5" aria-hidden="true" />
+          <span className="font-display text-xs tracking-[0.18em] text-primary-600/80">
+            云途 · 路书
+          </span>
+        </button>
       </nav>
 
       {/* Hero */}
@@ -370,7 +378,7 @@ export default function PlanDetailPage() {
       </header>
 
       {/* Sticky 导航 */}
-      <div className="sticky top-14 z-40 bg-sand-50/80 shadow-sm shadow-gray-900/5 backdrop-blur-xl">
+      <div className="sticky top-0 z-40 bg-sand-50/80 shadow-sm shadow-gray-900/5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-5 sm:px-8">
           <div className="flex min-w-0 items-center gap-2 overflow-x-auto hide-scrollbar py-3.5 pr-4">
             {(

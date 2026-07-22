@@ -261,7 +261,7 @@ export default function PlanDetailDemoLight() {
       </header>
 
       {/* Sticky 日导航 & 操作栏 */}
-      <div className="sticky top-14 z-40 bg-sand-50/80 backdrop-blur-xl shadow-sm shadow-gray-900/5">
+      <div className="sticky top-0 z-40 bg-sand-50/80 backdrop-blur-xl shadow-sm shadow-gray-900/5">
         <div className="mx-auto max-w-4xl px-5 sm:px-8 flex items-center justify-between">
           <div className="flex min-w-0 overflow-x-auto hide-scrollbar items-center gap-2 py-3.5 pr-4">
             <button

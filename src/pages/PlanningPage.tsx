@@ -605,11 +605,11 @@ export default function PlanningPage() {
   }
 
   return (
-    <div className="relative min-h-screen -mt-14 pt-14">
+    <div className="relative min-h-screen">
       <RotatingBackground current={bgImage} incoming={bgIncoming} />
       <div className="pointer-events-none fixed inset-0 z-0 bg-white/55" />
 
-      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-3.5rem)] max-w-6xl grid-cols-1 items-center gap-8 px-5 py-8 sm:px-8 sm:py-12 lg:grid-cols-2 lg:gap-12">
+      <div className="relative z-10 mx-auto grid min-h-screen max-w-6xl grid-cols-1 items-center gap-8 px-5 py-8 sm:px-8 sm:py-12 lg:grid-cols-2 lg:gap-12">
         {/* 左：进度 */}
         <div className="order-2 lg:order-1">
           <h1
