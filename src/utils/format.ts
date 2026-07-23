@@ -39,11 +39,33 @@ export function commuteModeIcon(mode: string): string {
  * 过滤景点 brief 里的生成期占位/指令残留文案，避免脏文案露给用户。
  * 例："写成咖啡/茶歇休息点"、"作为次要活动简洁说明"、"…但不要补充无来源事实"。
  * 命中占位返回空串（调用方据此隐藏）；正常文案原样返回。
+ * 同时清除内部排序编号前缀，如"推荐路线第八站，"、"第一天行程第十一站"。
  */
 const BRIEF_PLACEHOLDER_RE = /(写成|作为.{0,8}(说明|节点|停留点|展开)|不要补充|无来源事实|简洁说明)/;
+const BRIEF_RANK_PREFIX_RE = /^(?:推荐路线)?(?:第[一二三四五六七八九十百零\d]+[天日](?:行程)?)?第[一二三四五六七八九十百零\d]+站[，,、]?\s*/;
 
 export function cleanBrief(brief: string | null | undefined): string {
   if (!brief) return "";
   const t = brief.trim();
-  return BRIEF_PLACEHOLDER_RE.test(t) ? "" : t;
+  if (BRIEF_PLACEHOLDER_RE.test(t)) return "";
+  return t.replace(BRIEF_RANK_PREFIX_RE, "");
+}
+
+const TAG_BLACKLIST = new Set([
+  "relaxed", "moderate", "intensive", "packed",
+  "restaurant", "attraction", "museum", "park",
+  "business_area", "hotel", "cafe", "shopping",
+  "scenic_spot", "entertainment", "landmark",
+]);
+
+export function cleanTags(tags: string[]): string[] {
+  return tags.filter((t) => !TAG_BLACKLIST.has(t.toLowerCase()));
+}
+
+const SUMMARY_TAIL_RE = /[，,]\s*适合用于对比方案.*$/;
+const SUMMARY_DIGIT_BLOB_RE = /[、,，]\s*\d{4,}\s*/g;
+
+export function cleanSummary(summary: string | null | undefined): string {
+  if (!summary) return "";
+  return summary.trim().replace(SUMMARY_DIGIT_BLOB_RE, "、").replace(SUMMARY_TAIL_RE, "");
 }

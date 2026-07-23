@@ -23,6 +23,9 @@ import {
   formatMinutes,
   commuteModeName,
   commuteModeIcon,
+  cleanBrief,
+  cleanTags,
+  cleanSummary,
 } from "@/utils/format";
 import { timePreferencesLabel } from "@/utils/schedule";
 import { categoryIcon, categoryName, isAnchorRole } from "@/constants/places";
@@ -355,11 +358,13 @@ export default function PlanDetailPage() {
         <h1 className="font-display mb-4 text-3xl font-bold leading-tight tracking-tight text-gray-900 sm:text-5xl">
           {plan.title}
         </h1>
-        <p className="mx-auto mb-6 max-w-2xl text-base leading-relaxed text-gray-600 sm:text-lg">
-          {plan.summary}
-        </p>
+        {cleanSummary(plan.summary) && (
+          <p className="mx-auto mb-6 max-w-2xl text-base leading-relaxed text-gray-600 sm:text-lg">
+            {cleanSummary(plan.summary)}
+          </p>
+        )}
         <div className="flex flex-wrap justify-center gap-2">
-          {plan.tags.map((tag) => (
+          {cleanTags(plan.tags).map((tag) => (
             <span
               key={tag}
               className="rounded-full border border-primary-200 bg-primary-50/80 px-3 py-1 text-xs font-medium text-primary-700"
@@ -577,12 +582,12 @@ export default function PlanDetailPage() {
                         </div>
 
                         {/* 详情与说明描述 */}
-                        {(place.brief || place.activity_note) && (
+                        {(cleanBrief(place.brief) || place.activity_note) && (
                           <div className="mt-3 border-t border-gray-100/80 pt-3 text-sm leading-relaxed">
                             {place.activity_note ? (
                               <p className="font-normal text-gray-700">{place.activity_note}</p>
                             ) : (
-                              <p className="text-gray-500">{place.brief}</p>
+                              <p className="text-gray-500">{cleanBrief(place.brief)}</p>
                             )}
                           </div>
                         )}

@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { TripPlan } from "@/types/trip";
+import { cleanSummary, cleanTags } from "@/utils/format";
 
 interface PlanSummaryCardProps {
   plan: TripPlan;
@@ -49,11 +50,11 @@ export function PlanSummaryCard({ plan, image, recommended, index = 0, onClick }
 
       <div className="flex flex-1 flex-col px-2 pb-4 pt-1">
         <p className="mb-3 line-clamp-2 text-center text-xs leading-relaxed text-gray-500">
-          {plan.summary}
+          {cleanSummary(plan.summary)}
         </p>
 
         <div className="mb-3 flex flex-wrap justify-center gap-1.5">
-          {plan.tags.slice(0, 4).map((tag) => (
+          {cleanTags(plan.tags).slice(0, 4).map((tag) => (
             <span key={tag} className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] text-primary-600">
               {tag}
             </span>

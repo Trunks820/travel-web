@@ -161,9 +161,8 @@ export async function fetchResult(
   jobId: string,
 ): Promise<TripResult> {
   if (USE_MOCK) return mockFetchResult(resultId);
-  return request<TripResult>(
-    `/trip/results/${resultId}?job_id=${encodeURIComponent(jobId)}`,
-  );
+  const qs = jobId ? `?job_id=${encodeURIComponent(jobId)}` : "";
+  return request<TripResult>(`/trip/results/${resultId}${qs}`);
 }
 
 /**

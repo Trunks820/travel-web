@@ -13,7 +13,7 @@ import {
   getCityPhotoUrls,
 } from '@/components/input/RotatingBackground';
 import { useTripStore } from '@/stores/tripStore';
-import { pollJobStatus, submitTrip, ApiRequestError } from '@/services/api';
+import { pollJobStatus, submitTrip, fetchResult, ApiRequestError } from '@/services/api';
 import { useJobProgress } from '@/hooks/useJobProgress';
 import { webErrorMessage } from '@/constants/errors';
 import type { StageCode, JobResponse } from '@/types/trip';
@@ -222,6 +222,7 @@ export default function PlanningPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const setJob = useTripStore((s) => s.setJob);
+  const setResult = useTripStore((s) => s.setResult);
   const clearResult = useTripStore((s) => s.clearResult);
   const formData = useTripStore((s) => s.formData);
 
@@ -511,9 +512,20 @@ export default function PlanningPage() {
       }
 
       if (data.status === 'COMPLETED' && data.result_record_id) {
+        const recordId = data.result_record_id;
         const reduce = prefersReducedMotion();
-        const go = () =>
-          navigate(`/result/${data.result_record_id}?job_id=${jobId}`, { replace: true });
+        // 登机牌动画期间并行预取结果，跳转时大概率已缓存
+        const prefetch = fetchResult(recordId, jobId!)
+          .then((res) => { setResult(recordId, jobId!, res); return res; })
+          .catch(() => null);
+        const go = async () => {
+          const res = await prefetch;
+          const target =
+            res && res.plans.length === 1
+              ? `/plan/${recordId}/${res.plans[0].plan_id}?job_id=${jobId}`
+              : `/result/${recordId}?job_id=${jobId}`;
+          navigate(target, { replace: true });
+        };
 
         // 完成瞬间：合拢 → 成票扫光（约 1s）→ 跳详情
         if (!showPass && !morphingRef.current) {
@@ -540,7 +552,7 @@ export default function PlanningPage() {
 
       return false;
     },
-    [jobId, navigate, setJob, showPass, runMorphToPass, playPassGloss],
+    [jobId, navigate, setJob, setResult, showPass, runMorphToPass, playPassGloss],
   );
 
   const onTimeout = useCallback(() => setTimedOut(true), []);
