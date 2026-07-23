@@ -25,6 +25,7 @@ import {
   commuteModeIcon,
 } from "@/utils/format";
 import { timePreferencesLabel } from "@/utils/schedule";
+import { categoryIcon, categoryName, isAnchorRole } from "@/constants/places";
 import type { TripDay, TripPlace, TripPlan, TripResult, WeatherDay } from "@/types/trip";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -471,87 +472,137 @@ export default function PlanDetailPage() {
                   </div>
                 )}
                 {day.narrative && (
-                  <p className="text-base leading-relaxed text-gray-600">
-                    {day.narrative}
-                  </p>
-                )}
-                {day.commute_summary && (
-                  <p className="mt-2 text-xs text-gray-400">
-                    <i
-                      className="fas fa-route mr-1.5 text-primary-500"
-                      aria-hidden="true"
-                    />
-                    {day.commute_summary}
-                  </p>
+                  <div className="relative my-5 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/70 via-teal-50/40 to-white p-5 shadow-xs">
+                    <div className="mb-2 flex items-center gap-2 text-xs font-bold tracking-wider text-emerald-800 uppercase">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-600 text-white shadow-xs">
+                        <i className="fa-solid fa-compass text-[10px]" aria-hidden="true" />
+                      </span>
+                      <span>当日游玩指引 · 精选路线要领</span>
+                    </div>
+                    <p className="text-sm sm:text-base leading-relaxed text-gray-700 font-medium">
+                      {day.narrative}
+                    </p>
+                    {day.commute_summary && (
+                      <div className="mt-3 flex items-center gap-2 border-t border-emerald-100/80 pt-2.5 text-xs text-emerald-700 font-medium">
+                        <i className="fas fa-route text-emerald-500" aria-hidden="true" />
+                        <span>全天出行参考：{day.commute_summary}</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
-              <div className="mt-10 space-y-12 sm:space-y-14">
+              <div className="mt-8 space-y-6">
                 {day.places.map((place, placeIndex) => {
                   const nextLeg = day.commute_legs?.find(
                     (l) => l.from_place_id === place.place_id,
                   );
                   const timeLabel = placeTimeLabel(place);
+                  const isLast = placeIndex === day.places.length - 1;
+                  const anchor = isAnchorRole(place.role);
+
                   return (
                     <div key={place.place_id} className="relative reveal-up">
-                      <div className="mb-2 flex flex-wrap items-center gap-3 sm:gap-4">
-                        <span className="font-display text-2xl font-bold tabular-nums leading-none text-primary-200 opacity-60 sm:text-3xl">
-                          {String(placeIndex + 1).padStart(2, "0")}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => openPlace(place.place_id)}
-                          className="group rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
-                        >
-                          <h3 className="text-xl font-bold leading-none text-gray-900 transition-colors group-hover:text-primary-700 sm:text-2xl">
-                            {place.name}
-                            <i
-                              className="fas fa-chevron-right ml-2 text-[10px] text-gray-300 transition-colors group-hover:text-primary-500"
-                              aria-hidden="true"
-                            />
-                          </h3>
-                        </button>
-                        {place.optional && (
-                          <span className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] text-gray-400">
-                            可选
-                          </span>
-                        )}
-                        {timeLabel && (
-                          <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-700">
-                            {timeLabel}
-                          </span>
+                      {/* 时间轴竖连线 */}
+                      {!isLast && (
+                        <div
+                          className="absolute left-6 top-14 bottom-0 w-0.5 bg-gradient-to-b from-primary-200 via-gray-200 to-transparent"
+                          aria-hidden="true"
+                        />
+                      )}
+
+                      {/* 景点节点卡片 */}
+                      <div
+                        onClick={() => openPlace(place.place_id)}
+                        className={`group relative flex flex-col rounded-2xl border transition-all duration-200 p-5 cursor-pointer ${
+                          activePlaceId === place.place_id
+                            ? "border-primary-400 bg-primary-50/40 shadow-md ring-2 ring-primary-300/50"
+                            : "border-gray-200/80 bg-white hover:border-primary-200 hover:shadow-md"
+                        }`}
+                      >
+                        {/* 头部：序号 + 标题 + 右侧富属性徽标 */}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-display text-sm font-bold shadow-xs ${
+                                anchor
+                                  ? "bg-gradient-to-br from-primary-600 to-emerald-600 text-white"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {String(placeIndex + 1).padStart(2, "0")}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-base" aria-hidden="true">
+                                  {categoryIcon(place.category)}
+                                </span>
+                                <h3 className="truncate text-lg font-bold text-gray-900 transition-colors group-hover:text-primary-700">
+                                  {place.name}
+                                </h3>
+                                {place.optional && (
+                                  <span className="shrink-0 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                                    可选
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-gray-400">
+                                {categoryName(place.category)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 右侧卡片徽标区 */}
+                          <div className="flex items-center gap-2">
+                            {timeLabel && (
+                              <span className="rounded-lg bg-primary-50 border border-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-700">
+                                {timeLabel}
+                              </span>
+                            )}
+                            {place.stay_minutes ? (
+                              <span className="flex items-center gap-1 rounded-lg bg-gray-50 border border-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                                <i className="fa-regular fa-clock text-primary-500" />
+                                约 {place.stay_minutes} 分钟
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 rounded-lg bg-gray-50 border border-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500">
+                                <i className="fa-solid fa-location-dot text-primary-400" />
+                                景点打卡
+                              </span>
+                            )}
+                            <span className="ml-1 text-xs font-medium text-primary-600 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline-flex items-center gap-0.5">
+                              详情 <i className="fa-solid fa-chevron-right text-[10px]" />
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 详情与说明描述 */}
+                        {(place.brief || place.activity_note) && (
+                          <div className="mt-3 border-t border-gray-100/80 pt-3 text-sm leading-relaxed">
+                            {place.activity_note ? (
+                              <p className="font-normal text-gray-700">{place.activity_note}</p>
+                            ) : (
+                              <p className="text-gray-500">{place.brief}</p>
+                            )}
+                          </div>
                         )}
                       </div>
 
-                      <div className="pl-[2.25rem] sm:pl-[2.75rem]">
-                        {place.brief && (
-                          <p className="mb-2 text-sm text-gray-500">
-                            {place.brief}
-                          </p>
-                        )}
-                        {place.activity_note && (
-                          <p className="text-sm leading-relaxed text-gray-600">
-                            {place.activity_note}
-                          </p>
-                        )}
-                      </div>
-
+                      {/* 交通连接胶囊 */}
                       {nextLeg && (
-                        <div className="ml-[2.25rem] mt-6 flex flex-wrap items-center gap-2.5 border-t border-primary-100/60 pt-4 text-[13px] text-primary-700/70 sm:ml-[2.75rem]">
-                          <i
-                            className={`fa-solid ${commuteModeIcon(nextLeg.mode)} text-primary-400`}
-                            aria-hidden="true"
-                          />
-                          <span className="font-medium tracking-wide">
-                            {commuteModeName(nextLeg.mode)} ·{" "}
-                            {formatMinutes(nextLeg.duration_minutes)}
-                          </span>
-                          <span className="text-gray-300">·</span>
-                          <span className="text-gray-500">
-                            {formatDistance(nextLeg.distance_meters)}
-                          </span>
+                        <div className="my-3.5 ml-6 flex items-center gap-3">
+                          <div className="flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50/80 px-3.5 py-1.5 text-xs font-medium text-primary-800 shadow-2xs backdrop-blur-xs">
+                            <i className={`fa-solid ${commuteModeIcon(nextLeg.mode)} text-primary-500`} />
+                            <span>
+                              {commuteModeName(nextLeg.mode)} {formatMinutes(nextLeg.duration_minutes)}
+                            </span>
+                            <span className="text-primary-300">·</span>
+                            <span className="text-primary-600/80">
+                              {formatDistance(nextLeg.distance_meters)}
+                            </span>
+                          </div>
                           {nextLeg.transit_summary && (
-                            <span className="w-full text-xs text-gray-400 sm:w-auto">
+                            <span className="text-xs text-gray-400 truncate max-w-xs">
                               {nextLeg.transit_summary}
                             </span>
                           )}

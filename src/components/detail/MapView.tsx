@@ -25,8 +25,6 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const satelliteRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const baseRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const polylinesRef = useRef<any[]>([]);
@@ -42,10 +40,10 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
     if (next === "satellite") {
       if (!satelliteRef.current) satelliteRef.current = new AMap.TileLayer.Satellite();
       map.add(satelliteRef.current);
-      baseRef.current?.hide();
     } else {
-      satelliteRef.current?.hide();
-      baseRef.current?.show();
+      if (satelliteRef.current) {
+        map.remove(satelliteRef.current);
+      }
     }
     setView(next);
   }
@@ -71,13 +69,9 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
         if (destroyed || !containerRef.current) return;
 
         amapRef.current = AMap;
-        // 显式挂栅格底图，避免 2.0 默认矢量底图在部分环境 WebGL 渲染失败导致白屏
-        const baseLayer = new AMap.TileLayer();
-        baseRef.current = baseLayer;
         const map = new AMap.Map(containerRef.current, {
           zoom: 13,
           viewMode: "2D",
-          layers: [baseLayer],
         });
         mapRef.current = map;
 

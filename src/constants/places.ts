@@ -32,3 +32,22 @@ const CATEGORY_ICON: Record<string, string> = {
 export function categoryIcon(category: string): string {
   return CATEGORY_ICON[category] ?? "📍";
 }
+
+const CATEGORY_NAME: Record<string, string> = {
+  park: "公园景点",
+  photo_spot: "打卡胜地",
+  attraction: "热门景点",
+  business_area: "商圈街区",
+  restaurant: "特色美食",
+  other: "游览地点",
+  landmark: "地标建筑",
+  food: "特色美食",
+  scenic: "自然风光",
+  culture: "人文历史",
+  shopping: "休闲购物",
+  nightlife: "夜生活",
+};
+
+export function categoryName(category: string): string {
+  return CATEGORY_NAME[category] ?? "游览地点";
+}
