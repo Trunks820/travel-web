@@ -152,6 +152,16 @@ export interface TripDay {
   narrative: string;
 }
 
+export type AccommodationSource = "user_specified" | "auto_recommended";
+
+export interface AccommodationInfo {
+  name: string;
+  latitude: number;
+  longitude: number;
+  source: AccommodationSource;
+  reason?: string | null;
+}
+
 export interface TripPlan {
   plan_id: string;
   title: string;
@@ -162,8 +172,10 @@ export interface TripPlan {
     commute_status: CommuteStatus;
     total_commute_minutes: number;
   };
+  accommodation?: AccommodationInfo | null;
   days: TripDay[];
 }
+
 
 /** 后端 weather.status：ok 为正常，其余（skipped_disabled / failed…）一律视为无数据 */
 export type WeatherStatus = "ok" | string;

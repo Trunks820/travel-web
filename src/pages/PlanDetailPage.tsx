@@ -9,6 +9,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
 import { PlaceDetailModal } from "@/components/detail/PlaceDetailModal";
+import { AccommodationTimelineNode } from "@/components/detail/AccommodationCard";
 import { ShareDialog } from "@/components/share/ShareDialog";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
@@ -243,34 +244,68 @@ export default function PlanDetailPage() {
     }
   }, [pdf.phase, pdf.error]);
 
-  // scroll spy
+  // activeTab 变动时，在移动端横向胶囊导航中自动将高亮 Tab 居中平滑滚入视野
+  useEffect(() => {
+    if (!activeTab) return;
+    const tabEl = document.getElementById(`nav-tab-${activeTab}`);
+    if (tabEl) {
+      tabEl.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }
+  }, [activeTab]);
+
+  // 100% 精准 ScrollSpy：结合 getBoundingClientRect 判定当前视野中的 section
   useEffect(() => {
     if (!plan) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const id = entry.target.id;
-          setActiveTab(id);
-          if (id.startsWith("day-")) {
-            const n = Number(id.replace("day-", ""));
-            if (!Number.isNaN(n)) setMapDay(n);
-          }
-        });
-      },
-      { rootMargin: "-120px 0px -50% 0px", threshold: 0 },
-    );
-    const ids = [
+
+    const sectionIds = [
       "overview",
       ...plan.days.map((d) => `day-${d.day}`),
       "budget",
       ...(result?.must_include?.length ? ["must-include"] : []),
     ];
-    ids.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
+
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+
+      requestAnimationFrame(() => {
+        ticking = false;
+        const offset = 140; // 顶栏高度 + 触发偏移
+        let currentId = sectionIds[0];
+
+        for (const id of sectionIds) {
+          const el = document.getElementById(id);
+          if (!el) continue;
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= offset) {
+            currentId = id;
+          }
+        }
+
+        if (currentId) {
+          setActiveTab((prev) => (prev !== currentId ? currentId : prev));
+          if (currentId.startsWith("day-")) {
+            const n = Number(currentId.replace("day-", ""));
+            if (!Number.isNaN(n)) {
+              setMapDay((prev) => (prev !== n ? n : prev));
+            }
+          }
+        }
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, [plan, result?.must_include?.length]);
 
   function scrollTo(id: string) {
@@ -402,9 +437,10 @@ export default function PlanDetailPage() {
             ).map(([id, label]) => (
               <button
                 key={id}
+                id={`nav-tab-${id}`}
                 type="button"
                 onClick={() => scrollTo(id)}
-                className={`rounded-full px-4 py-1.5 text-[11px] font-bold tracking-wide transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                className={`shrink-0 rounded-full px-4 py-1.5 text-[11px] font-bold tracking-wide transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
                   activeTab === id
                     ? "bg-gray-900 text-white shadow-md"
                     : "text-gray-400 hover:bg-gray-200/50 hover:text-gray-800"
@@ -498,6 +534,14 @@ export default function PlanDetailPage() {
               </div>
 
               <div className="mt-8 space-y-6">
+                <AccommodationTimelineNode
+                  accommodation={plan.accommodation}
+                  day={day.day}
+                  onLocationClick={() => {
+                    setShowMap(true);
+                    setActivePlaceId(null);
+                  }}
+                />
                 {day.places.map((place, placeIndex) => {
                   const nextLeg = day.commute_legs?.find(
                     (l) => l.from_place_id === place.place_id,
@@ -595,8 +639,8 @@ export default function PlanDetailPage() {
 
                       {/* 交通连接胶囊 */}
                       {nextLeg && (
-                        <div className="my-3.5 ml-6 flex items-center gap-3">
-                          <div className="flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50/80 px-3.5 py-1.5 text-xs font-medium text-primary-800 shadow-2xs backdrop-blur-xs">
+                        <div className="my-3.5 ml-6 flex min-w-0 items-center gap-2.5">
+                          <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-primary-100 bg-primary-50/80 px-3 py-1 text-xs font-medium text-primary-800 shadow-2xs backdrop-blur-xs">
                             <i className={`fa-solid ${commuteModeIcon(nextLeg.mode)} text-primary-500`} />
                             <span>
                               {commuteModeName(nextLeg.mode)} {formatMinutes(nextLeg.duration_minutes)}
@@ -607,7 +651,7 @@ export default function PlanDetailPage() {
                             </span>
                           </div>
                           {nextLeg.transit_summary && (
-                            <span className="text-xs text-gray-400 truncate max-w-xs">
+                            <span className="min-w-0 truncate text-xs text-gray-400">
                               {nextLeg.transit_summary}
                             </span>
                           )}
@@ -740,6 +784,7 @@ export default function PlanDetailPage() {
 
       {/* 地图浮层 */}
       <div
+        onClick={() => setShowMap(false)}
         className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-300 sm:p-6 ${
           showMap
             ? "pointer-events-auto bg-gray-900/60 opacity-100 backdrop-blur-sm"
@@ -748,6 +793,7 @@ export default function PlanDetailPage() {
         aria-hidden={!showMap}
       >
         <div
+          onClick={(e) => e.stopPropagation()}
           className={`flex h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-gray-800 shadow-2xl transition-transform duration-300 ${
             showMap ? "translate-y-0 scale-100" : "translate-y-4 scale-95"
           }`}
@@ -817,6 +863,7 @@ export default function PlanDetailPage() {
               >
                 <MapView
                   day={dayForMap}
+                  accommodation={plan.accommodation}
                   activePlaceId={activePlaceId}
                   onMarkerClick={(id) => openPlace(id)}
                 />

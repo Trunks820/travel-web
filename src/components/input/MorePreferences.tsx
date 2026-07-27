@@ -12,6 +12,8 @@ interface MorePreferencesProps {
   dailyEnd: string;
   onDailyStartChange: (v: string) => void;
   onDailyEndChange: (v: string) => void;
+  accommodationName?: string;
+  onAccommodationNameChange?: (v: string) => void;
   /** 嵌在外层「行程细节」折叠内时不自带手风琴壳 */
   embedded?: boolean;
 }
@@ -85,6 +87,8 @@ export function MorePreferences({
   dailyEnd,
   onDailyStartChange,
   onDailyEndChange,
+  accommodationName = "",
+  onAccommodationNameChange,
   embedded = false,
 }: MorePreferencesProps) {
   const [open, setOpen] = useState(false);
@@ -141,7 +145,8 @@ export function MorePreferences({
   const selectedCount =
     (mustInclude.length > 0 ? 1 : 0) +
     (commuteMode !== "driving" ? 1 : 0) +
-    (dailyStart || dailyEnd ? 1 : 0);
+    (dailyStart || dailyEnd ? 1 : 0) +
+    (accommodationName ? 1 : 0);
 
   const body = (
     <div className={embedded ? "space-y-5" : "space-y-5 border-t border-gray-100 px-4 py-4"}>
@@ -317,6 +322,23 @@ export function MorePreferences({
                 ? `尽量在 ${dailyEnd} 前结束，开始时间不限`
                 : "无固定时间：按行程节奏自由安排"}
         </p>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[13px] font-medium text-gray-700">
+          已知住宿地点
+          <span className="ml-1.5 font-normal text-gray-400">
+            选填，系统将围绕你的住宿地排布路线
+          </span>
+        </p>
+        <input
+          type="text"
+          value={accommodationName}
+          onChange={(e) => onAccommodationNameChange?.(e.target.value)}
+          placeholder="如：解放碑威斯汀酒店 / 观音桥"
+          aria-label="输入住宿地点"
+          className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+        />
       </div>
     </div>
   );

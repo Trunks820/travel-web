@@ -163,6 +163,7 @@ export default function InputPage() {
   const [cities, setCities] = useState<string[]>(
     stored?.to_city ? [stored.to_city] : ['杭州'],
   );
+  const [fromCity, setFromCity] = useState(stored?.from_city ?? '');
   const [startDate, setStartDate] = useState(() => stored?.start_date || isoDateAfter(1));
   const [endDate, setEndDate] = useState(() => stored?.end_date || isoDateAfter(3));
   const [preferences, setPreferences] = useState<string[]>(
@@ -184,6 +185,7 @@ export default function InputPage() {
   );
   const [dailyStart, setDailyStart] = useState(stored?.daily_start ?? '');
   const [dailyEnd, setDailyEnd] = useState(stored?.daily_end ?? '');
+  const [accommodationName, setAccommodationName] = useState(stored?.accommodation?.name ?? '');
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -238,6 +240,7 @@ export default function InputPage() {
     const paceTag = pace < 34 ? '轻松' : pace > 67 ? '紧凑' : '适中';
 
     const formData = {
+      ...(fromCity.trim() && { from_city: fromCity.trim() }),
       to_city: cities[0],
       start_date: startDate,
       end_date: endDate,
@@ -251,6 +254,7 @@ export default function InputPage() {
       ...(commuteMode !== 'driving' && { commute_mode: commuteMode }),
       ...(dailyStart && { daily_start: dailyStart }),
       ...(dailyEnd && { daily_end: dailyEnd }),
+      ...(accommodationName.trim() && { accommodation: { name: accommodationName.trim() } }),
     };
 
     setFormData(formData);
@@ -333,6 +337,22 @@ export default function InputPage() {
                 onChange={handleCitiesChange}
                 multiCity={false}
                 error={cityError}
+              />
+            </div>
+
+            <div>
+              <label className="mb-3 block text-sm font-bold text-gray-700" htmlFor="from-city">
+                出发地
+                <span className="ml-1 font-normal text-gray-400">(选填)</span>
+              </label>
+              <input
+                id="from-city"
+                type="text"
+                value={fromCity}
+                onChange={(e) => setFromCity(e.target.value)}
+                maxLength={20}
+                className="h-11 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                placeholder="你从哪座城市出发？"
               />
             </div>
 
@@ -454,6 +474,8 @@ export default function InputPage() {
               dailyEnd={dailyEnd}
               onDailyStartChange={setDailyStart}
               onDailyEndChange={setDailyEnd}
+              accommodationName={accommodationName}
+              onAccommodationNameChange={setAccommodationName}
             />
 
             <div>

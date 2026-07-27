@@ -12,7 +12,16 @@ export interface MustIncludeItem {
   place_id?: number;
 }
 
+export interface AccommodationInput {
+  name: string;
+  place_id?: number;
+  latitude?: number;
+  longitude?: number;
+}
+
 export interface TripFormData {
+  /** 出发城市（选填）。后端 TripRequest.from_city 默认空串，仅拼入 user_query 供规划参考 */
+  from_city?: string;
   to_city: string;
   start_date: string;
   end_date: string;
@@ -29,6 +38,8 @@ export interface TripFormData {
   commute_mode?: RequestedCommuteMode;
   daily_start?: string; // "HH:mm"，排程软约束
   daily_end?: string; // "HH:mm"，排程软约束
+  /** 住宿点（选填） */
+  accommodation?: AccommodationInput;
 }
 
 export const DEFAULT_FORM: TripFormData = {

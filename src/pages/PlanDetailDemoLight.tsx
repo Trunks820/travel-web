@@ -561,6 +561,7 @@ export default function PlanDetailDemoLight() {
 
       {/* 🐛 FIX 1: 地图浮层：常驻加载，通过 CSS 控制显隐 */}
       <div 
+        onClick={() => setShowMap(false)}
         className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 transition-all duration-300 ${
           showMap 
             ? "bg-gray-900/60 backdrop-blur-sm opacity-100 pointer-events-auto" 
@@ -569,6 +570,7 @@ export default function PlanDetailDemoLight() {
         aria-hidden={!showMap}
       >
         <div 
+          onClick={(e) => e.stopPropagation()}
           className={`flex flex-col w-full max-w-5xl h-[85vh] bg-gray-800 rounded-[2rem] shadow-2xl border border-white/10 overflow-hidden transition-transform duration-300 ${
             showMap ? "scale-100 translate-y-0" : "scale-95 translate-y-4"
           }`}

@@ -160,7 +160,7 @@ export function Timeline({ day, activePlaceId, onPlaceClick }: TimelineProps) {
                   <div className="w-6 shrink-0" />
                   <div className="flex flex-col gap-1">
                     <div
-                      className="flex w-fit items-center gap-2 rounded-md border border-gray-100 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums"
+                      className="flex shrink-0 whitespace-nowrap items-center gap-2 rounded-md border border-gray-100 px-2.5 py-1.5 text-[11px] font-medium text-gray-500 tabular-nums"
                       style={{ backgroundColor: "var(--color-bg-secondary)" }}
                     >
                       <i

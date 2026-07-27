@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import AMapLoader from "@amap/amap-jsapi-loader";
-import type { TripDay } from "@/types/trip";
+import type { TripDay, AccommodationInfo } from "@/types/trip";
 import { decodePolyline } from "@/utils/polyline";
 import { isAnchorRole } from "@/constants/places";
 
 interface MapViewProps {
   day: TripDay;
+  accommodation?: AccommodationInfo | null;
   activePlaceId?: number | null;
   onMarkerClick?: (placeId: number) => void;
 }
@@ -17,7 +18,7 @@ const MODE_COLOR: Record<string, string> = {
   driving: "#1d9e91",
 };
 
-export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
+export function MapView({ day, accommodation, activePlaceId, onMarkerClick }: MapViewProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,7 +76,7 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
         });
         mapRef.current = map;
 
-        updateMarkers(AMap, map, day, activePlaceId, onMarkerClick, markersRef);
+        updateMarkers(AMap, map, day, accommodation, activePlaceId, onMarkerClick, markersRef);
         updatePolylines(AMap, map, day, polylinesRef);
         fitView(map);
         setLoading(false);
@@ -94,18 +95,18 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // day 变化：重建全部覆盖物并 fitView 全览
+  // day/accommodation 变化：重建全部覆盖物并 fitView 全览
   useEffect(() => {
     const AMap = amapRef.current;
     const map = mapRef.current;
     if (!AMap || !map) return;
 
     clearOverlays(markersRef, polylinesRef);
-    updateMarkers(AMap, map, day, activePlaceId, onMarkerClick, markersRef);
+    updateMarkers(AMap, map, day, accommodation, activePlaceId, onMarkerClick, markersRef);
     updatePolylines(AMap, map, day, polylinesRef);
     fitView(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day]);
+  }, [day, accommodation]);
 
   // activePlaceId 变化：重建 marker 更新高亮，并平移到选中点（不重置缩放）
   useEffect(() => {
@@ -114,7 +115,7 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
     if (!AMap || !map) return;
 
     clearOverlays(markersRef, polylinesRef);
-    updateMarkers(AMap, map, day, activePlaceId, onMarkerClick, markersRef);
+    updateMarkers(AMap, map, day, accommodation, activePlaceId, onMarkerClick, markersRef);
     updatePolylines(AMap, map, day, polylinesRef);
 
     const active = day.places.find((p) => p.place_id === activePlaceId);
@@ -199,7 +200,35 @@ export function MapView({ day, activePlaceId, onMarkerClick }: MapViewProps) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function updateMarkers(AMap: any, map: any, day: TripDay, activePlaceId: number | null | undefined, onMarkerClick: ((id: number) => void) | undefined, markersRef: React.MutableRefObject<any[]>) {
+function updateMarkers(AMap: any, map: any, day: TripDay, accommodation: AccommodationInfo | null | undefined, activePlaceId: number | null | undefined, onMarkerClick: ((id: number) => void) | undefined, markersRef: React.MutableRefObject<any[]>) {
+  // 如果有住宿建议且坐标有效，绘制住宿锚点 Marker
+  if (accommodation && accommodation.longitude && accommodation.latitude) {
+    const isUserSpecified = accommodation.source === "user_specified";
+    const bg = isUserSpecified ? "#0284c7" : "#0d9488";
+    const dot = 26;
+    const ring = 2;
+    const nameBg = isUserSpecified ? "#f0f9ff" : "#f0fdf4";
+    const nameBorder = isUserSpecified ? "#7dd3fc" : "#86efac";
+    const nameColor = isUserSpecified ? "#0369a1" : "#15803d";
+    const tagText = isUserSpecified ? "住宿" : "推荐住";
+
+    const accMarker = new AMap.Marker({
+      position: [accommodation.longitude, accommodation.latitude],
+      zIndex: 150,
+      content: `
+        <div style="display:flex;align-items:center;gap:5px;transform:translate(-${dot / 2}px,-${dot / 2}px);white-space:nowrap;cursor:pointer">
+          <div style="width:${dot}px;height:${dot}px;border-radius:50%;background:${bg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.3);border:${ring}px solid #fff">🏨</div>
+          <div style="font-size:12px;font-weight:700;color:${nameColor};background:${nameBg};border:1px solid ${nameBorder};border-radius:8px;padding:2px 7px;box-shadow:0 1px 4px rgba(0,0,0,.15);backdrop-filter:blur(2px)">
+            <span style="font-size:10px;opacity:0.85;margin-right:3px;">[${tagText}]</span>${accommodation.name}
+          </div>
+        </div>`,
+      offset: new AMap.Pixel(0, 0),
+    });
+
+    map.add(accMarker);
+    markersRef.current.push(accMarker);
+  }
+
   day.places.forEach((place, i) => {
     if (!place.longitude || !place.latitude) return;
 

@@ -11,10 +11,20 @@ export function resetMock() {
 }
 
 export async function mockSubmitTrip(
-  _formData: TripFormData,
+  formData: TripFormData,
 ): Promise<AsyncSubmitResponse> {
   resetMock();
   await delay(400);
+  if (formData.accommodation?.name) {
+    MOCK_RESULT.plans.forEach((plan) => {
+      plan.accommodation = {
+        name: formData.accommodation!.name,
+        latitude: plan.days[0]?.places[0]?.latitude ?? 29.5574,
+        longitude: plan.days[0]?.places[0]?.longitude ?? 106.5784,
+        source: "user_specified",
+      };
+    });
+  }
   return { ok: true, job_id: MOCK_JOB_ID };
 }
 
@@ -63,6 +73,13 @@ const MOCK_RESULT: TripResult = {
       summary: "经典地标与老街体验，融合渝中老城风情",
       tags: ["轻松", "经典", "citywalk"],
       pace: { level: "RELAXED", commute_status: "WITHIN_LIMIT", total_commute_minutes: 65 },
+      accommodation: {
+        name: "解放碑/洪崖洞商圈",
+        latitude: 29.5574,
+        longitude: 106.5784,
+        source: "auto_recommended",
+        reason: "位于城市核心枢纽，步行可达十八梯与洪崖洞，交通极其便利",
+      },
       days: [
         {
           day: 1,
