@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const BASE = 'http://localhost:3000';
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+page.on('console', m => console.log(`[console.${m.type()}] ${m.text()}`));
+page.on('response', r => { if (r.url().includes('/trip/')) console.log(`[api] ${r.status()} ${r.url()}`); });
+page.on('pageerror', e => console.log(`[pageerror] ${e.message}`));
+await page.goto(`${BASE}/plan/992/plan_a`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.waitForTimeout(6000);
+const body = await page.evaluate(() => document.body.innerText.slice(0, 500));
+console.log('--- body text ---');
+console.log(body);
+await page.screenshot({ path: 'D:/tmp/polish-shots/debug-detail.png' });
+await browser.close();

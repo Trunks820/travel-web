@@ -42,7 +42,7 @@ export default function PlanDetailClassicPage() {
   const currentDay =
     plan.days.find((d) => d.day === selectedDay) ?? plan.days[0];
   const people = result.request.people_count ?? 1;
-  const budget = useMemo(() => mockBudget(plan, people), []);
+  const budget = useMemo(() => mockBudget(plan, people), [people]);
   const weather = result.weather ?? null;
   const timePrefText = timePreferencesLabel(
     result.schema_version,

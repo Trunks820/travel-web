@@ -1,8 +1,9 @@
 /**
  * 云途首页：桌面左图右表（hybrid 表面）+ 手机上图下表 + sticky CTA
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import gsap from 'gsap';
 import { MultiCitySelect } from '../components/input/MultiCitySelect';
 import { DateRangeInput } from '../components/input/DateRangeInput';
 import { BudgetSlider } from '../components/input/BudgetSlider';
@@ -10,7 +11,9 @@ import { MorePreferences } from '../components/input/MorePreferences';
 import { useRotatingBackground, cityNameOfImage } from '../components/input/RotatingBackground';
 import { submitTrip, ApiRequestError } from '../services/api';
 import { useTripStore } from '../stores/tripStore';
+import { useAuthStore } from '../stores/authStore';
 import type { RequestedCommuteMode, MustIncludeItem } from '../types/form';
+import type { TripFormData } from '../types/form';
 
 const PACE_TAGS = ['轻松', '适中', '紧凑'];
 
@@ -24,6 +27,8 @@ const PREFERENCE_OPTIONS = [
   '拍照',
   '夜景',
 ];
+
+const PENDING_SUBMISSION_KEY = 'yuntu_pending_submission';
 
 /** 细密低对比噪点，叠在米色上像特种纸 */
 const PAPER_NOISE_SVG =
@@ -119,8 +124,6 @@ function useImageAmbientColor(imageUrl: string | undefined, alpha = 0.12): strin
 
 /**
  * PC 右栏 hybrid 表面：路书纸 + 轻噪点 + 左缘环境光
- * 必须 fixed 钉在视口右半，不能 absolute 塞进右侧滚动容器——
- * 否则展开「更多偏好」后背景会跟着内容滚走，露出底部白断层。
  */
 function HybridPanelSurface({ ambientColor }: { ambientColor: string }) {
   return (
@@ -156,6 +159,12 @@ export default function InputPage() {
   const navigate = useNavigate();
   const setFormData = useTripStore((s) => s.setFormData);
   const clearResult = useTripStore((s) => s.clearResult);
+
+  const authStatus = useAuthStore((s) => s.status);
+  const quota = useAuthStore((s) => s.quota);
+  const activeTrip = useAuthStore((s) => s.activeTrip);
+  const refreshMe = useAuthStore((s) => s.refreshMe);
+
   // 一次性读取上次提交的表单（sessionStorage），失败/返回后回填
   const stored = useMemo(() => useTripStore.getState().formData, []);
   const storedPrefs = stored?.preferences ?? null;
@@ -196,6 +205,48 @@ export default function InputPage() {
   const displayCity = polaroidCity || cities[0] || '目的地';
   const ambientColor = useImageAmbientColor(bgImage, 0.12);
 
+  // 登录成功后自动续接提交一次 pending submission
+  useEffect(() => {
+    if (authStatus !== 'authenticated') return;
+    const rawPending = sessionStorage.getItem(PENDING_SUBMISSION_KEY);
+    if (!rawPending) return;
+
+    try {
+      const parsed = JSON.parse(rawPending) as { formData: TripFormData; requestId: string };
+      // 立即删除暂存，防止刷新重复发包
+      sessionStorage.removeItem(PENDING_SUBMISSION_KEY);
+
+      if (parsed?.formData && parsed?.requestId) {
+        setSubmitting(true);
+        setFormData(parsed.formData);
+        clearResult();
+
+        submitTrip(parsed.formData, parsed.requestId)
+          .then((res) => {
+            void refreshMe();
+            navigate(`/planning/${res.job_id}`);
+          })
+          .catch((err) => {
+            setSubmitting(false);
+            if (err instanceof ApiRequestError) {
+              if (err.status === 409 && err.code === 'ACTIVE_TRIP_EXISTS') {
+                const latestTrip = useAuthStore.getState().activeTrip;
+                if (latestTrip?.job_id) {
+                  navigate(`/planning/${latestTrip.job_id}`);
+                  return;
+                }
+              }
+              setSubmitError(err.message);
+            } else {
+              setSubmitError('续接提交失败，请重新点击提交');
+            }
+          });
+      }
+    } catch {
+      sessionStorage.removeItem(PENDING_SUBMISSION_KEY);
+    }
+  }, [authStatus, navigate, setFormData, clearResult, refreshMe, activeTrip]);
+
   const handleCitiesChange = (next: string[]) => {
     if (next[0] !== cities[0]) setMustInclude([]);
     setCities(next);
@@ -205,7 +256,6 @@ export default function InputPage() {
     setPreferences((prev) =>
       prev.includes(pref) ? prev.filter((p) => p !== pref) : [...prev, pref],
     );
-    // 亲子默认至少 2 人
     if (pref === '亲子' && !preferences.includes('亲子') && people < 2) {
       setPeople(2);
     }
@@ -235,11 +285,9 @@ export default function InputPage() {
     }
     const days = Math.min(7, Math.round(dayMs / 86400000) + 1);
 
-    setSubmitting(true);
-    setSubmitError(null);
     const paceTag = pace < 34 ? '轻松' : pace > 67 ? '紧凑' : '适中';
 
-    const formData = {
+    const formData: TripFormData = {
       ...(fromCity.trim() && { from_city: fromCity.trim() }),
       to_city: cities[0],
       start_date: startDate,
@@ -259,17 +307,77 @@ export default function InputPage() {
 
     setFormData(formData);
     clearResult();
+
+    // 游客态拦截：暂存表单并跳转 /login?returnTo=/
+    if (authStatus !== 'authenticated') {
+      const pendingRequestId = `web-${crypto.randomUUID()}`;
+      sessionStorage.setItem(
+        PENDING_SUBMISSION_KEY,
+        JSON.stringify({ formData, requestId: pendingRequestId }),
+      );
+      navigate('/login?returnTo=/');
+      return;
+    }
+
+    // 额度为 0 拦截
+    if ((quota?.remaining ?? 3) <= 0) {
+      setSubmitError('公测免费额度已耗尽 (0/3)，无法创建新行程');
+      return;
+    }
+
+    // 活动任务拦截
+    if (activeTrip) {
+      setSubmitError('你已有正在生成的行程任务，请等待完成');
+      navigate(`/planning/${activeTrip.job_id}`);
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    const requestId = `web-${crypto.randomUUID()}`;
     try {
-      const res = await submitTrip(formData);
+      const res = await submitTrip(formData, requestId);
+      void refreshMe();
       navigate(`/planning/${res.job_id}`);
     } catch (err) {
-      setSubmitError(err instanceof ApiRequestError ? err.message : '提交失败，请稍后重试');
+      if (err instanceof ApiRequestError) {
+        if (err.status === 409 && err.code === 'ACTIVE_TRIP_EXISTS') {
+          const latestTrip = useAuthStore.getState().activeTrip;
+          if (latestTrip?.job_id) {
+            navigate(`/planning/${latestTrip.job_id}`);
+            return;
+          }
+        }
+        setSubmitError(err.message);
+      } else {
+        setSubmitError('提交失败，请稍后重试');
+      }
       setSubmitting(false);
     }
   };
 
   const submitBtnClass =
     'flex w-full items-center justify-center rounded-2xl bg-accent-500 py-4 font-bold text-white shadow-lg shadow-accent-200 transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2';
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (!formRef.current) return;
+    const children = formRef.current.children;
+    gsap.fromTo(
+      children,
+      { opacity: 0, y: 20 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.55,
+        stagger: 0.07,
+        ease: 'power3.out',
+        clearProps: 'transform,opacity',
+      },
+    );
+  }, []);
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-sand-50 font-body text-gray-800 lg:flex-row">
@@ -323,6 +431,7 @@ export default function InputPage() {
           </div>
 
           <form
+            ref={formRef}
             className="mx-auto w-full max-w-md space-y-6"
             onSubmit={(e) => {
               e.preventDefault();
@@ -501,12 +610,21 @@ export default function InputPage() {
                   </p>
                 )}
               </div>
-              <button type="submit" disabled={submitting} aria-busy={submitting} className={submitBtnClass}>
+              <button
+                type="submit"
+                disabled={submitting || (authStatus === 'authenticated' && ((quota?.remaining ?? 3) <= 0 || !!activeTrip))}
+                aria-busy={submitting}
+                className={submitBtnClass}
+              >
                 {submitting ? (
                   <>
                     <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                     正在提交...
                   </>
+                ) : activeTrip ? (
+                  '行程规划中...'
+                ) : authStatus === 'authenticated' && (quota?.remaining ?? 3) <= 0 ? (
+                  '公测额度已耗尽 (0/3)'
                 ) : (
                   '帮我排行程'
                 )}
@@ -536,7 +654,7 @@ export default function InputPage() {
         </div>
         <button
           type="button"
-          disabled={submitting}
+          disabled={submitting || (authStatus === 'authenticated' && ((quota?.remaining ?? 3) <= 0 || !!activeTrip))}
           aria-busy={submitting}
           onClick={handleSubmit}
           className={submitBtnClass}
@@ -546,6 +664,10 @@ export default function InputPage() {
               <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
               正在提交...
             </>
+          ) : activeTrip ? (
+            '行程规划中...'
+          ) : authStatus === 'authenticated' && (quota?.remaining ?? 3) <= 0 ? (
+            '公测额度已耗尽 (0/3)'
           ) : (
             '帮我排行程'
           )}

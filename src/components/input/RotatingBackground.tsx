@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const FALLBACK_IMAGE = '/hero-bg.jpg';
@@ -115,7 +116,7 @@ try {
   if (elem.getContext && elem.getContext('2d')) {
     isWebpSupported = elem.toDataURL('image/webp').indexOf('data:image/webp') === 0;
   }
-} catch (e) {
+} catch {
   // fallback to true
 }
 

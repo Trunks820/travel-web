@@ -1,297 +1,279 @@
 # API Contract
 
-前后端 API 合同。前端只对接以下接口，不直接访问后端内部数据结构。
+Status: **v0.1 Documentation Repair Complete / Implementation Pending**
+
+> ⚠️ **规范声明**：本文档为 `travel-web` 与 BFF (`travel-web-api`) 对接的唯一权威接口契约。所有浏览器发起的 API 请求均通过同源 `/api` 由 BFF 代理与鉴权。
 
 ---
 
-## 1. POST /api/trip/async — 提交旅行任务
+## 1. 通用规范 (Conventions)
 
-### 两种互斥输入模式
-
-后端根据 body 中 `message` 和 `trip_request` 的存在性路由：
-
-| 条件 | 行为 |
-|------|------|
-| 仅 `trip_request` | 结构化输入，跳过 Intent Parser |
-| 仅 `message` | 自然语言输入，走 Intent Parser |
-| 两者都传或都不传 | 返回 400 |
-
-### Request — 结构化模式（Web 前端主路径）
-
-```json
-{
-  "trip_request": {
-    "to_city": "重庆",
-    "days": 3,
-    "people_count": 1,
-    "preferences": ["美食", "citywalk", "轻松"],
-    "avoid": ["网红打卡"],
-    "notes": ""
-  },
-  "request_id": "web-<uuid>",
-  "source": "web",
-  "conversation_id": "web:<session_uuid>"
-}
-```
-
-### Request — 自然语言模式（备用 / 对话入口）
-
-```json
-{
-  "message": "重庆3天 不想太累 喜欢美食和citywalk",
-  "request_id": "web-<uuid>",
-  "source": "web",
-  "conversation_id": "web:<session_uuid>"
-}
-```
-
-### trip_request 字段规范
-
-| 字段 | 类型 | 必填 | 约束 |
-|------|------|------|------|
-| to_city | string | 是 | 城市名，如"重庆"、"成都" |
-| days | int | 是 | 1 ≤ days ≤ 7 |
-| people_count | int | 是 | 1 ≤ people_count ≤ 10，默认 1 |
-| preferences | string[] | 否 | 如 ["美食", "citywalk", "轻松"] |
-| avoid | string[] | 否 | 如 ["网红打卡", "太累"] |
-| notes | string | 否 | 自由文本补充，max 200 字 |
-
-### 公共字段
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| request_id | string | 前端生成的请求唯一 ID，用于幂等 |
-| source | string | 固定 "web" |
-| conversation_id | string | 格式 "web:\<uuid\>"，sessionStorage 生成 |
-
-### Response 200
-
-```json
-{
-  "ok": true,
-  "job_id": "abc-123-def"
-}
-```
-
-### Error Responses
-
-| Code | 场景 |
-|------|------|
-| 400 | 参数校验失败 / 输入模式冲突 |
-| 429 | 限流 |
-| 503 | 后端服务不可用 |
-
----
-
-## 2. GET /api/trip/jobs/{job_id} — 轮询任务状态
-
-### Response 200
-
-```json
-{
-  "ok": true,
-  "job_id": "abc-123-def",
-  "status": "RUNNING",
-  "stage_progress": {
-    "code": "COMPOSING",
-    "step": 3,
-    "total": 4
-  },
-  "result_record_id": null,
-  "error": null
-}
-```
-
-### status 枚举
-
-| status | 含义 | 前端行为 |
-|--------|------|---------|
-| QUEUED | 排队中 | 展示"排队中..." |
-| RUNNING | 执行中 | 展示 stage_progress |
-| COMPLETED | 完成 | 跳转结果页 |
-| FAILED | 失败 | 展示错误 + 重试按钮 |
-
-### stage_progress 阶段码
-
-| 内部阶段 | 产品 code | step/total | 前端文案 |
-|----------|-----------|-----------|---------|
-| INTENT_PARSER | ANALYZING | 1/4 | 正在理解旅行需求 |
-| DATA_RETRIEVAL + ROUTE_PLANNING | PLANNING | 2/4 | 正在筛选地点并规划路线 |
-| FINAL_WRITER | COMPOSING | 3/4 | 正在生成旅行方案 |
-| HERMES_REVIEW + PUBLISH + PERSIST | FINALIZING | 4/4 | 正在校验并整理方案 |
-
-### 失败时
-
-```json
-{
-  "ok": true,
-  "job_id": "abc-123-def",
-  "status": "FAILED",
-  "stage_progress": null,
-  "result_record_id": null,
-  "error": {
-    "code": "GENERATION_TIMEOUT",
-    "message": "生成超时，请重试"
-  }
-}
-```
-
-### 轮询策略
-
-- 间隔：2 秒
-- 最大轮询次数：90（3 分钟超时前端侧 fallback）
-- 超时后展示"生成时间较长，请稍后刷新查看"
-
----
-
-## 3. GET /api/trip/results/{result_record_id} — 获取方案结果
-
-### Response 200 — 前端视图 JSON
-
-```json
-{
-  "schema_version": "1.0",
-  "result_id": 536,
-  "city": {
-    "name": "重庆"
-  },
-  "request": {
-    "days": 3,
-    "people_count": 1,
-    "preferences": ["美食", "citywalk"],
-    "avoid": ["太累"]
-  },
-  "plans": [
-    {
-      "plan_id": "plan_a",
-      "title": "轻松经典路线",
-      "summary": "经典地标与老街体验，融合渝中老城风情",
-      "tags": ["轻松", "经典", "citywalk"],
-      "pace": {
-        "level": "RELAXED",
-        "commute_status": "WITHIN_LIMIT",
-        "total_commute_minutes": 65
-      },
-      "days": [
-        {
-          "day": 1,
-          "title": "渝中老城漫步",
-          "places": [
-            {
-              "place_id": 123,
-              "name": "解放碑",
-              "category": "landmark",
-              "longitude": 106.577,
-              "latitude": 29.557,
-              "role": "anchor",
-              "optional": false,
-              "brief": "重庆地标，商圈核心"
-            }
-          ],
-          "commute_legs": [
-            {
-              "from_place_id": 123,
-              "to_place_id": 456,
-              "mode": "walking",
-              "duration_minutes": 12,
-              "distance_meters": 850
-            }
-          ],
-          "commute_summary": "当天以步行为主，总通勤约 25 分钟",
-          "pace_status": "WITHIN_LIMIT",
-          "narrative": "今天从解放碑出发，沿十八梯步行至洪崖洞..."
-        }
-      ]
+- **公共 Base Path**: `/api`
+- **Content-Type**: `application/json`
+- **身份认证方式**: BFF 下发的透明 HttpOnly Secure Cookie (Session-based)，前端 JS 无法读取 Cookie。
+- **时间戳**: RFC 3339 UTC 格式（如 `2026-07-28T10:00:00Z`）。
+- **公共标识符**: 均为不透明字符串（ULID / UUID），禁止依赖数据库自增主键。
+- **统一错误数据结构**:
+  ```json
+  {
+    "ok": false,
+    "error": {
+      "code": "STABLE_MACHINE_CODE",
+      "message": "用户可读的安全说明",
+      "retryable": false
     }
-  ]
-}
-```
-
-### 字段说明
-
-**顶层**：
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| schema_version | string | 合同版本号，前端按版本兼容 |
-| result_id | int | 后端记录 ID |
-| city.name | string | 目的城市 |
-| request | object | 回显用户请求摘要 |
-| plans | array | 方案列表（通常 2 套） |
-
-**plan**：
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| plan_id | string | 方案标识 |
-| title | string | 方案标题 |
-| summary | string | 方案一句话摘要 |
-| tags | string[] | 风格标签 |
-| pace.level | enum | RELAXED / MODERATE / INTENSIVE |
-| pace.commute_status | enum | WITHIN_LIMIT / OVER_LIMIT |
-| pace.total_commute_minutes | int | 全程总通勤（分钟） |
-| days | array | 每日安排 |
-
-**day**：
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| day | int | 第几天 |
-| title | string | 当天标题 |
-| places | array | 当天地点列表（有序） |
-| commute_legs | array | 通勤段 |
-| commute_summary | string | 当天通勤总结 |
-| pace_status | enum | WITHIN_LIMIT / OVER_LIMIT |
-| narrative | string | 当天叙述文本 |
-
-**place**：
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| place_id | int | 地点 ID |
-| name | string | 展示名 |
-| category | string | 类别（landmark/food/scenic/culture/...） |
-| longitude | float | 经度 GCJ-02 |
-| latitude | float | 纬度 GCJ-02 |
-| role | string | anchor / filler |
-| optional | bool | 是否可选（天气/时间不够时可跳过） |
-| brief | string | 一句话简介 |
-
-**commute_leg**：
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| from_place_id | int | 起点地点 ID |
-| to_place_id | int | 终点地点 ID |
-| mode | string | walking / transit / taxi |
-| duration_minutes | int | 预计时长 |
-| distance_meters | int | 距离 |
-
-### 设计边界
-
-- 此 API 返回的是**展示模型**，不是后端内部 plan_json
-- 后端负责投影/裁剪，前端不需要知道 composition_blueprint、审核结果、内部评分
-- `schema_version` 变更时前端做兼容适配或提示升级
-- 图片字段（place.image_url）预留但第一版不返回
+  }
+  ```
 
 ---
 
-## 4. Error Convention
+## 2. 身份认证与账号 API (Authentication & Account)
 
-所有接口统一错误格式：
-
-```json
-{
-  "ok": false,
-  "error": {
-    "code": "CITY_NOT_SUPPORTED",
-    "message": "暂不支持该城市"
+### 2.1 POST `/api/auth/email/send-code` — 发送邮箱验证码
+- **Request Body**:
+  ```json
+  {
+    "mode": "login",
+    "email": "user@example.com",
+    "invitation_code": null
   }
-}
-```
+  ```
+- **参数约束**:
+  - `mode`: 必须为 `"login"` 或 `"register"`。
+  - `register` 模式必须包含非空的 `invitation_code`；`login` 模式必须为 `null` 或省略。
+- **安全与防邮箱枚举规则**:
+  - 无论该邮箱在系统中是否存在，BFF 均统一返回相同的成功响应（防邮箱枚举攻击）。
+  - 该接口**绝不返回** `USER_NOT_FOUND` 或 `EMAIL_ALREADY_REGISTERED`。
+- **Response 200**:
+  ```json
+  {
+    "ok": true,
+    "challenge_id": "otp_opaque",
+    "resend_after_seconds": 60
+  }
+  ```
 
-常见 error code：
+### 2.2 POST `/api/auth/email/verify` — 校验验证码与完成认证
+- **Request Body**:
+  ```json
+  {
+    "challenge_id": "otp_opaque",
+    "code": "123456"
+  }
+  ```
+- **认证与模式纠偏规范**:
+  - 服务端根据 `challenge_id` 内部绑定邮箱、模式与邀请码，校验 6 位 OTP。
+  - 校验成功后下发 7 天 HttpOnly Session Cookie。
+  - **OTP 成功验证后的模式纠偏**:
+    - 若以 `login` 模式验证了一个未注册的邮箱，BFF 返回 `409 REGISTRATION_REQUIRED`（前端据此切换至 `[邀请码注册]` Tab）。
+    - 若以 `register` 模式验证了一个已注册的邮箱，BFF 返回 `409 LOGIN_REQUIRED`（前端据此自动切至 `[邮箱登录]` Tab，不消耗邀请码）。
+    - 模式纠偏前绝不提前创建用户、Session、额度或消耗邀请码。
 
-| code | 含义 |
-|------|------|
-| VALIDATION_ERROR | 参数校验失败 |
-| CITY_NOT_SUPPORTED | 城市不在支持列表 |
-| GENERATION_TIMEOUT | 生成超时 |
-| GENERATION_FAILED | 生成失败（LLM / 数据不足） |
-| RATE_LIMITED | 限流 |
-| SERVICE_UNAVAILABLE | 后端不可用 |
+### 2.3 GET `/api/me` — 获取当前登录用户与配额
+- **Response 200**:
+  ```json
+  {
+    "ok": true,
+    "user": {
+      "user_id": "usr_opaque",
+      "display_name": "可选显示名",
+      "masked_email": "u***@example.com"
+    },
+    "quota": {
+      "policy": "beta_lifetime",
+      "limit": 3,
+      "reserved": 1,
+      "consumed": 1,
+      "remaining": 1,
+      "resets_at": null
+    }
+  }
+  ```
+- **Unauthenticated**: `401 AUTH_REQUIRED`（未登录）。
+
+### 2.4 POST `/api/auth/logout` — 主动退出登录
+- **说明**: 销毁服务端 Session 并清除 Cookie，支持幂等调用。
+- **Response 200**: `{"ok": true}`
+
+### 2.5 POST `/api/me/closure/send-code` — 发送注销二次验证码
+- **说明**: 向当前已验证身份的邮箱发送独立 6 位注销验证码。
+
+### 2.6 POST `/api/me/closure/confirm` — 确认注销账号
+- **Request Body**: `{"code": "123456"}`
+- **冲突阻断**: 若当前账号有活动中的行程任务（`SUBMITTING` / `PENDING` / `RUNNING`），BFF 返回 `409 ACTIVE_TRIP_IN_PROGRESS`，阻断注销。
+- **注销效果**: 成功后删除登录身份与 Session，去标识化切断与历史行程的所有权关联（保留匿名内容及质量数据）。
+
+---
+
+## 3. 行程提交 API (Submit Trip)
+
+### POST `/api/trip/async` — 提交结构化行程定制请求
+
+> ⚠️ **前端规范**: `travel-web` 主路径仅提交结构化 `trip_request` 与浏览器幂等 `request_id`。禁止包含 `source`、`conversation_id` 或任何浏览器生成的身份字段（BFF 内部自动创建可信安全标识）。禁止使用自然语言 `message` 入口。
+
+- **Request Body**:
+  ```json
+  {
+    "trip_request": {
+      "to_city": "重庆",
+      "days": 3,
+      "people_count": 2,
+      "preferences": ["美食", "citywalk"],
+      "avoid": [],
+      "notes": ""
+    },
+    "request_id": "web-<browser-generated-uuid>"
+  }
+  ```
+- **Response 200 (Success)**:
+  ```json
+  {
+    "ok": true,
+    "trip_id": "trip_opaque",
+    "job_id": "hermes_job_opaque",
+    "status": "PENDING",
+    "quota": {
+      "state": "RESERVED",
+      "remaining": 2
+    }
+  }
+  ```
+- **幂等性**: `(user_id, request_id)` 唯一标识一次提交，相同 `request_id` 重复请求返回已有 `trip_id`/`job_id`，不重复扣除额度；若参数不一致则返回 `409 REQUEST_ID_CONFLICT`。
+
+---
+
+## 4. 任务状态与结果 API (Job Status & Result)
+
+### 4.1 GET `/api/trip/jobs/{job_id}` — 轮询任务状态
+- **说明**: 鉴权当前用户所有权后返回任务状态。
+- **Response 200**:
+  ```json
+  {
+    "ok": true,
+    "job_id": "hermes_job_opaque",
+    "status": "RUNNING",
+    "current_stage": "FINAL_WRITER",
+    "result_record_id": null,
+    "plan_count": null,
+    "error_code": null,
+    "error_message": null
+  }
+  ```
+- **任务状态枚举 (BFF Status Alignment)**:
+  - `PENDING`: 排队预占中
+  - `RUNNING`: 规划执行中
+  - `SUCCESS`: 成功完成（额度转换为 `CONSUMED`）
+  - `FAILED`: 生成失败（额度自动 `RELEASED` 退还）
+  - `TIMEOUT`: 规划超时（额度自动 `RELEASED` 退还）
+  - `REJECTED`: 业务拒绝（额度自动 `RELEASED` 退还）
+- **无所有权/未知 Job**: 返回 `404 TRIP_NOT_FOUND`。
+
+### 4.2 GET `/api/trip/results/{result_record_id}?job_id={job_id}` — 获取方案结果
+- **说明**: 校验用户所有权后，代理返回 `TripResult` 展示 JSON。非本人行程返回 `404 TRIP_NOT_FOUND`。
+
+---
+
+## 5. 行程历史 API (Trip History)
+
+### GET `/api/me/trips` — 查询个人近 7 天行程历史
+- **Query Params**: `limit=20`, `cursor?`, `status?`
+- **Response 200**:
+  ```json
+  {
+    "ok": true,
+    "items": [
+      {
+        "trip_id": "trip_opaque",
+        "job_id": "hermes_job_opaque",
+        "status": "SUCCESS",
+        "city": "重庆",
+        "days": 3,
+        "result_record_id": 1234,
+        "created_at": "2026-07-28T10:00:00Z",
+        "finished_at": "2026-07-28T10:01:20Z",
+        "expires_from_history_at": "2026-08-04T10:00:00Z",
+        "retry_input": {
+          "trip_request": {
+            "to_city": "重庆",
+            "days": 3,
+            "people_count": 2,
+            "preferences": ["美食", "citywalk"],
+            "avoid": [],
+            "notes": ""
+          }
+        },
+        "error": null
+      }
+    ],
+    "next_cursor": null
+  }
+  ```
+- **重试契约与隐私规范**:
+  - 仅返回当前登录用户近 7 天内的行程记录。
+  - `retry_input.trip_request` 为结构化重试输入，重试时原样代入 `POST /api/trip/async` 的 `trip_request` 字段。不泄露/不恢复 `source`、`conversation_id` 或任何内部字段。
+  - 自由文本 `notes` 仅在 7 天保留期内向本人展示，注销后自动清除。
+
+---
+
+## 6. v0.2 Linux.do OAuth 扩展与质量反馈
+
+### 6.1 Linux.do OAuth 路由
+- `GET /api/auth/oauth/linux-do/start?return_to=<path>`：发起授权。
+- `GET /api/auth/oauth/linux-do/callback`：BFF 接收 OAuth 回调并进行服务端 Code 换 Token 操作。
+  - **前端隔离规范**：Linux.do Provider 仅回调 BFF，前端 JS **绝对接触不到** authorization code, OAuth state, access token, client secret 或 raw profile。
+  - **完成重定向**: BFF 完成登录/绑定后，以 `303` 重定向至前端 `/auth/callback?mode=...&returnTo=...` 或带稳定错误码 (`?error_code=OAUTH_ACCOUNT_INELIGIBLE`)。
+
+### 6.2 GET `/api/me/identities` — 查询账号绑定的身份
+- **Response 200**:
+  ```json
+  {
+    "ok": true,
+    "items": [
+      { "provider": "email_otp", "status": "VERIFIED", "display": "u***@example.com" },
+      { "provider": "linux_do", "status": "LINKED", "display": "Linux.do" }
+    ]
+  }
+  ```
+- **说明**: 仅展示抽象绑定状态与脱敏信息，不透传不可变 Linux.do ID 或原始 Provider Subject。
+
+### 6.3 POST `/api/trip/results/{result_id}/feedback` — 质量反馈
+- **Request Body**:
+  ```json
+  {
+    "helpful": false,
+    "reasons": ["PACE_MISMATCH", "PREFERENCE_MISSED"]
+  }
+  ```
+- **原因枚举**: `ROUTE_INEFFICIENT`, `PACE_MISMATCH`, `TRANSIT_INACCURATE`, `PREFERENCE_MISSED`, `OTHER`（结构化代码，不接受自由文本）。
+
+---
+
+## 7. 稳定错误代码汇总 (Stable Error Codes)
+
+| HTTP | Code | 场景与含义 |
+|---|---|---|
+| 400 | `BAD_REQUEST` | 请求格式不合法 |
+| 400 | `OAUTH_STATE_INVALID` | OAuth 状态参数丢失、超时或匹配失败（认证流程错误） |
+| 401 | `AUTH_REQUIRED` | 未登录 / 无有效 Session |
+| 401 | `SESSION_EXPIRED` | 会话已过期 |
+| 403 | `OAUTH_ACCOUNT_INELIGIBLE` | Linux.do 账号未达 L1 等级或被禁言 |
+| 404 | `TRIP_NOT_FOUND` | 行程不存在或无所有权 |
+| 409 | `REGISTRATION_REQUIRED` | 邮箱登录验证成功，但账号尚未注册 |
+| 409 | `LOGIN_REQUIRED` | 邮箱注册验证成功，但账号早已存在 |
+| 409 | `IDENTITY_ALREADY_LINKED` | 该 Linux.do 账号已绑定至其他用户 |
+| 409 | `ACTIVE_TRIP_IN_PROGRESS` | 仍有未完成的生成任务，阻断账号注销 |
+| 409 | `REQUEST_ID_CONFLICT` | request_id 重复但提交参数不一致 |
+| 422 | `VALIDATION_ERROR` / `CITY_NOT_SUPPORTED` | 参数校验失败或城市不支持 |
+| 429 | `QUOTA_EXHAUSTED` | 公测额度已耗尽 (0/3) |
+| 502 | `OAUTH_PROVIDER_ERROR` / `GENERATION_SERVICE_ERROR` | 第三方或下游服务异常 |
+| 503 | `GENERATION_SERVICE_UNAVAILABLE` | 生成服务暂不可用 |
+
+---
+
+## 8. Legacy / 历史存档说明 (Historical Non-Authoritative)
+
+> 🚨 **注意**: 以下项目为全站早期设计或已废弃的过渡方案，**非当前实现依据**：
+> - ❌ 浏览器直接调用 `hermes-travel` (`:6666`) 接口。
+> - ❌ 浏览器生成并传送 `source: "web"` 和 `conversation_id` 作为身份依据。
+> - ❌ 提交接口携带自然语言 `message` 入口。
+> - ❌ 假装允许“未登录用户无感生成攻略”。

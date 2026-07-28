@@ -4,7 +4,8 @@
  * 旧三栏详情见 PlanDetailClassicPage（/demo/detail-classic）
  */
 import { useEffect, useMemo, useState, lazy, Suspense, useRef } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
+import { UserMenu } from "@/components/layout/UserMenu";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
@@ -93,7 +94,59 @@ export default function PlanDetailPage() {
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const [detailPlace, setDetailPlace] = useState<TripPlace | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const leftBrandRef = useRef<HTMLDivElement>(null);
+  const rightUserMenuRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setIsScrolled(window.scrollY > 120);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!leftBrandRef.current || !rightUserMenuRef.current) return;
+    const isMobile = window.innerWidth < 640;
+
+    if (isScrolled) {
+      gsap.to(leftBrandRef.current, {
+        opacity: 1,
+        x: 0,
+        scale: 1,
+        duration: 0.45,
+        ease: "back.out(1.4)",
+        overwrite: "auto",
+      });
+      gsap.to(rightUserMenuRef.current, {
+        opacity: 1,
+        x: 0,
+        scale: 1,
+        duration: 0.45,
+        ease: "back.out(1.4)",
+        overwrite: "auto",
+      });
+    } else {
+      gsap.to(leftBrandRef.current, {
+        opacity: isMobile ? 1 : 0,
+        x: isMobile ? 0 : -16,
+        scale: isMobile ? 1 : 0.9,
+        duration: 0.25,
+        ease: "power2.in",
+        overwrite: "auto",
+      });
+      gsap.to(rightUserMenuRef.current, {
+        opacity: 0,
+        x: 16,
+        scale: 0.9,
+        duration: 0.25,
+        ease: "power2.in",
+        overwrite: "auto",
+      });
+    }
+  }, [isScrolled]);
 
   const pdf = useArtifact(resultId, "pdf");
 
@@ -161,6 +214,23 @@ export default function PlanDetailPage() {
     [plan, people],
   );
   const city = result?.city.name ?? "";
+
+  // PDF 准备就绪自动下载 / 失败提示
+  useEffect(() => {
+    if (pdf.phase === "ready" && pdf.blob) {
+      saveBlob(pdf.blob, `云途行程路书_${city || ""}_${plan?.title || "方案"}.pdf`);
+      showToast("PDF 导出成功，已自动开始下载", "success");
+      pdf.reset();
+    } else if (pdf.phase === "failed" && pdf.error) {
+      if (pdf.error.code === "AUTH_REQUIRED" || pdf.error.code === "401") {
+        showToast("请先登录账号后导出 PDF", "error");
+        navigate(`/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      } else {
+        showToast(`PDF 导出失败: ${pdf.error.message}`, "error");
+      }
+      pdf.reset();
+    }
+  }, [pdf.phase, pdf.blob, pdf.error, city, plan?.title, pdf, navigate]);
   const cityCovers = useMemo(
     () => (city ? getCityPhotoUrls(city, 4) : []),
     [city],
@@ -179,7 +249,7 @@ export default function PlanDetailPage() {
   // plan 就绪后，初始化地图日
   useEffect(() => {
     if (plan?.days[0]?.day != null) setMapDay(plan.days[0].day);
-  }, [plan?.plan_id]);
+  }, [plan?.plan_id, plan?.days]);
 
   // GSAP 微动效（数据就绪后绑定）
   useEffect(() => {
@@ -219,7 +289,7 @@ export default function PlanDetailPage() {
       return () => ctx.revert();
     }, 100);
     return () => clearTimeout(timeout);
-  }, [loading, plan?.plan_id]);
+  }, [loading, plan]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -357,32 +427,31 @@ export default function PlanDetailPage() {
       ref={containerRef}
       className="min-h-screen bg-sand-50 font-body text-gray-800 selection:bg-primary-100"
     >
-      {/* 顶栏 */}
-      <nav className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-5 py-5 sm:px-10">
-        <button
-          type="button"
-          onClick={() => navigate(backPath)}
-          className="text-sm font-medium text-primary-700 transition-opacity hover:opacity-70"
-        >
-          ← {result.plans.length > 1 ? "返回方案" : "返回首页"}
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          aria-label="返回云途首页"
-          className="flex items-center gap-1.5 transition-opacity hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-2 rounded"
-        >
-          <img src="/logo.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-          <span className="font-display text-xs tracking-[0.18em] text-primary-600/80">
-            云途 · 路书
-          </span>
-        </button>
+      {/* 第一层：页顶全局导航栏（线上简约原版：左侧无框返回+Logo，右侧 UserMenu） */}
+      <nav className="flex w-full items-center justify-between px-5 pt-5 sm:px-10 lg:px-14">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(backPath)}
+            className="flex items-center gap-1.5 text-sm font-medium text-primary-700 transition-opacity hover:opacity-70 focus-visible:outline-none"
+          >
+            <span>←</span>
+            <span>{result.plans.length > 1 ? "返回方案" : "返回首页"}</span>
+          </button>
+          <Link to="/" className="flex items-center gap-1.5 transition-opacity hover:opacity-80">
+            <img src="/logo.svg" alt="" className="h-5 w-5" aria-hidden="true" />
+            <span className="font-display text-xs font-semibold tracking-wider text-primary-600/80">
+              云途 · 路书
+            </span>
+          </Link>
+        </div>
+        <UserMenu />
       </nav>
 
       {/* Hero */}
       <header
         id="overview"
-        className="mx-auto max-w-3xl scroll-mt-24 px-5 pb-12 pt-28 text-center sm:px-8 sm:pt-32 reveal-up"
+        className="mx-auto max-w-3xl scroll-mt-24 px-5 pb-8 pt-8 text-center sm:px-8 sm:pt-10 reveal-up"
       >
         <p className="mb-3 text-xs font-medium tracking-widest text-primary-600">
           {city}
@@ -418,62 +487,101 @@ export default function PlanDetailPage() {
         </div>
       </header>
 
-      {/* Sticky 导航 */}
-      <div className="sticky top-0 z-40 bg-sand-50/80 shadow-sm shadow-gray-900/5 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-5 sm:px-8">
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto hide-scrollbar py-3.5 pr-4">
-            {(
-              [
-                ["overview", "概览"],
-                ...plan.days.map(
-                  (d) =>
-                    [`day-${d.day}`, `第 ${d.day} 天`] as [string, string],
-                ),
-                ["budget", "预算"],
-                ...(result.must_include?.length
-                  ? ([["must-include", "必去"]] as [string, string][])
-                  : []),
-              ] as [string, string][]
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                id={`nav-tab-${id}`}
-                type="button"
-                onClick={() => scrollTo(id)}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-[11px] font-bold tracking-wide transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
-                  activeTab === id
-                    ? "bg-gray-900 text-white shadow-md"
-                    : "text-gray-400 hover:bg-gray-200/50 hover:text-gray-800"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="ml-2 flex shrink-0 items-center gap-3 border-l border-gray-200/60 pl-5">
+      {/* 第二层：随屏吸顶工具栏（GSAP 物理弹性驱动 back.out(1.4) 缓动滑出） */}
+      <div className="sticky top-0 z-40 border-b border-gray-100 bg-sand-50/95 shadow-sm shadow-gray-900/5 backdrop-blur-xl">
+        <div className="flex h-14 w-full items-center justify-between gap-3 px-5 sm:px-10 lg:px-14">
+          {/* 左侧：GSAP 物理弹性滑出 返回 + Logo */}
+          <div
+            ref={leftBrandRef}
+            className="flex shrink-0 items-center gap-3 opacity-0"
+            style={{ transform: "translateX(-16px) scale(0.9)" }}
+          >
+            {/* 统一的经典无框返回按钮 */}
             <button
               type="button"
-              className="hidden h-8 items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-[11px] font-bold tracking-wide text-gray-700 shadow-sm transition-all hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 sm:flex"
+              onClick={() => navigate(backPath)}
+              className="flex items-center gap-1.5 text-sm font-medium text-primary-700 transition-opacity hover:opacity-70 focus-visible:outline-none shrink-0 whitespace-nowrap"
+              title={result.plans.length > 1 ? "返回方案" : "返回首页"}
+            >
+              <span>←</span>
+              <span>{result.plans.length > 1 ? "返回方案" : "返回首页"}</span>
+            </button>
+
+            <Link to="/" className="hidden items-center gap-1.5 transition-opacity hover:opacity-80 md:flex shrink-0 whitespace-nowrap">
+              <img src="/logo.svg" alt="" className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="font-display text-xs font-semibold tracking-wider text-primary-600/80 whitespace-nowrap">
+                云途 · 路书
+              </span>
+            </Link>
+          </div>
+
+          {/* 中间：章节胶囊 Tab 切换（独占居中 flex-1，严格垂直居中放置） */}
+          <div className="flex flex-1 min-w-0 items-center justify-center">
+            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-1">
+              {(
+                [
+                  ["overview", "概览"],
+                  ...plan.days.map(
+                    (d) =>
+                      [`day-${d.day}`, `第 ${d.day} 天`] as [string, string],
+                  ),
+                  ["budget", "预算"],
+                  ...(result.must_include?.length
+                    ? ([["must-include", "必去"]] as [string, string][])
+                    : []),
+                ] as [string, string][]
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  id={`nav-tab-${id}`}
+                  type="button"
+                  onClick={() => scrollTo(id)}
+                  className={`shrink-0 rounded-full px-3.5 py-1 text-[11px] font-bold tracking-wide transition-all duration-250 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                    activeTab === id
+                      ? "bg-gray-900 text-white shadow-md"
+                      : "text-gray-600 hover:bg-gray-200/60 hover:text-gray-900"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 右侧：动作按钮 (PDF / 分享) + GSAP 物理弹性滑出 UserMenu */}
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              className="flex h-8 items-center justify-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 sm:px-3 text-[11px] font-bold text-gray-700 shadow-2xs transition-all hover:border-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               title="导出 PDF"
               disabled={pdf.loading}
               onClick={() => pdf.start()}
             >
               <i
-                className={`fas ${pdf.loading ? "fa-spinner fa-spin" : "fa-file-pdf"} text-gray-400`}
+                className={`fas ${pdf.loading ? "fa-spinner fa-spin" : "fa-file-pdf"} text-red-500`}
                 aria-hidden="true"
               />
               <span>{pdf.loading ? "导出中" : "PDF"}</span>
             </button>
             <button
               type="button"
-              className="flex h-8 items-center justify-center gap-2 rounded-full bg-primary-600 px-5 text-[11px] font-bold tracking-wide text-white shadow-md shadow-primary-600/20 transition-all hover:scale-105 hover:bg-primary-700"
+              className="flex h-8 items-center justify-center gap-1.5 rounded-full bg-primary-600 px-3 text-[11px] font-bold text-white shadow-md shadow-primary-600/20 transition-all hover:scale-105 hover:bg-primary-700 sm:px-3.5"
               title="分享 AI 长图"
               onClick={() => setShareOpen(true)}
             >
               <i className="fas fa-sparkles text-primary-200" aria-hidden="true" />
-              <span>分享 AI 长图</span>
+              <span className="hidden sm:inline">分享 AI 长图</span>
+              <span className="sm:hidden">分享</span>
             </button>
+
+            {/* 桌面端向下滚动后，GSAP 物理弹性滑出 UserMenu */}
+            <div
+              ref={rightUserMenuRef}
+              className="hidden border-l border-gray-200/80 pl-2.5 opacity-0 md:block"
+              style={{ transform: "translateX(16px) scale(0.9)" }}
+            >
+              <UserMenu />
+            </div>
           </div>
         </div>
       </div>

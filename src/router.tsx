@@ -1,8 +1,13 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createBrowserRouter } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import App from "./App";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 const InputPage = lazy(() => import("./pages/InputPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const HistoryPage = lazy(() => import("./pages/HistoryPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const PlanningPage = lazy(() => import("./pages/PlanningPage"));
 const ResultPage = lazy(() => import("./pages/ResultPage"));
 const PlanDetailPage = lazy(() => import("./pages/PlanDetailPage"));
@@ -42,19 +47,61 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "planning/:jobId",
+        path: "login",
         element: (
           <LazyPage>
-            <PlanningPage />
+            <LoginPage />
           </LazyPage>
+        ),
+      },
+      {
+        path: "history",
+        element: (
+          <ProtectedRoute>
+            <LazyPage>
+              <HistoryPage />
+            </LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "profile",
+        element: (
+          <ProtectedRoute>
+            <LazyPage>
+              <ProfilePage />
+            </LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "planning/:jobId",
+        element: (
+          <ProtectedRoute>
+            <LazyPage>
+              <PlanningPage />
+            </LazyPage>
+          </ProtectedRoute>
         ),
       },
       {
         path: "result/:resultId",
         element: (
-          <LazyPage>
-            <ResultPage />
-          </LazyPage>
+          <ProtectedRoute>
+            <LazyPage>
+              <ResultPage />
+            </LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "plan/:resultId/:planId",
+        element: (
+          <ProtectedRoute>
+            <LazyPage>
+              <PlanDetailPage />
+            </LazyPage>
+          </ProtectedRoute>
         ),
       },
       {
@@ -78,14 +125,6 @@ export const router = createBrowserRouter([
         element: (
           <LazyPage>
             <PlanDetailClassicPage />
-          </LazyPage>
-        ),
-      },
-      {
-        path: "plan/:resultId/:planId",
-        element: (
-          <LazyPage>
-            <PlanDetailPage />
           </LazyPage>
         ),
       },

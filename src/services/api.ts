@@ -8,12 +8,27 @@ import type {
   PlaceDetail,
   TripResult,
 } from "@/types/trip";
-import { getConversationId } from "@/utils/session";
+import type {
+  AuthMode,
+  MeResponse,
+  SendCodeResponse,
+  ClosureSendCodeResponse,
+  HistoryResponse,
+} from "@/types/auth";
 import { mapBackendStage, STAGE_MAP, TOTAL_STAGES } from "@/constants/stages";
+import { useAuthStore, broadcastAuthEvent } from "@/stores/authStore";
+import { showToast } from "@/stores/toastStore";
 import {
   mockSubmitTrip,
   mockPollJobStatus,
   mockFetchResult,
+  mockGetMe,
+  mockSendCode,
+  mockVerifyCode,
+  mockLogout,
+  mockSendClosureCode,
+  mockConfirmClosure,
+  mockFetchHistory,
 } from "./mock";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
@@ -30,15 +45,30 @@ export class ApiRequestError extends Error {
   }
 }
 
+// 401 Toast 防抖
+let lastToastTime = 0;
+
+function handleUnauthorized() {
+  const now = Date.now();
+  const currentStatus = useAuthStore.getState().status;
+  if (currentStatus === "authenticated") {
+    useAuthStore.getState().clearAuth();
+    broadcastAuthEvent("EXPIRED");
+    if (now - lastToastTime > 3000) {
+      lastToastTime = now;
+      showToast("登录会话已过期，请重新登录", "error");
+    }
+  }
+}
+
 /**
- * 底层请求。只负责 HTTP 与传输层错误，不对业务字段 `ok` 做判断
- * —— 后端在「任务失败」时也会返回 `ok:false`（HTTP 200），那属于
- * 正常的业务状态，由各接口的适配逻辑处理，不能在这里当异常抛出。
+ * 底层 HTTP 请求：开启 Cookie Session 透传 (credentials: "include")
  */
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${url}`, {
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       ...options,
     });
@@ -54,7 +84,10 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    // FastAPI 错误体可能是 { detail: { code, message } } 或 { detail: "..." }
+    if (res.status === 401 && !url.startsWith("/auth/")) {
+      handleUnauthorized();
+    }
+
     const detail = (data as { detail?: unknown }).detail;
     if (detail && typeof detail === "object") {
       const d = detail as { code?: string; message?: string };
@@ -71,13 +104,93 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return data as T;
 }
 
-/* ---------- 后端原始响应类型（仅适配层内部使用） ---------- */
+/* ---------- 认证与用户 API ---------- */
+
+export async function sendEmailCode(
+  mode: AuthMode,
+  email: string,
+  invitationCode?: string | null,
+): Promise<SendCodeResponse> {
+  if (USE_MOCK) return mockSendCode(mode, email);
+  return request<SendCodeResponse>("/auth/email/send-code", {
+    method: "POST",
+    body: JSON.stringify({
+      mode,
+      email,
+      invitation_code: mode === "register" ? invitationCode : null,
+    }),
+  });
+}
+
+export async function verifyEmailCode(
+  challengeId: string,
+  code: string,
+): Promise<{ ok: boolean }> {
+  if (USE_MOCK) return mockVerifyCode(challengeId, code);
+  return request<{ ok: boolean }>("/auth/email/verify", {
+    method: "POST",
+    body: JSON.stringify({
+      challenge_id: challengeId,
+      code,
+    }),
+  });
+}
+
+export async function getMe(): Promise<MeResponse> {
+  if (USE_MOCK) return mockGetMe();
+  return request<MeResponse>("/me");
+}
+
+export async function logout(): Promise<{ ok: boolean }> {
+  if (USE_MOCK) return mockLogout();
+  return request<{ ok: boolean }>("/auth/logout", {
+    method: "POST",
+  });
+}
+
+export async function sendClosureCode(): Promise<ClosureSendCodeResponse> {
+  if (USE_MOCK) return mockSendClosureCode();
+  return request<ClosureSendCodeResponse>("/me/closure/send-code", {
+    method: "POST",
+  });
+}
+
+export async function confirmClosure(
+  challengeId: string,
+  code: string,
+): Promise<{ ok: boolean }> {
+  if (USE_MOCK) return mockConfirmClosure(challengeId, code);
+  return request<{ ok: boolean }>("/me/closure/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      challenge_id: challengeId,
+      code,
+    }),
+  });
+}
+
+export async function getHistoryTrips(params?: {
+  cursor?: string;
+  limit?: number;
+  status?: string;
+}): Promise<HistoryResponse> {
+  if (USE_MOCK) return mockFetchHistory();
+  const query = new URLSearchParams();
+  if (params?.cursor) query.set("cursor", params.cursor);
+  if (params?.limit) query.set("limit", String(params.limit));
+  if (params?.status) query.set("status", params.status);
+  const qs = query.toString() ? `?${query.toString()}` : "";
+  return request<HistoryResponse>(`/me/trips${qs}`);
+}
+
+/* ---------- 原始响应类型 ---------- */
 
 interface RawSubmitResponse {
   ok: boolean;
   job_id: string;
-  status: string;
-  current_stage: string;
+  trip_id?: string;
+  status?: string;
+  current_stage?: string;
 }
 
 interface RawJobStatus {
@@ -91,7 +204,6 @@ interface RawJobStatus {
   plan_count: number | null;
 }
 
-/** 后端 status → 前端 JobStatus */
 function mapStatus(raw: string): JobStatus {
   switch (raw) {
     case "PENDING":
@@ -109,10 +221,11 @@ function mapStatus(raw: string): JobStatus {
   }
 }
 
-/* ---------- 对外接口 ---------- */
+/* ---------- 提交与任务 API ---------- */
 
 export async function submitTrip(
   formData: TripFormData,
+  requestId?: string,
 ): Promise<AsyncSubmitResponse> {
   if (USE_MOCK) return mockSubmitTrip(formData);
 
@@ -120,9 +233,7 @@ export async function submitTrip(
     method: "POST",
     body: JSON.stringify({
       trip_request: formData,
-      request_id: `web-${crypto.randomUUID()}`,
-      source: "web",
-      conversation_id: getConversationId(),
+      request_id: requestId || `web-${crypto.randomUUID()}`,
     }),
   });
   return { ok: raw.ok, job_id: raw.job_id };
@@ -165,15 +276,10 @@ export async function fetchResult(
   return request<TripResult>(`/trip/results/${resultId}${qs}`);
 }
 
-/**
- * POI 详情（v0.8.5）。按需请求，失败由调用方局部降级（弹窗保留基础信息）。
- * 404 PLACE_NOT_FOUND / 422 PLACE_UNSUPPORTED 都会以 ApiRequestError 抛出。
- */
 export async function fetchPlaceDetail(placeId: number): Promise<PlaceDetail> {
   return request<PlaceDetail>(`/trip/places/${placeId}`);
 }
 
-/** GET /trip/places?city= 响应中的单个热门 POI（v0.8.9 契约） */
 export interface HotPlace {
   place_id: number;
   name: string;
@@ -181,10 +287,6 @@ export interface HotPlace {
   mention_count: number;
 }
 
-/**
- * 城市热门 POI 列表（v0.8.9），供首页「必去地点」勾选。
- * 失败/接口未上线由调用方降级为纯自由输入，不阻塞表单。
- */
 export async function fetchHotPlaces(city: string, limit = 12): Promise<HotPlace[]> {
   const raw = await request<{ ok: boolean; places?: HotPlace[] }>(
     `/trip/places?city=${encodeURIComponent(city)}&limit=${limit}`,
@@ -192,12 +294,8 @@ export async function fetchHotPlaces(city: string, limit = 12): Promise<HotPlace
   return raw.places ?? [];
 }
 
-/* ---------- 分享图 / PDF 产物（后端统一 artifact 接口） ---------- */
+/* ---------- Artifacts PDF / Share Image ---------- */
 
-/**
- * 创建产物（点"导出/分享"才调）。返回 status 可能是 pending/running（异步生成中）
- * 或直接 ready（命中后端缓存）。配额超限等由后端以 4xx + ApiRequestError 抛出。
- */
 export function createArtifact(
   recordId: string,
   type: ArtifactType,
@@ -207,10 +305,6 @@ export function createArtifact(
   });
 }
 
-/**
- * 查询产物状态。从未创建时后端返回 404（ApiRequestError status 404），
- * 由调用方据此决定是否 POST 创建。status:"failed" 是 HTTP 200 业务态，正常返回不抛错。
- */
 export function getArtifact(
   recordId: string,
   type: ArtifactType,
@@ -218,18 +312,19 @@ export function getArtifact(
   return request<Artifact>(`/trip/results/${recordId}/artifacts/${type}`);
 }
 
-/**
- * 下载产物二进制。走裸 fetch —— 不能用 request<T>，那个会 res.json() 破坏二进制。
- * download_url 是后端返回的 /trip/... 相对路径，需拼 API_BASE 走 vite 代理。
- */
 export async function fetchArtifactBlob(downloadUrl: string): Promise<Blob> {
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${downloadUrl}`);
+    res = await fetch(`${API_BASE}${downloadUrl}`, {
+      credentials: "include",
+    });
   } catch {
     throw new ApiRequestError("NETWORK_ERROR", "网络连接失败，请检查网络", 0);
   }
   if (!res.ok) {
+    if (res.status === 401) {
+      handleUnauthorized();
+    }
     throw new ApiRequestError("DOWNLOAD_FAILED", "下载失败，请重试", res.status);
   }
   return res.blob();

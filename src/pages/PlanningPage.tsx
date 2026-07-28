@@ -3,7 +3,8 @@
  * 图源：public/city/{城}/ 与首页轮播同源
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { UserMenu } from '@/components/layout/UserMenu';
 import gsap from 'gsap';
 import { ProgressTimeline } from '@/components/planning/ProgressTimeline';
 import { BoardingPass } from '@/components/planning/BoardingPass';
@@ -168,6 +169,7 @@ function PostcardStage({
     lastPhase.current = phase;
   }, [stageIndex, phase, failed, photos.length]);
 
+  const photoKey = photos.join('|');
   useEffect(() => {
     if (!wrapRef.current || prefersReducedMotion()) return;
     const cards = wrapRef.current.querySelectorAll<HTMLElement>('.mag-card');
@@ -184,7 +186,7 @@ function PostcardStage({
         ease: 'power3.out',
       });
     }
-  }, [photos.join('|')]);
+  }, [photoKey]);
 
   const caption =
     phase === 'pass'
@@ -621,7 +623,18 @@ export default function PlanningPage() {
       <RotatingBackground current={bgImage} incoming={bgIncoming} />
       <div className="pointer-events-none fixed inset-0 z-0 bg-white/55" />
 
-      <div className="relative z-10 mx-auto grid min-h-screen max-w-6xl grid-cols-1 items-center gap-8 px-5 py-8 sm:px-8 sm:py-12 lg:grid-cols-2 lg:gap-12">
+      {/* 顶栏：Logo 与 用户状态（全宽分散至最两端） */}
+      <nav className="relative z-20 flex w-full items-center justify-between px-5 pt-5 sm:px-10 lg:px-14">
+        <Link to="/" className="flex items-center space-x-2">
+          <img src="/logo.svg" alt="云途 YunTu" className="h-8 w-8" />
+          <span className="text-xl font-bold tracking-tight text-gray-800">
+            云途 <span className="font-normal text-primary-500">YunTu</span>
+          </span>
+        </Link>
+        <UserMenu />
+      </nav>
+
+      <div className="relative z-10 mx-auto grid min-h-[calc(100vh-80px)] max-w-6xl grid-cols-1 items-center gap-8 px-5 pb-8 pt-4 sm:px-8 sm:pb-12 lg:grid-cols-2 lg:gap-12">
         {/* 左：进度 */}
         <div className="order-2 lg:order-1">
           <h1
@@ -644,6 +657,13 @@ export default function PlanningPage() {
             </p>
           )}
 
+          {(failed || timedOut) && (
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-700">
+              <i className="fas fa-check-circle text-emerald-600" aria-hidden="true" />
+              本次失败未扣除额度（已自动退还）
+            </div>
+          )}
+
           {networkUnstable && !failed && !timedOut && (
             <p className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
               <i className="fas fa-wifi text-amber-400" aria-hidden="true" />
@@ -652,7 +672,7 @@ export default function PlanningPage() {
           )}
 
           {(failed || timedOut) && (
-            <div className="mt-8 flex gap-3">
+            <div className="mt-6 flex gap-3">
               {failed && (
                 <button
                   type="button"
