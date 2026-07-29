@@ -331,15 +331,27 @@ export function resolveSameOriginDownloadPath(downloadUrl: string): string {
   return `${cleanBase}/${cleanPath}`;
 }
 
-export async function fetchArtifactBlob(downloadUrl: string): Promise<Blob> {
+export async function fetchArtifactBlob(
+  downloadUrl: string,
+  options?: { signal?: AbortSignal },
+): Promise<Blob> {
   const targetPath = resolveSameOriginDownloadPath(downloadUrl);
 
   let res: Response;
   try {
     res = await fetch(targetPath, {
       credentials: "include",
+      signal: options?.signal,
     });
-  } catch {
+  } catch (err: unknown) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "name" in err &&
+      (err as { name: string }).name === "AbortError"
+    ) {
+      throw err;
+    }
     throw new ApiRequestError("NETWORK_ERROR", "网络连接失败，请检查网络", 0);
   }
   if (!res.ok) {

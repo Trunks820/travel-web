@@ -12,6 +12,7 @@ import { useRotatingBackground, cityNameOfImage } from '../components/input/Rota
 import { submitTrip, ApiRequestError } from '../services/api';
 import { useTripStore } from '../stores/tripStore';
 import { useAuthStore } from '../stores/authStore';
+import { useTripTaskStore } from '../stores/tripTaskStore';
 import {
   getPendingSubmission,
   savePendingSubmission,
@@ -371,6 +372,14 @@ export default function InputPage() {
 
     try {
       const res = await submitTrip(formData, pending.request_id);
+      useTripTaskStore.getState().addOrUpdateTask({
+        jobId: res.job_id,
+        requestId: pending.request_id,
+        destination: formData.to_city || "目的地",
+        startedAt: Date.now(),
+        status: "pending",
+        notificationState: "none",
+      });
       clearPendingSubmission();
       await refreshMe();
       navigate(`/planning/${res.job_id}`);

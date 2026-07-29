@@ -15,6 +15,7 @@ import {
 } from '@/components/input/RotatingBackground';
 import { useTripStore } from '@/stores/tripStore';
 import { useAuthStore, broadcastAuthEvent } from '@/stores/authStore';
+import { useTripTaskStore } from '@/stores/tripTaskStore';
 import { pollJobStatus, submitTrip, fetchResult, ApiRequestError } from '@/services/api';
 import { savePendingSubmission, clearPendingSubmission } from '@/utils/pendingSubmission';
 import { useJobProgress } from '@/hooks/useJobProgress';
@@ -670,6 +671,14 @@ export default function PlanningPage() {
     const pending = savePendingSubmission(formData);
     try {
       const res = await submitTrip(formData, pending.request_id);
+      useTripTaskStore.getState().addOrUpdateTask({
+        jobId: res.job_id,
+        requestId: pending.request_id,
+        destination: formData.to_city || "目的地",
+        startedAt: Date.now(),
+        status: "pending",
+        notificationState: "none",
+      });
       clearPendingSubmission();
       await refreshMe();
       setFailed(false);

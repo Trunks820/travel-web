@@ -4,9 +4,11 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import Header from "./components/layout/Header";
 import { Toast } from "./components/feedback/Toast";
 import { ArtifactTaskNotice } from "./components/feedback/ArtifactTaskNotice";
+import { TripTaskNotice } from "./components/feedback/TripTaskNotice";
 import { useOnline } from "./hooks/useOnline";
 import { useAuthStore } from "./stores/authStore";
 import { useShareImageTaskStore } from "./stores/shareImageTaskStore";
+import { useTripTaskStore } from "./stores/tripTaskStore";
 
 /** 沉浸式页面自带顶栏/全屏背景，隐藏全局 Header 避免双层栏 */
 function isImmersiveRoute(pathname: string): boolean {
@@ -24,12 +26,14 @@ export default function App() {
   const immersive = isImmersiveRoute(location.pathname);
   const bootstrap = useAuthStore((s) => s.bootstrap);
   const initShareImageStore = useShareImageTaskStore((s) => s.initStore);
+  const initTripTaskStore = useTripTaskStore((s) => s.initStore);
 
-  // 应用启动触发 authStore 初始化与 share_image 后台轮询服务初始化
+  // 应用启动触发 authStore 初始化与后台轮询服务初始化
   useEffect(() => {
     void bootstrap();
     initShareImageStore();
-  }, [bootstrap, initShareImageStore]);
+    initTripTaskStore();
+  }, [bootstrap, initShareImageStore, initTripTaskStore]);
 
   return (
     <div className="min-h-screen bg-white font-body text-gray-800 selection:bg-primary-100">
@@ -48,6 +52,7 @@ export default function App() {
       </div>
       <Toast />
       <ArtifactTaskNotice />
+      <TripTaskNotice />
     </div>
   );
 }

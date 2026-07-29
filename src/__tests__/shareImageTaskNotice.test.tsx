@@ -41,8 +41,10 @@ describe("AI Share Image Persistent Notification & Acceptance Tests", () => {
     vi.clearAllTimers();
   });
 
-  // Scenario 1: pending → ready: 产生一条 unread 持久通知
-  it("[1] pending → ready: 产生一条 unread 持久通知", async () => {
+  // Scenario 1: pending → preview_ready: 产生一条 unread 持久通知
+  it("[1] pending → preview_ready: 产生一条 unread 持久通知", async () => {
+    vi.mocked(api.fetchArtifactBlob).mockResolvedValueOnce(new Blob(["test-image"]));
+
     useShareImageTaskStore.setState({
       tasks: {
         "2254": {
@@ -76,7 +78,7 @@ describe("AI Share Image Persistent Notification & Acceptance Tests", () => {
     await useShareImageTaskStore.getState().checkAllActiveTasks();
 
     const task = useShareImageTaskStore.getState().getTask("2254");
-    expect(task?.status).toBe("ready");
+    expect(task?.status).toBe("preview_ready");
     expect(task?.notificationState).toBe("unread");
   });
 
@@ -228,9 +230,10 @@ describe("AI Share Image Persistent Notification & Acceptance Tests", () => {
     expect(task?.notificationState).toBe("acknowledged");
   });
 
-  // Scenario 7: pending → ready 且 ShareDialog 已关闭：fetchArtifactBlob 调用次数为 0
-  it("[7] pending → ready 且 ShareDialog 已关闭：fetchArtifactBlob 调用次数为 0", async () => {
+  // Scenario 7: pending → backend ready: 后台 pre-download 触发 1 次 fetchArtifactBlob
+  it("[7] pending → backend ready: 后台 pre-download 触发 1 次 fetchArtifactBlob", async () => {
     const fetchBlobMock = vi.mocked(api.fetchArtifactBlob);
+    fetchBlobMock.mockResolvedValueOnce(new Blob(["test-image"], { type: "image/png" }));
 
     useShareImageTaskStore.setState({
       tasks: {
@@ -262,19 +265,22 @@ describe("AI Share Image Persistent Notification & Acceptance Tests", () => {
       error: null,
     });
 
+    await useShareImageTaskStore.getState().checkAllActiveTasks();
+
+    expect(fetchBlobMock).toHaveBeenCalledTimes(1);
+
+    // 打开 ShareDialog 复用 preview 缓存，绝不二次请求
     render(
       <MemoryRouter>
-        <ShareDialog open={false} onClose={() => {}} recordId="2254" />
+        <ShareDialog open={true} onClose={() => {}} recordId="2254" />
       </MemoryRouter>
     );
 
-    await useShareImageTaskStore.getState().checkAllActiveTasks();
-
-    expect(fetchBlobMock).toHaveBeenCalledTimes(0);
+    expect(fetchBlobMock).toHaveBeenCalledTimes(1);
   });
 
-  // Scenario 8: 打开 ready ShareDialog：fetchArtifactBlob 调用次数为 1
-  it("[8] 打开 ready ShareDialog：fetchArtifactBlob 调用次数为 1", async () => {
+  // Scenario 8: 打开 ShareDialog 复用已下载的 preview：fetchArtifactBlob 恰好 1 次
+  it("[8] 打开 ShareDialog 复用已下载的 preview：fetchArtifactBlob 恰好 1 次", async () => {
     vi.mocked(api.getArtifact).mockResolvedValue({
       ok: true,
       artifact_id: "art_1",
@@ -294,20 +300,22 @@ describe("AI Share Image Persistent Notification & Acceptance Tests", () => {
     });
 
     const fetchBlobMock = vi.mocked(api.fetchArtifactBlob);
-    fetchBlobMock.mockResolvedValueOnce(new Blob(["test-image"], { type: "image/png" }));
+    fetchBlobMock.mockResolvedValue(new Blob(["test-image"], { type: "image/png" }));
 
     useShareImageTaskStore.setState({
       tasks: {
         "2254": {
           recordId: "2254",
           artifactType: "share_image",
-          status: "ready",
+          status: "polling",
           startedAt: Date.now(),
           downloadUrl: "/api/trip/results/2254/artifacts/share_image/download_8",
-          notificationState: "unread",
+          notificationState: "none",
         },
       },
     });
+
+    await useShareImageTaskStore.getState().checkAllActiveTasks();
 
     await act(async () => {
       render(
@@ -348,13 +356,15 @@ describe("AI Share Image Persistent Notification & Acceptance Tests", () => {
         "2254": {
           recordId: "2254",
           artifactType: "share_image",
-          status: "ready",
+          status: "polling",
           startedAt: Date.now(),
           downloadUrl: "/api/download/unique_url_99",
-          notificationState: "unread",
+          notificationState: "none",
         },
       },
     });
+
+    await useShareImageTaskStore.getState().checkAllActiveTasks();
 
     let rerenderFn: (ui: React.ReactNode) => void;
     await act(async () => {
@@ -389,6 +399,8 @@ describe("AI Share Image Persistent Notification & Acceptance Tests", () => {
 
   // Scenario 10: 两次并发轮询同时返回 ready：只有一个 unread 通知
   it("[10] 两次并发轮询同时返回 ready：只有一个 unread 通知", async () => {
+    vi.mocked(api.fetchArtifactBlob).mockResolvedValue(new Blob(["test-image"], { type: "image/png" }));
+
     useShareImageTaskStore.setState({
       tasks: {
         "2254": {
@@ -710,10 +722,12 @@ describe("AI Share Image Persistent Notification & Acceptance Tests", () => {
       error: null,
     });
 
+    vi.mocked(api.fetchArtifactBlob).mockResolvedValueOnce(new Blob(["test-image"]));
+
     await useShareImageTaskStore.getState().checkAllActiveTasks();
 
     const task = useShareImageTaskStore.getState().getTask("2254");
-    expect(task?.status).toBe("ready");
+    expect(task?.status).toBe("preview_ready");
     expect(task?.jobId).toBe(testJobId);
   });
 

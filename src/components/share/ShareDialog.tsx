@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useShareImageTaskStore } from "@/stores/shareImageTaskStore";
-import { fetchArtifactBlob, ApiRequestError } from "@/services/api";
 import { saveBlob } from "@/utils/download";
 import { showToast } from "@/stores/toastStore";
 
@@ -15,59 +14,30 @@ function isMobile() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
-// 模块级 Blob 在途防重 Map 与内存缓存，保障 React StrictMode、HMR、对象引用更新不导致重复 Blob GET
-const inFlightBlobMap = new Map<string, Promise<Blob>>();
-const blobMemoryCache = new Map<string, Blob>();
-
 export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps) {
   const task = useShareImageTaskStore((s) => s.tasks[recordId]);
   const startOrFetchTask = useShareImageTaskStore((s) => s.startOrFetchTask);
   const retryTask = useShareImageTaskStore((s) => s.retryTask);
   const recheckTask = useShareImageTaskStore((s) => s.recheckTask);
+  const getPreview = useShareImageTaskStore((s) => s.getPreview);
+  const retryPreviewDownload = useShareImageTaskStore((s) => s.retryPreviewDownload);
 
   const [downloading, setDownloading] = useState(false);
-  const [blob, setBlob] = useState<Blob | null>(null);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [fallbackHint, setFallbackHint] = useState(false);
   const [checking, setChecking] = useState(false);
-
-  const blobUrlRef = useRef<string | null>(null);
-  const activeRecordIdRef = useRef<string | null>(null);
-  const fetchedUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
 
-  // 1. 纯资源释放函数：只负责 URL.revokeObjectURL，绝不触发 setState
-  const revokeObjectUrlOnly = useCallback(() => {
-    if (blobUrlRef.current) {
-      URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = null;
-    }
-  }, []);
-
-  // 2. 挂载状态下使用的重置函数：先释放资源，若组件仍挂载则 setState(null)
-  const resetBlobState = useCallback(() => {
-    revokeObjectUrlOnly();
-    if (isMountedRef.current) {
-      setBlobUrl(null);
-      setBlob(null);
-      fetchedUrlRef.current = null;
-    }
-  }, [revokeObjectUrlOnly]);
-
-  // 3. useEffect 卸载 cleanup：仅执行纯资源释放，防止卸载后 setState 警告
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
-      revokeObjectUrlOnly();
     };
-  }, [revokeObjectUrlOnly]);
+  }, []);
 
   // 当弹窗打开时启动 / 恢复任务 (普通打开，GET-first 防重复 POST)
   useEffect(() => {
     if (!open || !recordId) return;
-    activeRecordIdRef.current = recordId;
     setDownloadError(null);
     setFallbackHint(false);
 
@@ -82,60 +52,7 @@ export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps
     });
   }, [open, recordId, jobId, startOrFetchTask]);
 
-  // 执行图片 Blob 二进制拉取 (包含严格的 open === true 防护和在途/缓存去重)
-  const loadBlob = useCallback(
-    async (url: string) => {
-      if (!isMountedRef.current || !open) return;
-      if (fetchedUrlRef.current === url && blobUrl) return;
-
-      setDownloading(true);
-      setDownloadError(null);
-
-      try {
-        let b: Blob;
-        if (blobMemoryCache.has(url)) {
-          b = blobMemoryCache.get(url)!;
-        } else if (inFlightBlobMap.has(url)) {
-          b = await inFlightBlobMap.get(url)!;
-        } else {
-          const promise = fetchArtifactBlob(url);
-          inFlightBlobMap.set(url, promise);
-          try {
-            b = await promise;
-            blobMemoryCache.set(url, b);
-          } finally {
-            inFlightBlobMap.delete(url);
-          }
-        }
-
-        if (!isMountedRef.current || !open) return;
-        resetBlobState();
-        const objectUrl = URL.createObjectURL(b);
-        blobUrlRef.current = objectUrl;
-        fetchedUrlRef.current = url;
-        setBlob(b);
-        setBlobUrl(objectUrl);
-      } catch (err) {
-        if (!isMountedRef.current || !open) return;
-        const msg =
-          err instanceof ApiRequestError ? err.message : "图片下载失败，请重试";
-        setDownloadError(msg);
-      } finally {
-        if (isMountedRef.current) {
-          setDownloading(false);
-        }
-      }
-    },
-    [open, blobUrl, resetBlobState],
-  );
-
-  // 当后端任务为 ready 且处于弹窗打开态时，按需下载 Blob (严格判断 open 态)
-  useEffect(() => {
-    if (!open || !task || task.status !== "ready" || !task.downloadUrl) return;
-    if (blobUrl && fetchedUrlRef.current === task.downloadUrl) return;
-
-    void loadBlob(task.downloadUrl);
-  }, [open, task, blobUrl, loadBlob]);
+  const preview = getPreview(recordId);
 
   const handleClose = useCallback(() => {
     if (task && (task.status === "creating" || task.status === "polling")) {
@@ -158,19 +75,27 @@ export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps
   }, [open, handleClose]);
 
   // 仅仅图片二进制下载失败时：重新加载图片 (不做 POST 也不重新生成)
-  const handleReloadImage = useCallback(() => {
-    if (task?.downloadUrl) {
-      void loadBlob(task.downloadUrl);
+  const handleReloadImage = useCallback(async () => {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const res = await retryPreviewDownload(recordId);
+      if (!res) {
+        setDownloadError("图片下载失败，请重试");
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setDownloading(false);
+      }
     }
-  }, [task?.downloadUrl, loadBlob]);
+  }, [recordId, retryPreviewDownload]);
 
   // 服务端生成失败时：显式重新生成 (POST ONCE)
   const handleRetry = useCallback(() => {
     setDownloadError(null);
     setFallbackHint(false);
-    resetBlobState();
     void retryTask(recordId, jobId);
-  }, [recordId, jobId, retryTask, resetBlobState]);
+  }, [recordId, jobId, retryTask]);
 
   // 超时状态：重新查询状态 (单任务 GET，不做 POST)
   const handleRecheck = useCallback(() => {
@@ -179,11 +104,11 @@ export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps
   }, [recordId, recheckTask]);
 
   const handleCopy = useCallback(async () => {
-    if (!blob) return;
+    if (!preview?.blob) return;
     try {
       if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
         await navigator.clipboard.write([
-          new ClipboardItem({ "image/png": blob }),
+          new ClipboardItem({ "image/png": preview.blob }),
         ]);
         showToast("已复制到剪贴板");
       } else {
@@ -193,13 +118,13 @@ export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps
     } catch {
       showToast("复制失败，请尝试保存图片", "error");
     }
-  }, [blob]);
+  }, [preview?.blob]);
 
   const handleSave = useCallback(() => {
-    if (!blob) return;
-    saveBlob(blob, task?.filename || `云途AI行程海报_${recordId}.png`);
+    if (!preview?.blob) return;
+    saveBlob(preview.blob, task?.filename || `云途AI行程海报_${recordId}.png`);
     showToast("图片已保存");
-  }, [blob, task?.filename, recordId]);
+  }, [preview?.blob, task?.filename, recordId]);
 
   if (!open) return null;
 
@@ -207,11 +132,19 @@ export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps
   const isChecking = checking || (!task && status === "checking");
   const isGenerating =
     !isChecking && (status === "creating" || status === "polling");
-  const isDownloadFailed = !!downloadError;
+  const isPreviewLoading =
+    !isChecking &&
+    !isGenerating &&
+    (status === "preview_loading" || downloading || (status === "ready" && !preview));
+  const isDownloadFailed =
+    !!downloadError || (status === "failed" && task?.error?.code === "PREVIEW_FAILED");
   const isGenFailed = !isDownloadFailed && status === "failed";
   const isTimeout = !isDownloadFailed && status === "timeout";
   const isReady =
-    status === "ready" && !!blobUrl && !downloading && !isDownloadFailed;
+    (status === "preview_ready" || status === "ready") &&
+    !!preview?.objectUrl &&
+    !isPreviewLoading &&
+    !isDownloadFailed;
 
   return (
     <div
@@ -274,7 +207,7 @@ export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps
           )}
 
           {/* 状态为 ready 但正在下载 5MB 图片 Blob */}
-          {status === "ready" && downloading && (
+          {isPreviewLoading && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-primary-600">
                 <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary-200 border-t-primary-600" />
@@ -289,7 +222,9 @@ export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps
           {isDownloadFailed && (
             <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
               <span className="text-4xl">⚠️</span>
-              <p className="max-w-xs text-sm text-gray-600">{downloadError}</p>
+              <p className="max-w-xs text-sm text-gray-600">
+                {downloadError || task?.error?.message || "图片下载失败，请重试"}
+              </p>
               <button
                 onClick={handleReloadImage}
                 className="rounded-full bg-primary-600 px-6 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:bg-primary-700 hover:scale-105"
@@ -340,14 +275,14 @@ export function ShareDialog({ open, onClose, recordId, jobId }: ShareDialogProps
                 </p>
               )}
               <div className="overflow-hidden rounded-2xl shadow-lg ring-1 ring-black/5">
-                <img src={blobUrl!} alt="分享卡片" className="mx-auto max-w-full" />
+                <img src={preview!.objectUrl} alt="分享卡片" className="mx-auto max-w-full" />
               </div>
             </div>
           )}
         </div>
 
         {/* 操作按钮：仅就绪且二进制加载成功时展示 */}
-        {isReady && blob && (
+        {isReady && preview?.blob && (
           <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-5">
             <button
               onClick={handleCopy}

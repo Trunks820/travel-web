@@ -10,14 +10,14 @@ export function ArtifactTaskNotice() {
   const unreadTasks = Object.values(tasks).filter(
     (t): t is StoredTask =>
       t.notificationState === "unread" &&
-      (t.status === "ready" || t.status === "failed"),
+      (t.status === "preview_ready" || t.status === "ready" || t.status === "failed"),
   );
 
   if (unreadTasks.length === 0) return null;
 
   // 优先展示最新完成/失败的任务
   const activeTask = unreadTasks.sort((a, b) => (b.finishedAt || b.startedAt) - (a.finishedAt || a.startedAt))[0];
-  const isReady = activeTask.status === "ready";
+  const isReady = activeTask.status === "preview_ready" || activeTask.status === "ready";
 
   const handleClose = () => {
     acknowledgeTask(activeTask.recordId);
