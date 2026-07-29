@@ -7,6 +7,7 @@ import type {
   HistoryResponse,
   HistoryTripItem,
 } from "@/types/auth";
+import { ApiRequestError } from "./errors";
 
 const MOCK_JOB_ID = "mock-job-001";
 const MOCK_RESULT_ID = "mock-result-001";
@@ -30,7 +31,7 @@ export function setMockAuthenticated(val: boolean) {
 export async function mockGetMe(): Promise<MeResponse> {
   await delay(150);
   if (!mockAuthenticated) {
-    throw { status: 401, code: "AUTH_REQUIRED", message: "未登录或会话已过期" };
+    throw new ApiRequestError("AUTH_REQUIRED", "未登录或会话已过期", 401);
   }
   const prefix = mockUserEmail.split("@")[0] || "u";
   const masked = prefix.length > 2 ? `${prefix[0]}***${prefix[prefix.length - 1]}@${mockUserEmail.split("@")[1] || "example.com"}` : `u***@${mockUserEmail.split("@")[1] || "example.com"}`;
@@ -68,10 +69,13 @@ export async function mockVerifyCode(challengeId: string, code: string): Promise
   if (code === "888888") {
     // 模拟 409 模式纠偏测试
     if (challengeId.includes("login")) {
-      throw { status: 409, code: "REGISTRATION_REQUIRED", message: "该邮箱尚未注册，请输入邀请码完成注册" };
+      throw new ApiRequestError("REGISTRATION_REQUIRED", "该邮箱尚未注册，请输入邀请码完成注册", 409);
     } else {
-      throw { status: 409, code: "LOGIN_REQUIRED", message: "该邮箱已注册，已自动切至登录模式" };
+      throw new ApiRequestError("LOGIN_REQUIRED", "该邮箱已注册，已自动切至登录模式", 409);
     }
+  }
+  if (code === "999999") {
+    throw new ApiRequestError("OTP_INVALID", "验证码错误或已失效", 400);
   }
   mockAuthenticated = true;
   return { ok: true };
@@ -96,7 +100,7 @@ export async function mockSendClosureCode(): Promise<ClosureSendCodeResponse> {
 export async function mockConfirmClosure(_challengeId: string, _code: string): Promise<{ ok: boolean }> {
   await delay(400);
   if (mockActiveTrip) {
-    throw { status: 409, code: "ACTIVE_TRIP_IN_PROGRESS", message: "已有行程正在规划中，无法注销账号" };
+    throw new ApiRequestError("ACTIVE_TRIP_IN_PROGRESS", "已有行程正在规划中，无法注销账号", 409);
   }
   mockAuthenticated = false;
   return { ok: true };
@@ -171,8 +175,12 @@ export async function mockSubmitTrip(
   resetMock();
   await delay(400);
 
+  if (mockActiveTrip) {
+    throw new ApiRequestError("ACTIVE_TRIP_EXISTS", "当前已有进行中的行程规划", 409);
+  }
+
   if (mockQuotaRemaining <= 0) {
-    throw { status: 429, code: "QUOTA_EXHAUSTED", message: "公测额度已耗尽 (0/3)" };
+    throw new ApiRequestError("QUOTA_EXHAUSTED", "公测额度已耗尽 (0/3)", 429);
   }
 
   if (formData.accommodation?.name) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { sendEmailCode, verifyEmailCode, ApiRequestError } from "@/services/api";
-import { useAuthStore } from "@/stores/authStore";
+import { useAuthStore, broadcastAuthEvent } from "@/stores/authStore";
 import { sanitizeReturnTo } from "@/utils/url";
 import type { AuthMode } from "@/types/auth";
 
@@ -88,8 +88,13 @@ export default function LoginPage() {
       );
       setChallengeId(res.challenge_id);
       setCountdown(res.resend_after_seconds || 60);
-      setCode("123456");
-      setInfoNotice("验证码已发送至你的邮箱（测试环境已为你自动回填：123456）");
+      if (import.meta.env.VITE_USE_MOCK === "true") {
+        setCode("123456");
+        setInfoNotice("验证码已发送至你的邮箱（测试环境已为你自动回填：123456）");
+      } else {
+        setCode("");
+        setInfoNotice("验证码已发送至你的邮箱，请在 10 分钟内完成验证。");
+      }
       setTimeout(() => otpInputRef.current?.focus(), 100);
     } catch (err: unknown) {
       if (err instanceof ApiRequestError) {
@@ -121,8 +126,8 @@ export default function LoginPage() {
     }
 
     const cleanCode = code.trim();
-    if (!cleanCode || cleanCode.length < 4) {
-      setOtpError("请输入正确的验证码");
+    if (!cleanCode || cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
+      setOtpError("请输入 6 位数字验证码");
       otpInputRef.current?.focus();
       return;
     }
@@ -132,6 +137,7 @@ export default function LoginPage() {
       await verifyEmailCode(challengeId, cleanCode);
       // 校验成功后 bootstrap 更新全局用户与额度状态
       await bootstrap();
+      broadcastAuthEvent("LOGIN");
       navigate(returnTo, { replace: true });
     } catch (err: unknown) {
       if (err instanceof ApiRequestError) {
@@ -235,7 +241,7 @@ export default function LoginPage() {
                   ref={invitationInputRef}
                   type="text"
                   value={invitationCode}
-                  onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
+                  onChange={(e) => setInvitationCode(e.target.value)}
                   placeholder="请输入公测邀请码"
                   className={`h-11 w-full rounded-xl border bg-gray-50 px-4 text-sm font-mono tracking-wider focus:bg-white focus:outline-none focus:ring-2 ${
                     invitationError

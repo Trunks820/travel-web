@@ -12,8 +12,15 @@ import { useRotatingBackground, cityNameOfImage } from '../components/input/Rota
 import { submitTrip, ApiRequestError } from '../services/api';
 import { useTripStore } from '../stores/tripStore';
 import { useAuthStore } from '../stores/authStore';
+import {
+  getPendingSubmission,
+  savePendingSubmission,
+  clearPendingSubmission,
+  generateFingerprint,
+} from '../utils/pendingSubmission';
 import type { RequestedCommuteMode, MustIncludeItem } from '../types/form';
 import type { TripFormData } from '../types/form';
+
 
 const PACE_TAGS = ['轻松', '适中', '紧凑'];
 
@@ -28,7 +35,6 @@ const PREFERENCE_OPTIONS = [
   '夜景',
 ];
 
-const PENDING_SUBMISSION_KEY = 'yuntu_pending_submission';
 
 /** 细密低对比噪点，叠在米色上像特种纸 */
 const PAPER_NOISE_SVG =
@@ -205,47 +211,54 @@ export default function InputPage() {
   const displayCity = polaroidCity || cities[0] || '目的地';
   const ambientColor = useImageAmbientColor(bgImage, 0.12);
 
-  // 登录成功后自动续接提交一次 pending submission
+  // 登录成功后自动续接提交 pending submission
   useEffect(() => {
     if (authStatus !== 'authenticated') return;
-    const rawPending = sessionStorage.getItem(PENDING_SUBMISSION_KEY);
-    if (!rawPending) return;
+    const pending = getPendingSubmission();
+    if (!pending) return;
 
-    try {
-      const parsed = JSON.parse(rawPending) as { formData: TripFormData; requestId: string };
-      // 立即删除暂存，防止刷新重复发包
-      sessionStorage.removeItem(PENDING_SUBMISSION_KEY);
+    if (pending?.trip_request && pending?.request_id) {
+      setSubmitting(true);
+      setFormData(pending.trip_request);
+      clearResult();
 
-      if (parsed?.formData && parsed?.requestId) {
-        setSubmitting(true);
-        setFormData(parsed.formData);
-        clearResult();
-
-        submitTrip(parsed.formData, parsed.requestId)
-          .then((res) => {
-            void refreshMe();
-            navigate(`/planning/${res.job_id}`);
-          })
-          .catch((err) => {
-            setSubmitting(false);
-            if (err instanceof ApiRequestError) {
-              if (err.status === 409 && err.code === 'ACTIVE_TRIP_EXISTS') {
+      submitTrip(pending.trip_request, pending.request_id)
+        .then(async (res) => {
+          clearPendingSubmission();
+          await refreshMe();
+          navigate(`/planning/${res.job_id}`);
+        })
+        .catch(async (err) => {
+          setSubmitting(false);
+          if (err instanceof ApiRequestError) {
+            if (err.status === 409 && err.code === 'ACTIVE_TRIP_EXISTS') {
+              const refreshed = await refreshMe();
+              if (refreshed) {
                 const latestTrip = useAuthStore.getState().activeTrip;
                 if (latestTrip?.job_id) {
+                  clearPendingSubmission();
                   navigate(`/planning/${latestTrip.job_id}`);
                   return;
                 }
               }
               setSubmitError(err.message);
+            } else if (
+              err.status === 400 ||
+              err.status === 422 ||
+              err.status === 429 ||
+              ['REQUEST_ID_CONFLICT', 'CITY_NOT_SUPPORTED', 'VALIDATION_ERROR', 'QUOTA_EXHAUSTED'].includes(err.code)
+            ) {
+              clearPendingSubmission();
+              setSubmitError(err.message);
             } else {
-              setSubmitError('续接提交失败，请重新点击提交');
+              setSubmitError(err.message);
             }
-          });
-      }
-    } catch {
-      sessionStorage.removeItem(PENDING_SUBMISSION_KEY);
+          } else {
+            setSubmitError('网络连接异常，您可以再次点击提交');
+          }
+        });
     }
-  }, [authStatus, navigate, setFormData, clearResult, refreshMe, activeTrip]);
+  }, [authStatus, navigate, setFormData, clearResult, refreshMe]);
 
   const handleCitiesChange = (next: string[]) => {
     if (next[0] !== cities[0]) setMustInclude([]);
@@ -308,50 +321,88 @@ export default function InputPage() {
     setFormData(formData);
     clearResult();
 
+    // 检查是否有 pending submission，以及内容是否发生变化
+    const existingPending = getPendingSubmission();
+    const newFingerprint = generateFingerprint(formData);
+
+    if (existingPending && existingPending.fingerprint !== newFingerprint) {
+      // 内容变化：先 refreshMe() 校验网络与后端活动任务
+      const refreshed = await refreshMe();
+      if (!refreshed) {
+        // refreshed = false（网络故障/5xx）：立即停止！不生成新 ID、不覆盖旧 Pending、不发送 POST
+        setSubmitError('暂时无法确认任务状态，请检查网络后重试');
+        return;
+      }
+
+      const latestActiveTrip = useAuthStore.getState().activeTrip;
+      if (latestActiveTrip?.job_id) {
+        clearPendingSubmission();
+        navigate(`/planning/${latestActiveTrip.job_id}`);
+        return;
+      }
+      // refreshed = true 且确认不存在活动任务：才允许继续
+    }
+
     // 游客态拦截：暂存表单并跳转 /login?returnTo=/
     if (authStatus !== 'authenticated') {
-      const pendingRequestId = `web-${crypto.randomUUID()}`;
-      sessionStorage.setItem(
-        PENDING_SUBMISSION_KEY,
-        JSON.stringify({ formData, requestId: pendingRequestId }),
-      );
+      savePendingSubmission(formData);
       navigate('/login?returnTo=/');
       return;
     }
 
-    // 额度为 0 拦截
+    // 额度为 0 拦截（避免写入待发 Pending）
     if ((quota?.remaining ?? 3) <= 0) {
       setSubmitError('公测免费额度已耗尽 (0/3)，无法创建新行程');
       return;
     }
 
-    // 活动任务拦截
+    // 活动任务拦截（避免写入待发 Pending）
     if (activeTrip) {
       setSubmitError('你已有正在生成的行程任务，请等待完成');
       navigate(`/planning/${activeTrip.job_id}`);
       return;
     }
 
+    // 校验通过后再写入/覆盖暂存
+    const pending = savePendingSubmission(formData);
+
     setSubmitting(true);
     setSubmitError(null);
 
-    const requestId = `web-${crypto.randomUUID()}`;
     try {
-      const res = await submitTrip(formData, requestId);
-      void refreshMe();
+      const res = await submitTrip(formData, pending.request_id);
+      clearPendingSubmission();
+      await refreshMe();
       navigate(`/planning/${res.job_id}`);
     } catch (err) {
       if (err instanceof ApiRequestError) {
         if (err.status === 409 && err.code === 'ACTIVE_TRIP_EXISTS') {
-          const latestTrip = useAuthStore.getState().activeTrip;
-          if (latestTrip?.job_id) {
-            navigate(`/planning/${latestTrip.job_id}`);
-            return;
+          const refreshed = await refreshMe();
+          if (refreshed) {
+            const latestTrip = useAuthStore.getState().activeTrip;
+            if (latestTrip?.job_id) {
+              clearPendingSubmission();
+              navigate(`/planning/${latestTrip.job_id}`);
+              return;
+            }
           }
+          setSubmitError('检测到进行中的任务，请稍后刷新查看');
+        } else if (
+          err.status === 400 ||
+          err.status === 422 ||
+          err.status === 429 ||
+          ['REQUEST_ID_CONFLICT', 'CITY_NOT_SUPPORTED', 'VALIDATION_ERROR', 'QUOTA_EXHAUSTED'].includes(err.code)
+        ) {
+          // 明确未受理的业务错误：清理 Pending 暂存
+          clearPendingSubmission();
+          setSubmitError(err.message);
+        } else {
+          // 5xx / 其它错误：保留 Pending 暂存
+          setSubmitError(err.message);
         }
-        setSubmitError(err.message);
       } else {
-        setSubmitError('提交失败，请稍后重试');
+        // 网络中断/未知错误：保留 Pending 暂存
+        setSubmitError('提交失败，请检查网络设置');
       }
       setSubmitting(false);
     }

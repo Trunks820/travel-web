@@ -93,7 +93,15 @@ export default function PlanDetailPage() {
   const [mapDay, setMapDay] = useState(1);
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const [detailPlace, setDetailPlace] = useState<TripPlace | null>(null);
-  const [shareOpen, setShareOpen] = useState(false);
+  const isShareParam = searchParams.get("share") === "1";
+  const [shareOpen, setShareOpen] = useState(isShareParam);
+
+  useEffect(() => {
+    if (isShareParam) {
+      setShareOpen(true);
+    }
+  }, [isShareParam]);
+
   const [isScrolled, setIsScrolled] = useState(false);
   const leftBrandRef = useRef<HTMLDivElement>(null);
   const rightUserMenuRef = useRef<HTMLDivElement>(null);
@@ -299,20 +307,6 @@ export default function PlanDetailPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [showMap]);
 
-  const pdfReset = pdf.reset;
-  useEffect(() => {
-    if (pdf.phase === "ready" && pdf.blob && pdf.artifact) {
-      saveBlob(pdf.blob, pdf.artifact.filename);
-      showToast("PDF 已导出");
-      pdfReset();
-    }
-  }, [pdf.phase, pdf.blob, pdf.artifact, pdfReset]);
-
-  useEffect(() => {
-    if (pdf.phase === "failed") {
-      showToast(pdf.error?.message ?? "导出失败，请重试", "error");
-    }
-  }, [pdf.phase, pdf.error]);
 
   // activeTab 变动时，在移动端横向胶囊导航中自动将高亮 Tab 居中平滑滚入视野
   useEffect(() => {
@@ -996,6 +990,7 @@ export default function PlanDetailPage() {
           open={shareOpen}
           onClose={() => setShareOpen(false)}
           recordId={resultId}
+          jobId={jobId ?? undefined}
         />
       )}
     </div>

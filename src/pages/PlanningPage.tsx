@@ -14,7 +14,9 @@ import {
   getCityPhotoUrls,
 } from '@/components/input/RotatingBackground';
 import { useTripStore } from '@/stores/tripStore';
+import { useAuthStore, broadcastAuthEvent } from '@/stores/authStore';
 import { pollJobStatus, submitTrip, fetchResult, ApiRequestError } from '@/services/api';
+import { savePendingSubmission, clearPendingSubmission } from '@/utils/pendingSubmission';
 import { useJobProgress } from '@/hooks/useJobProgress';
 import { webErrorMessage } from '@/constants/errors';
 import type { StageCode, JobResponse } from '@/types/trip';
@@ -227,6 +229,8 @@ export default function PlanningPage() {
   const setResult = useTripStore((s) => s.setResult);
   const clearResult = useTripStore((s) => s.clearResult);
   const formData = useTripStore((s) => s.formData);
+
+  const refreshMe = useAuthStore((s) => s.refreshMe);
 
   const destination = formData?.to_city ?? '目的地';
 
@@ -506,6 +510,8 @@ export default function PlanningPage() {
     );
   }, [failed]);
 
+  const [unknownState, setUnknownState] = useState(false);
+
   const onData = useCallback(
     (data: JobResponse): boolean => {
       if (data.stage_progress) {
@@ -514,9 +520,11 @@ export default function PlanningPage() {
       }
 
       if (data.status === 'COMPLETED' && data.result_record_id) {
+        void refreshMe().then((ok) => {
+          if (ok) broadcastAuthEvent("ME_UPDATED");
+        });
         const recordId = data.result_record_id;
         const reduce = prefersReducedMotion();
-        // 登机牌动画期间并行预取结果，跳转时大概率已缓存
         const prefetch = fetchResult(recordId, jobId!)
           .then((res) => { setResult(recordId, jobId!, res); return res; })
           .catch(() => null);
@@ -540,24 +548,48 @@ export default function PlanningPage() {
           playPassGloss();
           window.setTimeout(go, reduce ? 100 : 700);
         } else {
-          // 正在 morph 中：等扫光结束再跳
           window.setTimeout(go, reduce ? 200 : 1100);
         }
         return true;
       }
 
       if (data.status === 'FAILED') {
-        setFailed(true);
-        setErrorMessage(webErrorMessage(data.error?.code, data.error?.message));
+        if (data.error?.code === 'GENERATION_STATUS_TIMEOUT') {
+          setUnknownState(true);
+          setErrorMessage('暂时无法确认任务状态，任务可能仍在继续。');
+          void refreshMe();
+          return false;
+        }
+
+        void refreshMe().then((ok) => {
+          // 只有 refreshMe 成功（ok === true）且确认 active_trip 已释放，才能标记为确认失败终态并退额度
+          if (ok) {
+            const latestTrip = useAuthStore.getState().activeTrip;
+            if (!latestTrip || latestTrip.job_id !== jobId) {
+              setFailed(true);
+              setErrorMessage(webErrorMessage(data.error?.code, data.error?.message));
+              broadcastAuthEvent("ME_UPDATED");
+              return;
+            }
+          }
+          // refreshMe 失败 (5xx / 网络故障) 或 active_trip 仍存在：进入 unknownState
+          setUnknownState(true);
+          setErrorMessage('暂时无法确认任务状态，任务可能仍在继续。');
+        });
         return true;
       }
 
       return false;
     },
-    [jobId, navigate, setJob, setResult, showPass, runMorphToPass, playPassGloss],
+    [jobId, navigate, setJob, setResult, showPass, runMorphToPass, playPassGloss, refreshMe],
   );
 
-  const onTimeout = useCallback(() => setTimedOut(true), []);
+  const onTimeout = useCallback(() => {
+    setUnknownState(true);
+    setErrorMessage('暂时无法确认任务状态，任务可能仍在继续。');
+    void refreshMe();
+  }, [refreshMe]);
+
   const onConsecutiveErrors = useCallback((count: number) => {
     setNetworkUnstable(count >= 3);
   }, []);
@@ -568,28 +600,65 @@ export default function PlanningPage() {
     onTimeout,
     onConsecutiveErrors,
     consecutiveErrorThreshold: 3,
-    enabled: !!jobId && !failed && !timedOut,
+    enabled: !!jobId && !failed && !timedOut && !unknownState,
   });
 
-  useEffect(() => () => stop(), [stop]);
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
+
+  useEffect(() => () => {
+    stopRef.current();
+  }, []);
 
   function handleRetry() {
     setFailed(false);
     setTimedOut(false);
+    setUnknownState(false);
     setErrorMessage(null);
     navigate('/');
   }
 
-  async function handleRefresh() {
+  async function handleRecheck() {
     if (!jobId) return;
+    setRetrying(true);
+    setErrorMessage(null);
     try {
       const data = await pollJobStatus(jobId);
       if (data.status === 'COMPLETED' && data.result_record_id) {
+        setUnknownState(false);
+        const ok = await refreshMe();
+        if (ok) broadcastAuthEvent("ME_UPDATED");
         navigate(`/result/${data.result_record_id}?job_id=${jobId}`, { replace: true });
+        return;
       }
-    } catch (err) {
-      const msg = err instanceof ApiRequestError ? err.message : '查询失败';
-      setErrorMessage(msg);
+      if (data.status === 'FAILED' && data.error?.code !== 'GENERATION_STATUS_TIMEOUT') {
+        const ok = await refreshMe();
+        if (ok) {
+          const latestTrip = useAuthStore.getState().activeTrip;
+          if (!latestTrip || latestTrip.job_id !== jobId) {
+            setUnknownState(false);
+            setFailed(true);
+            setErrorMessage(webErrorMessage(data.error?.code, data.error?.message));
+            broadcastAuthEvent("ME_UPDATED");
+            return;
+          }
+        }
+      }
+      const ok = await refreshMe();
+      if (ok) {
+        const latestTrip = useAuthStore.getState().activeTrip;
+        if (latestTrip && latestTrip.job_id === jobId) {
+          setUnknownState(false);
+          setErrorMessage(null);
+          return;
+        }
+      }
+      setUnknownState(true);
+      setErrorMessage('暂时无法确认任务状态，任务可能仍在继续。');
+    } catch {
+      setErrorMessage('网络查询失败，请检查网络设置后重试');
+    } finally {
+      setRetrying(false);
     }
   }
 
@@ -598,10 +667,14 @@ export default function PlanningPage() {
     setRetrying(true);
     setErrorMessage(null);
     clearResult();
+    const pending = savePendingSubmission(formData);
     try {
-      const res = await submitTrip(formData);
+      const res = await submitTrip(formData, pending.request_id);
+      clearPendingSubmission();
+      await refreshMe();
       setFailed(false);
       setTimedOut(false);
+      setUnknownState(false);
       setStageCode(null);
       setCardPhase('collect');
       setShowPass(false);
@@ -611,6 +684,26 @@ export default function PlanningPage() {
       }
       navigate(`/planning/${res.job_id}`, { replace: true });
     } catch (err) {
+      if (err instanceof ApiRequestError) {
+        if (err.status === 409 && err.code === 'ACTIVE_TRIP_EXISTS') {
+          const refreshed = await refreshMe();
+          if (refreshed) {
+            const latestTrip = useAuthStore.getState().activeTrip;
+            if (latestTrip?.job_id) {
+              clearPendingSubmission();
+              navigate(`/planning/${latestTrip.job_id}`);
+              return;
+            }
+          }
+        } else if (
+          err.status === 400 ||
+          err.status === 422 ||
+          err.status === 429 ||
+          ['REQUEST_ID_CONFLICT', 'CITY_NOT_SUPPORTED', 'VALIDATION_ERROR', 'QUOTA_EXHAUSTED'].includes(err.code)
+        ) {
+          clearPendingSubmission();
+        }
+      }
       const msg = err instanceof ApiRequestError ? err.message : '重试失败，请稍后再试';
       setErrorMessage(msg);
     } finally {
@@ -657,56 +750,64 @@ export default function PlanningPage() {
             </p>
           )}
 
-          {(failed || timedOut) && (
+          {failed && (
             <div className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-700">
               <i className="fas fa-check-circle text-emerald-600" aria-hidden="true" />
               本次失败未扣除额度（已自动退还）
             </div>
           )}
 
-          {networkUnstable && !failed && !timedOut && (
+          {networkUnstable && !failed && !unknownState && (
             <p className="mt-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
               <i className="fas fa-wifi text-amber-400" aria-hidden="true" />
               网络不稳定，正在持续尝试连接...
             </p>
           )}
 
-          {(failed || timedOut) && (
-            <div className="mt-6 flex gap-3">
+          {(failed || unknownState || timedOut) && (
+            <div className="mt-6 flex flex-wrap gap-3">
               {failed && (
-                <button
-                  type="button"
-                  onClick={handleRetrySame}
-                  disabled={retrying || !formData}
-                  className="rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
-                >
-                  {retrying ? '正在重试...' : '再试一次'}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleRetrySame}
+                    disabled={retrying || !formData}
+                    className="rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2"
+                  >
+                    {retrying ? '正在重试...' : '再试一次'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    className="rounded-xl border border-primary-200 bg-white px-6 py-3 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
+                  >
+                    重新规划
+                  </button>
+                </>
               )}
-              <button
-                type="button"
-                onClick={handleRetry}
-                className={
-                  failed
-                    ? 'rounded-xl border border-primary-200 bg-white px-6 py-3 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50'
-                    : 'rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2'
-                }
-              >
-                重新规划
-              </button>
-              {timedOut && (
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  className="rounded-xl border border-primary-200 bg-white px-6 py-3 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
-                >
-                  刷新查看
-                </button>
+              {(unknownState || timedOut) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleRecheck}
+                    disabled={retrying}
+                    className="rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-accent-600 disabled:opacity-60"
+                  >
+                    {retrying ? '正在查询...' : '重新查询状态'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRetry}
+                    className="rounded-xl border border-primary-200 bg-white px-6 py-3 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-50"
+                  >
+                    返回首页
+                  </button>
+                </>
               )}
             </div>
           )}
 
-          {!failed && !timedOut && (
+          {!failed && !unknownState && !timedOut && (
             <p
               ref={footerHintRef}
               className="mt-10 flex items-center gap-1.5 text-xs text-gray-500"

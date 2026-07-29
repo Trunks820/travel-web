@@ -33,6 +33,35 @@ function LazyPage({ children }: { children: React.ReactNode }) {
   );
 }
 
+const demoRoutes = import.meta.env.DEV
+  ? [
+      {
+        path: "demo",
+        element: (
+          <LazyPage>
+            <DemoResultPage />
+          </LazyPage>
+        ),
+      },
+      {
+        path: "demo/detail-light",
+        element: (
+          <LazyPage>
+            <PlanDetailDemoLight />
+          </LazyPage>
+        ),
+      },
+      {
+        path: "demo/detail-classic",
+        element: (
+          <LazyPage>
+            <PlanDetailClassicPage />
+          </LazyPage>
+        ),
+      },
+    ]
+  : [];
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -104,30 +133,7 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      {
-        path: "demo",
-        element: (
-          <LazyPage>
-            <DemoResultPage />
-          </LazyPage>
-        ),
-      },
-      {
-        path: "demo/detail-light",
-        element: (
-          <LazyPage>
-            <PlanDetailDemoLight />
-          </LazyPage>
-        ),
-      },
-      {
-        path: "demo/detail-classic",
-        element: (
-          <LazyPage>
-            <PlanDetailClassicPage />
-          </LazyPage>
-        ),
-      },
+      ...demoRoutes,
       {
         path: "*",
         element: (

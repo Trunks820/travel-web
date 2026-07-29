@@ -27,6 +27,15 @@ export function usePolling<T>({
   const stoppedRef = useRef(false);
   const inFlightRef = useRef(false);
 
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+  const onDataRef = useRef(onData);
+  onDataRef.current = onData;
+  const onTimeoutRef = useRef(onTimeout);
+  onTimeoutRef.current = onTimeout;
+  const onConsecutiveErrorsRef = useRef(onConsecutiveErrors);
+  onConsecutiveErrorsRef.current = onConsecutiveErrors;
+
   const stop = useCallback(() => {
     stoppedRef.current = true;
     clearTimeout(timerRef.current);
@@ -45,13 +54,11 @@ export function usePolling<T>({
       attemptRef.current++;
 
       try {
-        const data = await fetcher();
-        // await 期间可能已卸载/停止，不再回调（onData 内含 navigate）
+        const data = await fetcherRef.current();
         if (stoppedRef.current) return;
-        // 错误连击结束时回调 0，让"网络不稳定"横幅消失
-        if (consecutiveErrorsRef.current > 0) onConsecutiveErrors?.(0);
+        if (consecutiveErrorsRef.current > 0) onConsecutiveErrorsRef.current?.(0);
         consecutiveErrorsRef.current = 0;
-        const shouldStop = onData(data);
+        const shouldStop = onDataRef.current(data);
         if (shouldStop) {
           stoppedRef.current = true;
           return;
@@ -60,18 +67,17 @@ export function usePolling<T>({
         if (stoppedRef.current) return;
         consecutiveErrorsRef.current++;
         if (consecutiveErrorsRef.current >= consecutiveErrorThreshold) {
-          onConsecutiveErrors?.(consecutiveErrorsRef.current);
+          onConsecutiveErrorsRef.current?.(consecutiveErrorsRef.current);
         }
       } finally {
         inFlightRef.current = false;
       }
 
       if (attemptRef.current >= maxAttempts) {
-        onTimeout?.();
+        onTimeoutRef.current?.();
         return;
       }
 
-      // 页面隐藏时不续链，由 visibilitychange 恢复时重启，避免双链并发
       if (document.hidden) return;
 
       timerRef.current = setTimeout(tick, interval);
@@ -85,7 +91,6 @@ export function usePolling<T>({
         !inFlightRef.current &&
         attemptRef.current < maxAttempts
       ) {
-        // in-flight 的请求返回后会自己续链；只有链已断时才重启，保证单链
         clearTimeout(timerRef.current);
         tick();
       }
@@ -98,7 +103,7 @@ export function usePolling<T>({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       stop();
     };
-  }, [enabled, fetcher, onData, interval, maxAttempts, onTimeout, onConsecutiveErrors, consecutiveErrorThreshold, stop]);
+  }, [enabled, interval, maxAttempts, consecutiveErrorThreshold, stop]);
 
   return { stop };
 }

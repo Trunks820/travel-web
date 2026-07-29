@@ -3,8 +3,10 @@ import { Outlet, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Header from "./components/layout/Header";
 import { Toast } from "./components/feedback/Toast";
+import { ArtifactTaskNotice } from "./components/feedback/ArtifactTaskNotice";
 import { useOnline } from "./hooks/useOnline";
 import { useAuthStore } from "./stores/authStore";
+import { useShareImageTaskStore } from "./stores/shareImageTaskStore";
 
 /** 沉浸式页面自带顶栏/全屏背景，隐藏全局 Header 避免双层栏 */
 function isImmersiveRoute(pathname: string): boolean {
@@ -21,11 +23,13 @@ export default function App() {
   const location = useLocation();
   const immersive = isImmersiveRoute(location.pathname);
   const bootstrap = useAuthStore((s) => s.bootstrap);
+  const initShareImageStore = useShareImageTaskStore((s) => s.initStore);
 
-  // 应用启动触发 authStore 初始化，获取当前登录与额度状态
+  // 应用启动触发 authStore 初始化与 share_image 后台轮询服务初始化
   useEffect(() => {
     void bootstrap();
-  }, [bootstrap]);
+    initShareImageStore();
+  }, [bootstrap, initShareImageStore]);
 
   return (
     <div className="min-h-screen bg-white font-body text-gray-800 selection:bg-primary-100">
@@ -43,6 +47,7 @@ export default function App() {
         </ErrorBoundary>
       </div>
       <Toast />
+      <ArtifactTaskNotice />
     </div>
   );
 }

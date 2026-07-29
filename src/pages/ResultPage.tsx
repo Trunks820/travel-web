@@ -12,7 +12,13 @@ export default function ResultPage() {
   const { resultId } = useParams<{ resultId: string }>();
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get("job_id");
-  const jobQuery = jobId ? `?job_id=${encodeURIComponent(jobId)}` : "";
+  const isShareParam = searchParams.get("share") === "1";
+
+  const queryParts: string[] = [];
+  if (jobId) queryParts.push(`job_id=${encodeURIComponent(jobId)}`);
+  if (isShareParam) queryParts.push("share=1");
+  const queryString = queryParts.length > 0 ? `?${queryParts.join("&")}` : "";
+
   const navigate = useNavigate();
   const storeResult = useTripStore((s) => s.result);
   const setResult = useTripStore((s) => s.setResult);
@@ -30,7 +36,13 @@ export default function ResultPage() {
   const [loading, setLoading] = useState(!matched);
   // notfound=攻略不存在(404)；unsupported=旧版本生成不兼容(422)；generic=其他
   const [error, setError] = useState<{ kind: "notfound" | "unsupported" | "generic"; message: string } | null>(null);
-  const [shareOpen, setShareOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(isShareParam);
+
+  useEffect(() => {
+    if (isShareParam) {
+      setShareOpen(true);
+    }
+  }, [isShareParam]);
 
   useEffect(() => {
     // resultId/jobId 变化时重置本地态，防止 React Router 同路由复用组件导致旧结果残留
@@ -75,10 +87,10 @@ export default function ResultPage() {
   // 单方案时自动跳转到详情页（跳过方案选择页）
   useEffect(() => {
     if (!result || result.plans.length !== 1) return;
-    navigate(`/plan/${resultId}/${result.plans[0].plan_id}${jobQuery}`, {
+    navigate(`/plan/${resultId}/${result.plans[0].plan_id}${queryString}`, {
       replace: true,
     });
-  }, [result, resultId, navigate, jobQuery]);
+  }, [result, resultId, navigate, queryString]);
 
   if (loading) return <DetailSkeleton />;
 
@@ -166,7 +178,7 @@ export default function ResultPage() {
               image={images[i % images.length]}
               recommended={i === 0}
               index={i}
-              onClick={() => navigate(`/plan/${resultId}/${plan.plan_id}${jobQuery}`)}
+              onClick={() => navigate(`/plan/${resultId}/${plan.plan_id}${queryString}`)}
             />
           ))}
         </div>
@@ -184,7 +196,7 @@ export default function ResultPage() {
           </p>
         </div>
       </main>
-      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} recordId={String(result.result_id)} />
+      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} recordId={String(result.result_id)} jobId={jobId ?? undefined} />
     </div>
   );
 }

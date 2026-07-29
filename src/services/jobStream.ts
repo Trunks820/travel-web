@@ -14,6 +14,7 @@ interface RawStreamEvent {
 interface StreamHandlers {
   onData: (data: JobResponse) => void;
   onError: (err: Event) => void;
+  onInterrupted?: () => void;
 }
 
 function mapStatus(raw: string): JobResponse["status"] {
@@ -40,12 +41,12 @@ function toJobResponse(
 ): JobResponse {
   const status =
     eventType === "complete"
-      ? "COMPLETED" as const
+      ? ("COMPLETED" as const)
       : eventType === "failed"
-        ? "FAILED" as const
+        ? ("FAILED" as const)
         : raw.status
           ? mapStatus(raw.status)
-          : "RUNNING" as const;
+          : ("RUNNING" as const);
 
   let stageProgress: StageProgress | null = null;
   if (raw.stage_progress) {
@@ -64,7 +65,10 @@ function toJobResponse(
     status,
     stage_progress: stageProgress,
     result_record_id: resultId,
-    error: status === "FAILED" ? (raw.error ?? { code: "GENERATION_FAILED", message: "生成失败" }) : null,
+    error:
+      status === "FAILED"
+        ? (raw.error ?? { code: "GENERATION_FAILED", message: "生成失败" })
+        : null,
   };
 }
 
@@ -76,12 +80,14 @@ export function subscribeJobStream(
   const es = new EventSource(url);
 
   function handle(eventType: string, e: MessageEvent) {
-    let raw: RawStreamEvent;
-    try {
-      raw = JSON.parse(e.data);
-    } catch {
-      handlers.onError(new Event("parse-error"));
-      return;
+    let raw: RawStreamEvent = {};
+    if (e.data) {
+      try {
+        raw = JSON.parse(e.data);
+      } catch {
+        handlers.onError(new Event("parse-error"));
+        return;
+      }
     }
     handlers.onData(toJobResponse(jobId, raw, eventType));
     if (eventType === "complete" || eventType === "failed") {
@@ -92,6 +98,10 @@ export function subscribeJobStream(
   es.addEventListener("progress", (e) => handle("progress", e as MessageEvent));
   es.addEventListener("complete", (e) => handle("complete", e as MessageEvent));
   es.addEventListener("failed", (e) => handle("failed", e as MessageEvent));
+  es.addEventListener("interrupted", () => {
+    es.close();
+    handlers.onInterrupted?.();
+  });
   es.onerror = (e) => handlers.onError(e);
 
   return () => es.close();

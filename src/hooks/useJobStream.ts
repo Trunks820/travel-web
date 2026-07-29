@@ -7,6 +7,7 @@ interface UseJobStreamOptions {
   onData: (data: JobResponse) => boolean | void;
   onTimeout?: () => void;
   onConsecutiveErrors?: (count: number) => void;
+  onInterrupted?: () => void;
   consecutiveErrorThreshold?: number;
   enabled?: boolean;
   timeoutMs?: number;
@@ -17,6 +18,7 @@ export function useJobStream({
   onData,
   onTimeout,
   onConsecutiveErrors,
+  onInterrupted,
   consecutiveErrorThreshold = 3,
   enabled = true,
   timeoutMs = 360_000,
@@ -25,6 +27,15 @@ export function useJobStream({
   const errCountRef = useRef(0);
   const closeRef = useRef<(() => void) | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const onDataRef = useRef(onData);
+  onDataRef.current = onData;
+  const onTimeoutRef = useRef(onTimeout);
+  onTimeoutRef.current = onTimeout;
+  const onConsecutiveErrorsRef = useRef(onConsecutiveErrors);
+  onConsecutiveErrorsRef.current = onConsecutiveErrors;
+  const onInterruptedRef = useRef(onInterrupted);
+  onInterruptedRef.current = onInterrupted;
 
   const stop = useCallback(() => {
     stoppedRef.current = true;
@@ -45,15 +56,20 @@ export function useJobStream({
         onData(data) {
           errCountRef.current = 0;
           if (stoppedRef.current) return;
-          const terminal = onData(data);
+          const terminal = onDataRef.current(data);
           if (terminal) stop();
         },
         onError() {
           if (stoppedRef.current) return;
           errCountRef.current++;
           if (errCountRef.current >= consecutiveErrorThreshold) {
-            onConsecutiveErrors?.(errCountRef.current);
+            onConsecutiveErrorsRef.current?.(errCountRef.current);
           }
+        },
+        onInterrupted() {
+          if (stoppedRef.current) return;
+          stop();
+          onInterruptedRef.current?.();
         },
       });
     }
@@ -70,7 +86,7 @@ export function useJobStream({
     timerRef.current = setTimeout(() => {
       if (!stoppedRef.current) {
         stop();
-        onTimeout?.();
+        onTimeoutRef.current?.();
       }
     }, timeoutMs);
 
@@ -81,7 +97,7 @@ export function useJobStream({
       document.removeEventListener("visibilitychange", handleVisibility);
       stop();
     };
-  }, [enabled, jobId, onData, onTimeout, onConsecutiveErrors, consecutiveErrorThreshold, timeoutMs, stop]);
+  }, [enabled, jobId, consecutiveErrorThreshold, timeoutMs, stop]);
 
   return { stop, errCountRef };
 }

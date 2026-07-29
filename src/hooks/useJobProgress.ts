@@ -51,11 +51,19 @@ export function useJobProgress({
     [onConsecutiveErrors],
   );
 
+  const handleSSEInterrupted = useCallback(() => {
+    console.warn(
+      "[useJobProgress] SSE interrupted by server, immediately switching to polling",
+    );
+    setDegraded(true);
+  }, []);
+
   const { stop: stopSSE } = useJobStream({
     jobId,
     onData,
     onTimeout,
     onConsecutiveErrors: handleSSEErrors,
+    onInterrupted: handleSSEInterrupted,
     consecutiveErrorThreshold: FALLBACK_ERROR_THRESHOLD,
     enabled: enabled && !degraded,
   });

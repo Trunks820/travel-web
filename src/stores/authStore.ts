@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { User, Quota, ActiveTrip } from "@/types/auth";
-import { getMe, logout as apiLogout } from "@/services/api";
+import { getMe, logout as apiLogout, ApiRequestError } from "@/services/api";
 
 export type AuthStatus = "unknown" | "authenticated" | "anonymous";
 
@@ -10,9 +10,10 @@ interface AuthStore {
   quota: Quota | null;
   activeTrip: ActiveTrip | null;
   bootstrapped: boolean;
+  bootstrapError: string | null;
 
   bootstrap: () => Promise<void>;
-  refreshMe: () => Promise<void>;
+  refreshMe: () => Promise<boolean>;
   setAuth: (user: User, quota: Quota, activeTrip: ActiveTrip | null) => void;
   clearAuth: () => void;
   logout: () => Promise<void>;
@@ -52,6 +53,7 @@ export const useAuthStore = create<AuthStore>((set, get) => {
           quota: null,
           activeTrip: null,
           bootstrapped: true,
+          bootstrapError: null,
         });
       } else if (type === "LOGIN" || type === "ME_UPDATED") {
         void get().refreshMe();
@@ -65,6 +67,7 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     quota: null,
     activeTrip: null,
     bootstrapped: false,
+    bootstrapError: null,
 
     bootstrap: async () => {
       try {
@@ -76,6 +79,7 @@ export const useAuthStore = create<AuthStore>((set, get) => {
             quota: data.quota,
             activeTrip: data.active_trip,
             bootstrapped: true,
+            bootstrapError: null,
           });
         } else {
           set({
@@ -84,20 +88,32 @@ export const useAuthStore = create<AuthStore>((set, get) => {
             quota: null,
             activeTrip: null,
             bootstrapped: true,
+            bootstrapError: null,
           });
         }
-      } catch {
-        set({
-          status: "anonymous",
-          user: null,
-          quota: null,
-          activeTrip: null,
-          bootstrapped: true,
-        });
+      } catch (err: unknown) {
+        if (err instanceof ApiRequestError && (err.status === 401 || err.code === "AUTH_REQUIRED")) {
+          set({
+            status: "anonymous",
+            user: null,
+            quota: null,
+            activeTrip: null,
+            bootstrapped: true,
+            bootstrapError: null,
+          });
+        } else {
+          const current = get().status;
+          const msg = err instanceof ApiRequestError ? err.message : "网络连接中断或服务暂不可用";
+          if (current === "authenticated") {
+            set({ bootstrapped: true, bootstrapError: msg });
+          } else {
+            set({ status: "unknown", bootstrapped: true, bootstrapError: msg });
+          }
+        }
       }
     },
 
-    refreshMe: async () => {
+    refreshMe: async (): Promise<boolean> => {
       try {
         const data = await getMe();
         if (data.ok && data.user) {
@@ -106,10 +122,23 @@ export const useAuthStore = create<AuthStore>((set, get) => {
             user: data.user,
             quota: data.quota,
             activeTrip: data.active_trip,
+            bootstrapError: null,
           });
+          return true;
         }
-      } catch {
-        /* ignore silent refresh failure */
+        return false;
+      } catch (err: unknown) {
+        if (err instanceof ApiRequestError && (err.status === 401 || err.code === "AUTH_REQUIRED")) {
+          set({
+            status: "anonymous",
+            user: null,
+            quota: null,
+            activeTrip: null,
+            bootstrapError: null,
+          });
+          broadcastAuthEvent("EXPIRED");
+        }
+        return false;
       }
     },
 
@@ -120,6 +149,7 @@ export const useAuthStore = create<AuthStore>((set, get) => {
         quota,
         activeTrip,
         bootstrapped: true,
+        bootstrapError: null,
       });
       broadcastAuthEvent("LOGIN");
     },
@@ -131,6 +161,7 @@ export const useAuthStore = create<AuthStore>((set, get) => {
         quota: null,
         activeTrip: null,
         bootstrapped: true,
+        bootstrapError: null,
       });
     },
 
@@ -146,6 +177,7 @@ export const useAuthStore = create<AuthStore>((set, get) => {
         quota: null,
         activeTrip: null,
         bootstrapped: true,
+        bootstrapError: null,
       });
       broadcastAuthEvent("LOGOUT");
     },

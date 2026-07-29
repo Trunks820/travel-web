@@ -16,7 +16,8 @@ const STAGE_HINTS: Record<StageCode, string> = {
 };
 
 export function ProgressTimeline({ currentCode, failed }: ProgressTimelineProps) {
-  const currentStep = currentCode ? STAGE_MAP[currentCode].step : 1;
+  // 失败且无阶段信息时使用 0，防止默认高亮第一阶段
+  const currentStep = currentCode ? STAGE_MAP[currentCode].step : (failed ? 0 : 1);
 
   return (
     <ol className="relative pl-8">
@@ -29,7 +30,10 @@ export function ProgressTimeline({ currentCode, failed }: ProgressTimelineProps)
         const info = STAGE_MAP[code];
         const isDone = info.step < currentStep;
         const isActive = info.step === currentStep && !failed;
-        const isFailed = failed && info.step === currentStep;
+        const isFailed = failed && info.step === currentStep && currentStep > 0;
+
+        // 失败时擦除“正在...”动态表达，改为中性描述
+        const labelText = failed ? info.label.replace(/^正在/, "") : info.label;
 
         return (
           <li key={code} className="relative pb-7 last:pb-0">
@@ -41,7 +45,7 @@ export function ProgressTimeline({ currentCode, failed }: ProgressTimelineProps)
                     ? "bg-primary-500 text-white"
                     : isActive
                       ? "bg-accent-500 text-white shadow-[0_0_0_5px_rgba(249,115,22,0.18)] animate-pulse"
-                      : "bg-gray-200"
+                      : "bg-gray-200 text-gray-400"
               }`}
             >
               {isFailed ? "!" : isDone ? "✓" : isActive ? "●" : ""}
@@ -57,7 +61,7 @@ export function ProgressTimeline({ currentCode, failed }: ProgressTimelineProps)
                       : "text-gray-400"
               }`}
             >
-              {info.label}
+              {labelText}
               {isActive && <span className="loading-dots" aria-hidden="true" />}
             </h3>
             <p className={`text-xs mt-0.5 ${isActive ? "text-gray-600" : "text-gray-400"}`}>
@@ -68,9 +72,13 @@ export function ProgressTimeline({ currentCode, failed }: ProgressTimelineProps)
       })}
       {/* 屏幕阅读器播报当前进度 */}
       <span className="sr-only" role="status">
-        {currentCode
-          ? `${STAGE_MAP[currentCode].label}，第 ${currentStep} 步，共 ${TOTAL_STAGES} 步`
-          : "正在开始"}
+        {failed
+          ? currentCode
+            ? `本次规划未完成，停止于第 ${currentStep} 步 ${STAGE_MAP[currentCode].label}`
+            : "本次规划未完成"
+          : currentCode
+            ? `${STAGE_MAP[currentCode].label}，第 ${currentStep} 步，共 ${TOTAL_STAGES} 步`
+            : "正在开始"}
       </span>
     </ol>
   );

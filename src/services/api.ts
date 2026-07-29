@@ -31,19 +31,12 @@ import {
   mockFetchHistory,
 } from "./mock";
 
+import { ApiRequestError } from "./errors";
+export { ApiRequestError };
+
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
-export class ApiRequestError extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public status: number,
-  ) {
-    super(message);
-    this.name = "ApiRequestError";
-  }
-}
 
 // 401 Toast 防抖
 let lastToastTime = 0;
@@ -312,10 +305,38 @@ export function getArtifact(
   return request<Artifact>(`/trip/results/${recordId}/artifacts/${type}`);
 }
 
+/**
+ * 校验并解析同源产物下载路径，防止重复拼接 API_BASE (/api) 及跨域/外部非法 URL 注入。
+ */
+export function resolveSameOriginDownloadPath(downloadUrl: string): string {
+  const trimmed = (downloadUrl || "").trim();
+
+  // 1. 拒绝外部 URL、Scheme 或 协议相对路径 (http://, https://, //, javascript:)
+  if (/^(?:https?:)?\/\//i.test(trimmed) || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+    throw new ApiRequestError("INVALID_DOWNLOAD_URL", "非法或越权下载路径", 400);
+  }
+
+  // 2. 必须为绝对/相对根路径（以 / 开头）
+  if (!trimmed.startsWith("/")) {
+    throw new ApiRequestError("INVALID_DOWNLOAD_URL", "下载路径格式错误", 400);
+  }
+
+  // 3. 防重复拼接：若 downloadUrl 已以 API_BASE (如 /api/) 开头或完全等于 API_BASE，直接返回
+  if (trimmed === API_BASE || trimmed.startsWith(`${API_BASE}/`)) {
+    return trimmed;
+  }
+
+  const cleanBase = API_BASE.replace(/\/+$/, "");
+  const cleanPath = trimmed.replace(/^\/+/, "");
+  return `${cleanBase}/${cleanPath}`;
+}
+
 export async function fetchArtifactBlob(downloadUrl: string): Promise<Blob> {
+  const targetPath = resolveSameOriginDownloadPath(downloadUrl);
+
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${downloadUrl}`, {
+    res = await fetch(targetPath, {
       credentials: "include",
     });
   } catch {
