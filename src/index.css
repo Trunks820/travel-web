@@ -1,3 +1,27 @@
+@font-face {
+  font-family: "Satoshi";
+  src: url("./assets/fonts/satoshi-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("./assets/fonts/satoshi-500.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("./assets/fonts/satoshi-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -22,21 +46,27 @@
 
   body {
     margin: 0;
-    font-family: "Noto Sans SC", system-ui, sans-serif;
+    font-family:
+      "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--color-white);
     color: var(--color-ink);
   }
 
-  h1, h2, h3, h4 {
-    font-family: "Satoshi", "Noto Sans SC", system-ui, sans-serif;
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family:
+      "Satoshi", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
   }
 }
 
 @layer components {
   .signature-font {
-    font-family: "Zhi Mang Xing", "STKaiti", "KaiTi", "楷体", cursive;
+    font-family: "STKaiti", "KaiTi", "KaiTi_GB2312", "楷体", serif;
   }
 
   .glass-card {
@@ -53,12 +83,13 @@
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(210, 195, 170, 0.25);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    box-shadow:
+      0 20px 50px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
   }
 
   .journal-card::before {
-    content: '';
+    content: "";
     position: absolute;
     left: 20px;
     top: 16px;
@@ -66,8 +97,10 @@
     width: 2px;
     background: repeating-linear-gradient(
       to bottom,
-      #a7ded7 0px, #a7ded7 8px,
-      transparent 8px, transparent 14px
+      #a7ded7 0px,
+      #a7ded7 8px,
+      transparent 8px,
+      transparent 14px
     );
     opacity: 0.45;
     pointer-events: none;
@@ -131,27 +164,19 @@
   }
 
   .btn-primary {
-    @apply rounded-xl bg-accent-500 px-6 py-3 text-sm font-semibold text-white
-      transition-all duration-200 hover:bg-accent-600 hover:shadow-md
-      focus:outline-none focus:ring-2 focus:ring-accent-300 focus:ring-offset-2
-      active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+    @apply rounded-xl bg-accent-500 px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-accent-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-accent-300 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-secondary {
-    @apply rounded-xl border border-primary-200 bg-white px-5 py-2.5 text-sm
-      font-medium text-primary-700 transition-all duration-200
-      hover:border-primary-300 hover:bg-primary-50 active:scale-[0.98]
-      focus:outline-none focus:ring-2 focus:ring-primary-200;
+    @apply rounded-xl border border-primary-200 bg-white px-5 py-2.5 text-sm font-medium text-primary-700 transition-all duration-200 hover:border-primary-300 hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-200 active:scale-[0.98];
   }
 
   .card {
-    @apply rounded-2xl border border-primary-100/40 bg-white/90 shadow-soft
-      backdrop-blur-sm transition-all duration-200;
+    @apply rounded-2xl border border-primary-100/40 bg-white/90 shadow-soft backdrop-blur-sm transition-all duration-200;
   }
 
   .card-interactive {
-    @apply card cursor-pointer hover:bg-white hover:shadow-card-hover hover:-translate-y-0.5
-      active:scale-[0.98];
+    @apply card cursor-pointer hover:-translate-y-0.5 hover:bg-white hover:shadow-card-hover active:scale-[0.98];
   }
 
   .form-label {
@@ -159,21 +184,15 @@
   }
 
   .tag-idle {
-    @apply rounded-full border border-primary-100 bg-white px-4 py-2 text-sm
-      text-primary-700 transition-all duration-150
-      hover:border-primary-300 hover:bg-primary-50
-      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300;
+    @apply rounded-full border border-primary-100 bg-white px-4 py-2 text-sm text-primary-700 transition-all duration-150 hover:border-primary-300 hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300;
   }
 
   .tag-active {
-    @apply rounded-full border border-primary-500 bg-primary-50 px-4 py-2
-      text-sm font-medium text-primary-700
-      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300;
+    @apply rounded-full border border-primary-500 bg-primary-50 px-4 py-2 text-sm font-medium text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300;
   }
 
   .error-banner {
-    @apply rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm
-      text-red-700;
+    @apply rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700;
   }
 
   .empty-state {
@@ -244,36 +263,69 @@
 }
 
 @keyframes pageEnter {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes loadingDots {
-  0% { content: ""; }
-  25% { content: "."; }
-  50% { content: ".."; }
-  75% { content: "..."; }
-  100% { content: ""; }
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75% {
+    content: "...";
+  }
+  100% {
+    content: "";
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes cloudDrift {
-  from { transform: translate(0, 0) scale(1); }
-  to { transform: translate(30px, -20px) scale(1.05); }
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(30px, -20px) scale(1.05);
+  }
 }
 
 @keyframes skeleton {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
