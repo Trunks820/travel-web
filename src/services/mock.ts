@@ -40,6 +40,7 @@ export async function mockGetMe(): Promise<MeResponse> {
     user: {
       user_id: "usr_mock_123",
       display_name: "公测体验官",
+      display_name_change_available_at: null,
       masked_email: masked,
     },
     quota: {

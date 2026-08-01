@@ -14,6 +14,7 @@ import type {
   SendCodeResponse,
   ClosureSendCodeResponse,
   HistoryResponse,
+  ProfileUpdateResponse,
 } from "@/types/auth";
 import { mapBackendStage, STAGE_MAP, TOTAL_STAGES } from "@/constants/stages";
 import { useAuthStore, broadcastAuthEvent } from "@/stores/authStore";
@@ -33,10 +34,10 @@ import {
 
 import { ApiRequestError } from "./errors";
 export { ApiRequestError };
+export type { ProfileUpdateResponse };
 
 const API_BASE = import.meta.env.VITE_API_BASE || "/api";
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
-
 
 // 401 Toast 防抖
 let lastToastTime = 0;
@@ -84,11 +85,19 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     const detail = (data as { detail?: unknown }).detail;
     if (detail && typeof detail === "object") {
       const d = detail as { code?: string; message?: string };
-      throw new ApiRequestError(d.code ?? "HTTP_ERROR", d.message ?? "请求失败", res.status);
+      throw new ApiRequestError(
+        d.code ?? "HTTP_ERROR",
+        d.message ?? "请求失败",
+        res.status,
+      );
     }
     const flat = data as { error?: { code?: string; message?: string } };
     if (flat.error) {
-      throw new ApiRequestError(flat.error.code ?? "HTTP_ERROR", flat.error.message ?? "请求失败", res.status);
+      throw new ApiRequestError(
+        flat.error.code ?? "HTTP_ERROR",
+        flat.error.message ?? "请求失败",
+        res.status,
+      );
     }
     const msg = typeof detail === "string" ? detail : "请求失败";
     throw new ApiRequestError("HTTP_ERROR", msg, res.status);
@@ -132,6 +141,17 @@ export async function verifyEmailCode(
 export async function getMe(): Promise<MeResponse> {
   if (USE_MOCK) return mockGetMe();
   return request<MeResponse>("/me");
+}
+
+export async function updateDisplayName(
+  displayName: string,
+): Promise<ProfileUpdateResponse> {
+  return request<ProfileUpdateResponse>("/me/profile", {
+    method: "PATCH",
+    body: JSON.stringify({
+      display_name: displayName,
+    }),
+  });
 }
 
 export async function logout(): Promise<{ ok: boolean }> {
@@ -280,7 +300,10 @@ export interface HotPlace {
   mention_count: number;
 }
 
-export async function fetchHotPlaces(city: string, limit = 12): Promise<HotPlace[]> {
+export async function fetchHotPlaces(
+  city: string,
+  limit = 12,
+): Promise<HotPlace[]> {
   const raw = await request<{ ok: boolean; places?: HotPlace[] }>(
     `/trip/places?city=${encodeURIComponent(city)}&limit=${limit}`,
   );
@@ -312,8 +335,15 @@ export function resolveSameOriginDownloadPath(downloadUrl: string): string {
   const trimmed = (downloadUrl || "").trim();
 
   // 1. 拒绝外部 URL、Scheme 或 协议相对路径 (http://, https://, //, javascript:)
-  if (/^(?:https?:)?\/\//i.test(trimmed) || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
-    throw new ApiRequestError("INVALID_DOWNLOAD_URL", "非法或越权下载路径", 400);
+  if (
+    /^(?:https?:)?\/\//i.test(trimmed) ||
+    /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)
+  ) {
+    throw new ApiRequestError(
+      "INVALID_DOWNLOAD_URL",
+      "非法或越权下载路径",
+      400,
+    );
   }
 
   // 2. 必须为绝对/相对根路径（以 / 开头）
@@ -358,7 +388,11 @@ export async function fetchArtifactBlob(
     if (res.status === 401) {
       handleUnauthorized();
     }
-    throw new ApiRequestError("DOWNLOAD_FAILED", "下载失败，请重试", res.status);
+    throw new ApiRequestError(
+      "DOWNLOAD_FAILED",
+      "下载失败，请重试",
+      res.status,
+    );
   }
   return res.blob();
 }

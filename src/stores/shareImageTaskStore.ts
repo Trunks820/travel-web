@@ -329,7 +329,7 @@ async function processBackendReadyTask(
     });
 
     return finalTask;
-  } catch (err) {
+  } catch {
     if (currentEpoch !== requestEpoch) {
       return (
         useShareImageTaskStore.getState().tasks[recordId] || {

@@ -30,6 +30,7 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 ## 2. 身份认证与账号 API (Authentication & Account)
 
 ### 2.1 POST `/api/auth/email/send-code` — 发送邮箱验证码
+
 - **Request Body**:
   ```json
   {
@@ -54,6 +55,7 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
   ```
 
 ### 2.2 POST `/api/auth/email/verify` — 校验验证码与完成认证
+
 - **Request Body**:
   ```json
   {
@@ -70,13 +72,15 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
     - 模式纠偏前绝不提前创建用户、Session、额度或消耗邀请码。
 
 ### 2.3 GET `/api/me` — 获取当前登录用户与配额
+
 - **Response 200**:
   ```json
   {
     "ok": true,
     "user": {
       "user_id": "usr_opaque",
-      "display_name": "可选显示名",
+      "display_name": "user_7k3m9q2x4p",
+      "display_name_change_available_at": null,
       "masked_email": "u***@example.com"
     },
     "quota": {
@@ -89,16 +93,50 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
     }
   }
   ```
+- **字段说明**:
+  - `user.display_name`: 必填字符串。仅作为可修改的视觉展示名称，绝非登录身份、邮箱、User ID、权限或行程所有权标识。
+  - `user.display_name_change_available_at`: RFC 3339 时间戳字符串或 `null`。若非 `null` 且晚于当前时间，表示尚处于修改冷却期。
 - **Unauthenticated**: `401 AUTH_REQUIRED`（未登录）。
 
+### 2.4 PATCH `/api/me/profile` — 修改 Display Name
+
+- **说明**: 已登录用户查看并修改自己的 Display Name（显示名称）。
+- **Request Body**:
+  ```json
+  {
+    "display_name": "山城漫游者"
+  }
+  ```
+- **Response 200**:
+  ```json
+  {
+    "ok": true,
+    "user": {
+      "user_id": "usr_opaque",
+      "display_name": "山城漫游者",
+      "display_name_change_available_at": "2026-08-08T12:00:00Z",
+      "masked_email": "u***@example.com"
+    }
+  }
+  ```
+- **错误响应**:
+  - `401 AUTH_REQUIRED`: 未登录或 Session 过期
+  - `409 DISPLAY_NAME_UNAVAILABLE`: 该显示名称暂不可用
+  - `422 DISPLAY_NAME_INVALID`: 显示名称格式不合法
+  - `422 DISPLAY_NAME_RESERVED`: 该名称为系统保留名称
+  - `429 DISPLAY_NAME_CHANGE_COOLDOWN`: 处于修改冷却期中
+
 ### 2.4 POST `/api/auth/logout` — 主动退出登录
+
 - **说明**: 销毁服务端 Session 并清除 Cookie，支持幂等调用。
 - **Response 200**: `{"ok": true}`
 
 ### 2.5 POST `/api/me/closure/send-code` — 发送注销二次验证码
+
 - **说明**: 向当前已验证身份的邮箱发送独立 6 位注销验证码。
 
 ### 2.6 POST `/api/me/closure/confirm` — 确认注销账号
+
 - **Request Body**: `{"code": "123456"}`
 - **冲突阻断**: 若当前账号有活动中的行程任务（`SUBMITTING` / `PENDING` / `RUNNING`），BFF 返回 `409 ACTIVE_TRIP_IN_PROGRESS`，阻断注销。
 - **注销效果**: 成功后删除登录身份与 Session，去标识化切断与历史行程的所有权关联（保留匿名内容及质量数据）。
@@ -145,6 +183,7 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 ## 4. 任务状态与结果 API (Job Status & Result)
 
 ### 4.1 GET `/api/trip/jobs/{job_id}` — 轮询任务状态
+
 - **说明**: 鉴权当前用户所有权后返回任务状态。
 - **Response 200**:
   ```json
@@ -169,6 +208,7 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 - **无所有权/未知 Job**: 返回 `404 TRIP_NOT_FOUND`。
 
 ### 4.2 GET `/api/trip/results/{result_record_id}?job_id={job_id}` — 获取方案结果
+
 - **说明**: 校验用户所有权后，代理返回 `TripResult` 展示 JSON。非本人行程返回 `404 TRIP_NOT_FOUND`。
 
 ---
@@ -176,6 +216,7 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 ## 5. 行程历史 API (Trip History)
 
 ### GET `/api/me/trips` — 查询个人近 7 天行程历史
+
 - **Query Params**: `limit=20`, `cursor?`, `status?`
 - **Response 200**:
   ```json
@@ -218,18 +259,24 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 ## 6. v0.2 Linux.do OAuth 扩展与质量反馈
 
 ### 6.1 Linux.do OAuth 路由
+
 - `GET /api/auth/oauth/linux-do/start?return_to=<path>`：发起授权。
 - `GET /api/auth/oauth/linux-do/callback`：BFF 接收 OAuth 回调并进行服务端 Code 换 Token 操作。
   - **前端隔离规范**：Linux.do Provider 仅回调 BFF，前端 JS **绝对接触不到** authorization code, OAuth state, access token, client secret 或 raw profile。
   - **完成重定向**: BFF 完成登录/绑定后，以 `303` 重定向至前端 `/auth/callback?mode=...&returnTo=...` 或带稳定错误码 (`?error_code=OAUTH_ACCOUNT_INELIGIBLE`)。
 
 ### 6.2 GET `/api/me/identities` — 查询账号绑定的身份
+
 - **Response 200**:
   ```json
   {
     "ok": true,
     "items": [
-      { "provider": "email_otp", "status": "VERIFIED", "display": "u***@example.com" },
+      {
+        "provider": "email_otp",
+        "status": "VERIFIED",
+        "display": "u***@example.com"
+      },
       { "provider": "linux_do", "status": "LINKED", "display": "Linux.do" }
     ]
   }
@@ -237,6 +284,7 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 - **说明**: 仅展示抽象绑定状态与脱敏信息，不透传不可变 Linux.do ID 或原始 Provider Subject。
 
 ### 6.3 POST `/api/trip/results/{result_id}/feedback` — 质量反馈
+
 - **Request Body**:
   ```json
   {
@@ -250,29 +298,34 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 
 ## 7. 稳定错误代码汇总 (Stable Error Codes)
 
-| HTTP | Code | 场景与含义 |
-|---|---|---|
-| 400 | `BAD_REQUEST` | 请求格式不合法 |
-| 400 | `OAUTH_STATE_INVALID` | OAuth 状态参数丢失、超时或匹配失败（认证流程错误） |
-| 401 | `AUTH_REQUIRED` | 未登录 / 无有效 Session |
-| 401 | `SESSION_EXPIRED` | 会话已过期 |
-| 403 | `OAUTH_ACCOUNT_INELIGIBLE` | Linux.do 账号未达 L1 等级或被禁言 |
-| 404 | `TRIP_NOT_FOUND` | 行程不存在或无所有权 |
-| 409 | `REGISTRATION_REQUIRED` | 邮箱登录验证成功，但账号尚未注册 |
-| 409 | `LOGIN_REQUIRED` | 邮箱注册验证成功，但账号早已存在 |
-| 409 | `IDENTITY_ALREADY_LINKED` | 该 Linux.do 账号已绑定至其他用户 |
-| 409 | `ACTIVE_TRIP_IN_PROGRESS` | 仍有未完成的生成任务，阻断账号注销 |
-| 409 | `REQUEST_ID_CONFLICT` | request_id 重复但提交参数不一致 |
-| 422 | `VALIDATION_ERROR` / `CITY_NOT_SUPPORTED` | 参数校验失败或城市不支持 |
-| 429 | `QUOTA_EXHAUSTED` | 公测额度已耗尽 (0/3) |
-| 502 | `OAUTH_PROVIDER_ERROR` / `GENERATION_SERVICE_ERROR` | 第三方或下游服务异常 |
-| 503 | `GENERATION_SERVICE_UNAVAILABLE` | 生成服务暂不可用 |
+| HTTP | Code                                                | 场景与含义                                         |
+| ---- | --------------------------------------------------- | -------------------------------------------------- |
+| 400  | `BAD_REQUEST`                                       | 请求格式不合法                                     |
+| 400  | `OAUTH_STATE_INVALID`                               | OAuth 状态参数丢失、超时或匹配失败（认证流程错误） |
+| 401  | `AUTH_REQUIRED`                                     | 未登录 / 无有效 Session                            |
+| 401  | `SESSION_EXPIRED`                                   | 会话已过期                                         |
+| 403  | `OAUTH_ACCOUNT_INELIGIBLE`                          | Linux.do 账号未达 L1 等级或被禁言                  |
+| 404  | `TRIP_NOT_FOUND`                                    | 行程不存在或无所有权                               |
+| 409  | `REGISTRATION_REQUIRED`                             | 邮箱登录验证成功，但账号尚未注册                   |
+| 409  | `LOGIN_REQUIRED`                                    | 邮箱注册验证成功，但账号早已存在                   |
+| 409  | `IDENTITY_ALREADY_LINKED`                           | 该 Linux.do 账号已绑定至其他用户                   |
+| 409  | `ACTIVE_TRIP_IN_PROGRESS`                           | 仍有未完成的生成任务，阻断账号注销                 |
+| 409  | `REQUEST_ID_CONFLICT`                               | request_id 重复但提交参数不一致                    |
+| 409  | `DISPLAY_NAME_UNAVAILABLE`                          | 显示名称暂不可用（已被占用）                       |
+| 422  | `VALIDATION_ERROR` / `CITY_NOT_SUPPORTED`           | 参数校验失败或城市不支持                           |
+| 422  | `DISPLAY_NAME_INVALID`                              | 显示名称格式不合法                                 |
+| 422  | `DISPLAY_NAME_RESERVED`                             | 系统保留名称                                       |
+| 429  | `QUOTA_EXHAUSTED`                                   | 公测额度已耗尽 (0/3)                               |
+| 429  | `DISPLAY_NAME_CHANGE_COOLDOWN`                      | 显示名称修改仍处于冷却期                           |
+| 502  | `OAUTH_PROVIDER_ERROR` / `GENERATION_SERVICE_ERROR` | 第三方或下游服务异常                               |
+| 503  | `GENERATION_SERVICE_UNAVAILABLE`                    | 生成服务暂不可用                                   |
 
 ---
 
 ## 8. Legacy / 历史存档说明 (Historical Non-Authoritative)
 
 > 🚨 **注意**: 以下项目为全站早期设计或已废弃的过渡方案，**非当前实现依据**：
+>
 > - ❌ 浏览器直接调用 `hermes-travel` (`:6666`) 接口。
 > - ❌ 浏览器生成并传送 `source: "web"` 和 `conversation_id` 作为身份依据。
 > - ❌ 提交接口携带自然语言 `message` 入口。

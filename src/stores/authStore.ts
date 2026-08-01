@@ -15,6 +15,7 @@ interface AuthStore {
   bootstrap: () => Promise<void>;
   refreshMe: () => Promise<boolean>;
   setAuth: (user: User, quota: Quota, activeTrip: ActiveTrip | null) => void;
+  updateUser: (user: User) => void;
   clearAuth: () => void;
   logout: () => Promise<void>;
 }
@@ -31,7 +32,9 @@ if (typeof window !== "undefined" && "BroadcastChannel" in window) {
   }
 }
 
-export function broadcastAuthEvent(type: "LOGIN" | "LOGOUT" | "EXPIRED" | "ME_UPDATED") {
+export function broadcastAuthEvent(
+  type: "LOGIN" | "LOGOUT" | "EXPIRED" | "ME_UPDATED",
+) {
   if (bc) {
     try {
       bc.postMessage({ type });
@@ -92,7 +95,10 @@ export const useAuthStore = create<AuthStore>((set, get) => {
           });
         }
       } catch (err: unknown) {
-        if (err instanceof ApiRequestError && (err.status === 401 || err.code === "AUTH_REQUIRED")) {
+        if (
+          err instanceof ApiRequestError &&
+          (err.status === 401 || err.code === "AUTH_REQUIRED")
+        ) {
           set({
             status: "anonymous",
             user: null,
@@ -103,7 +109,10 @@ export const useAuthStore = create<AuthStore>((set, get) => {
           });
         } else {
           const current = get().status;
-          const msg = err instanceof ApiRequestError ? err.message : "网络连接中断或服务暂不可用";
+          const msg =
+            err instanceof ApiRequestError
+              ? err.message
+              : "网络连接中断或服务暂不可用";
           if (current === "authenticated") {
             set({ bootstrapped: true, bootstrapError: msg });
           } else {
@@ -128,7 +137,10 @@ export const useAuthStore = create<AuthStore>((set, get) => {
         }
         return false;
       } catch (err: unknown) {
-        if (err instanceof ApiRequestError && (err.status === 401 || err.code === "AUTH_REQUIRED")) {
+        if (
+          err instanceof ApiRequestError &&
+          (err.status === 401 || err.code === "AUTH_REQUIRED")
+        ) {
           set({
             status: "anonymous",
             user: null,
@@ -152,6 +164,11 @@ export const useAuthStore = create<AuthStore>((set, get) => {
         bootstrapError: null,
       });
       broadcastAuthEvent("LOGIN");
+    },
+
+    updateUser: (user: User) => {
+      set({ user });
+      broadcastAuthEvent("ME_UPDATED");
     },
 
     clearAuth: () => {

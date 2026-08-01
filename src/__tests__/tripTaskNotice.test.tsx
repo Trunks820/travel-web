@@ -27,6 +27,7 @@ describe("Trip Generation Persistent Task Notification Tests (P1)", () => {
       user: {
         user_id: "101",
         display_name: "Tester",
+        display_name_change_available_at: null,
         masked_email: "t***r@example.com",
       },
       quota: null,

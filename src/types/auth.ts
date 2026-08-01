@@ -4,8 +4,14 @@ export type AuthMode = "login" | "register";
 
 export interface User {
   user_id: string;
-  display_name?: string | null;
-  masked_email: string;
+  display_name: string;
+  display_name_change_available_at: string | null;
+  masked_email: string | null;
+}
+
+export interface ProfileUpdateResponse {
+  ok: boolean;
+  user: User;
 }
 
 export interface Quota {
