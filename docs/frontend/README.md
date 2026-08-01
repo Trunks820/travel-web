@@ -71,5 +71,6 @@ npm run preview
 
 ## Related
 
-- 后端项目：[hermes-travel](https://github.com/your-org/hermes-travel) (Python / FastAPI)
-- 后端 API 端口：6666（开发环境通过 Vite proxy 代理）
+- 浏览器 BFF：`travel-web-api`（FastAPI，本地默认 `127.0.0.1:6670`）
+- 生成服务：`hermes-travel`（FastAPI，位于 BFF 之后，不允许浏览器直连）
+- 开发环境由 Vite 将同源 `/api/*` 原样代理到 BFF；生产环境由 Nginx 承担同一边界

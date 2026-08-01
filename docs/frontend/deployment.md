@@ -1,26 +1,28 @@
 # Deployment
 
+Status: **Documentation Repaired / Live Configuration Re-verification Required Before Deployment**
+
+本文件定义当前应遵守的部署边界，不代表已经授权部署。服务器目录、容器名、
+Nginx 生效配置和回滚资产都必须在每次生产操作前重新只读核验。
+
 ---
 
 ## 1. Architecture
 
+```text
+Browser
+  -> https://kakarot8.com/
+       -> Nginx
+            -> React static assets
+            -> /api/* (path preserved)
+                 -> travel-web-api :6670
+                      -> authentication / Session / quota / ownership / history
+                      -> private versioned HTTP
+                           -> hermes-travel :6666
 ```
-┌──────────────────────────────────────────────┐
-│                   Nginx                       │
-│                                              │
-│  kaka-travel.com/         → React 静态资源    │
-│  kaka-travel.com/api/*    → FastAPI :6666     │
-│                                              │
-│  ✗ /internal/* 禁止公网访问                    │
-└──────────────────────────────────────────────┘
-         │                        │
-         ▼                        ▼
-┌─────────────────┐    ┌─────────────────────┐
-│  React Build    │    │  yuntu-travel       │
-│  (static files) │    │  FastAPI :6666      │
-│  /var/www/web/  │    │  (Docker / systemd) │
-└─────────────────┘    └─────────────────────┘
-```
+
+`travel-web-api` 是唯一浏览器 API 边界。Nginx 和前端都不得把公开 `/api/*`
+直接转发到 `hermes-travel`。
 
 ---
 
@@ -31,32 +33,27 @@
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name kaka-travel.com;
+    server_name kakarot8.com;
 
     # SSL (Let's Encrypt / acme.sh)
-    ssl_certificate     /etc/ssl/certs/kaka-travel.com.pem;
-    ssl_certificate_key /etc/ssl/private/kaka-travel.com.key;
+    ssl_certificate     <verified-certificate-path>;
+    ssl_certificate_key <verified-private-key-path>;
 
     # React 静态资源
     root /var/www/travel-web/dist;
     index index.html;
 
-    # API 反代
+    # Browser API boundary: preserve the /api prefix for the BFF.
     location /api/ {
-        proxy_pass http://127.0.0.1:6666/;
+        proxy_pass http://127.0.0.1:6670;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # 长轮询 / 慢接口超时
+        # Polling/SSE and long-running generation reads.
+        proxy_buffering off;
         proxy_read_timeout 180s;
-    }
-
-    # 禁止公网访问内部接口
-    location /api/internal/ {
-        deny all;
-        return 403;
     }
 
     # SPA fallback
@@ -74,34 +71,41 @@ server {
 # HTTP → HTTPS redirect
 server {
     listen 80;
-    server_name kaka-travel.com;
+    server_name kakarot8.com;
     return 301 https://$host$request_uri;
 }
 ```
+
+上面是边界模板，不是服务器当前配置的证明。部署前必须读取 Nginx 实际生效配置，
+确认 `/api/*` 保留前缀并指向 BFF `6670`，再做独立语法检查和回滚准备。
 
 ### 2.2 关键安全边界
 
 | 规则 | 说明 |
 |------|------|
-| `/api/internal/*` deny all | 内部管理接口不对公网开放 |
-| 6666 端口仅 127.0.0.1 | 不绑定 0.0.0.0 或用 firewall 限制 |
-| 同域部署 | 不需要 CORS，避免跨域攻击面 |
-| HTTPS only | HTTP 301 跳转 |
-| 未来登录 | 同域 HttpOnly Secure Cookie |
+| 浏览器只访问 BFF | `/api/*` 只能进入 `travel-web-api:6670` |
+| Hermes 保持私有 | 不创建从公网或前端到 `:6666` 的直连路径 |
+| 同域 Session | 使用服务端 Session 与 `HttpOnly`、`Secure` Cookie |
+| 同域部署 | 避免跨域认证分叉，不把 CORS 当作身份边界 |
+| HTTPS only | HTTP 只做 HTTPS 跳转 |
+| Secrets 不进前端仓库 | BFF/Hermes 凭据只在服务端环境或 Secret 管理中 |
 
 ### 2.3 前端构建部署
 
 ```bash
-# 构建
+# 本地质量门禁
 cd travel-web
+npm ci
+npm test
+npm run lint
 npm run build          # → dist/
 
-# 部署（rsync / CI）
-rsync -avz dist/ server:/var/www/travel-web/dist/
-
-# 或 Docker 化
-# Dockerfile.web → nginx + dist
+# 生产发布命令只从当次核验后的运行手册取得。
+# 不要把猜测的目录、容器名或 rsync 目标写成可直接执行的命令。
 ```
+
+静态文件发布、Nginx reload、线上 smoke test 和回滚是独立部署 Gate。完成本地
+build 不表示获得生产发布授权。
 
 ---
 
@@ -119,9 +123,8 @@ export default defineConfig({
     port: 3000,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:6666",
+        target: "http://127.0.0.1:6670",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },
@@ -130,27 +133,40 @@ export default defineConfig({
 
 ### 3.2 开发流程
 
+`travel-web-api/main` 已包含 v0.1.1 与 Alembic `0009`。下面的命令仍只适用于
+隔离的本地开发数据库；不得让本地进程连接生产数据库或用生产副本替代迁移验收。
+需要验证 Display Name 时，以 BFF 仓库当前 `main`、迁移和 Source Integration
+Gate 为准。
+
 ```bash
-# Terminal 1: 后端
-cd yuntu-travel
-python -m uvicorn src.api.app:app --port 6666
+# Terminal 1: BFF
+cd travel-web-api
+uv sync --locked
+uv run alembic upgrade head
+uv run uvicorn src.app:app --host 127.0.0.1 --port 6670 --reload
 
 # Terminal 2: 前端
 cd travel-web
 npm run dev             # → http://localhost:3000
 ```
 
-前端请求 `POST /api/trip/async` → Vite 代理到 `http://127.0.0.1:6666/trip/async`
+前端请求 `POST /api/trip/async`，Vite 保留 `/api` 前缀并代理到
+`http://127.0.0.1:6670/api/trip/async`。BFF 再按私有契约调用 Hermes。
 
 ### 3.3 环境变量
 
 ```bash
 # .env.development (默认)
 VITE_API_BASE=/api
+VITE_USE_MOCK=false
 
 # .env.production (构建时)
 VITE_API_BASE=/api
+VITE_USE_MOCK=false
 ```
+
+需要独立 UI 开发时，可以只在未提交的本地环境中显式设置
+`VITE_USE_MOCK=true`。Mock 结果不得用于联调、验收或生产 smoke test。
 
 前端代码中统一使用：
 ```typescript
@@ -178,9 +194,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - run: npm ci
-      - run: npm run build
+      - run: npm test
       - run: npm run lint
-      # rsync to server or push to registry
+      - run: npm run build
+      # Production deployment remains an explicitly authorized separate job.
 ```
 
 ---

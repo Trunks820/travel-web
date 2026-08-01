@@ -11,3 +11,6 @@ dist
 docs/city/
 .claude/
 vite.local-sse.config.ts
+
+# 本地生成的代码导航快照（可重建，不能覆盖权威契约）
+docs/codebase/

@@ -18,7 +18,9 @@
 | 样式 | TailwindCSS 3 |
 | 地图 | 高德地图 JS SDK 2.0（`@amap/amap-jsapi-loader`） |
 
-后端为独立服务 hermes-travel（FastAPI），前端通过 `/api` 调用，详见 [api-contract.md](docs/frontend/api-contract.md)。
+浏览器只通过同源 `/api` 调用 `travel-web-api`（FastAPI BFF）；BFF 再通过私有、
+版本化边界访问 `hermes-travel`。前端不得直连 Hermes，详见
+[api-contract.md](docs/frontend/api-contract.md)。
 
 ---
 
@@ -42,7 +44,9 @@ npm run lint
 npm run format
 ```
 
-开发模式默认 `VITE_USE_MOCK=true`，用 mock 数据即可独立跑通，无需后端。需要联调真实后端时，本地起后端（端口 6666），Vite 会把 `/api/*` 代理过去。
+当前提交的开发环境默认 `VITE_USE_MOCK=false`。本地真实联调需要启动
+`travel-web-api`（默认端口 `6670`），Vite 会把 `/api/*` 原样代理给 BFF。
+Mock 只能通过本地环境显式开启，不得用于真实联调或验收。
 
 ---
 
@@ -52,14 +56,14 @@ npm run format
 
 | 文件 | 是否提交 | 用途 |
 |------|----------|------|
-| `.env.development` | ✅ 提交 | 开发默认：`VITE_USE_MOCK=true` |
-| `.env.production` | ✅ 提交 | 构建默认：API 指向线上，不定义空的密钥字段 |
+| `.env.development` | ✅ 提交 | 开发默认：同源 `/api` + `VITE_USE_MOCK=false` |
+| `.env.production` | ✅ 提交 | 生产默认：同源 `/api` + `VITE_USE_MOCK=false`，不定义空的密钥字段 |
 | `.env.local` / `.env.production.local` | ❌ gitignored | 真实高德 key / 安全密钥，本地与构建机各自配置 |
 
 可配置项：
 
 ```bash
-VITE_API_BASE=/api                      # 开发用 /api（走 Vite 代理）；生产用 https://api.kakarot8.com
+VITE_API_BASE=/api                      # 开发走 Vite 代理；生产走 Nginx 同源 BFF
 VITE_USE_MOCK=false                     # true=用 mock 数据，false=调真实后端
 VITE_AMAP_KEY=your_amap_key             # 高德 Web 端 key
 VITE_AMAP_SECURITY=your_security_code   # 高德安全密钥
@@ -91,7 +95,9 @@ src/
 
 ## 部署
 
-纯前端静态站，三步：构建 → 上传 `dist/` 到服务器 → 重载 Nginx。Nginx 同域反代 `/api/*` 到后端 :6666。
+前端是静态站，但生产边界包含 BFF：构建并发布 `dist/` 后，Nginx 必须把同源
+`/api/*` 转发到 `travel-web-api:6670`，不得转发到 Hermes `:6666`。实际服务器
+目录、Nginx 配置和发布命令必须在每次部署前只读核验，不能从旧文档猜测。
 
 完整配置（Nginx server 块、SSL、安全边界、SPA fallback）见 [deployment.md](docs/frontend/deployment.md)。
 
