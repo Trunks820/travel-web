@@ -173,7 +173,40 @@ export interface TripPlan {
     total_commute_minutes: number;
   };
   accommodation?: AccommodationInfo | null;
+  transport?: TripTransport | null;
   days: TripDay[];
+}
+
+export interface TransportOption {
+  type: "train" | "flight";
+  no: string;
+  departure_time: string;
+  arrival_time: string;
+  duration_minutes: number;
+  price: string | null;
+  departure_station: string;
+  arrival_station: string;
+  airline: string | null;
+}
+
+export interface TransportMode {
+  mode: "train" | "flight";
+  min_duration_minutes: number;
+  price_range: string;
+  price_source: "realtime" | "static_reference";
+  daily_count: number;
+  data_source: "realtime" | "static_fallback";
+  availability_status: "available_at_query" | "sold_out_at_query" | "unknown";
+  availability_checked_at: string | null;
+  options: TransportOption[];
+}
+
+export interface TripTransport {
+  from_city: string;
+  to_city: string;
+  query_date: string | null;
+  source: "realtime" | "mixed" | "static_fallback";
+  modes: TransportMode[];
 }
 
 
