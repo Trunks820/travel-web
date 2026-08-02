@@ -9,6 +9,9 @@ import { UserMenu } from "@/components/layout/UserMenu";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
+import { TransportCard } from "@/components/detail/TransportCard";
+import { WeatherStrip } from "@/components/detail/WeatherStrip";
+import { TripSpine } from "@/components/detail/TripSpine";
 import { PlaceDetailModal } from "@/components/detail/PlaceDetailModal";
 import { AccommodationTimelineNode } from "@/components/detail/AccommodationCard";
 import { ShareDialog } from "@/components/share/ShareDialog";
@@ -221,7 +224,24 @@ export default function PlanDetailPage() {
     () => (plan ? mockBudget(plan, people) : null),
     [plan, people],
   );
+  const budgetFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat("zh-CN", {
+        style: "currency",
+        currency: "CNY",
+        maximumFractionDigits: 0,
+      }),
+    [],
+  );
   const city = result?.city.name ?? "";
+
+  const activeDayNumber = useMemo(() => {
+    if (activeTab.startsWith("day-")) {
+      const n = Number(activeTab.replace("day-", ""));
+      if (!Number.isNaN(n)) return n;
+    }
+    return mapDay ?? 1;
+  }, [activeTab, mapDay]);
 
   // PDF 准备就绪自动下载 / 失败提示
   useEffect(() => {
@@ -327,6 +347,7 @@ export default function PlanDetailPage() {
 
     const sectionIds = [
       "overview",
+      ...(result?.plans[0]?.transport ? ["transport"] : []),
       ...plan.days.map((d) => `day-${d.day}`),
       "budget",
       ...(result?.must_include?.length ? ["must-include"] : []),
@@ -370,7 +391,7 @@ export default function PlanDetailPage() {
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
-  }, [plan, result?.must_include?.length]);
+  }, [plan, result?.must_include?.length, result?.plans[0]?.transport]);
 
   function scrollTo(id: string) {
     setActiveTab(id);
@@ -475,6 +496,14 @@ export default function PlanDetailPage() {
               节奏 {PACE_LABEL[plan.pace.level] ?? plan.pace.level}
             </span>
           )}
+          {budget && (
+            <a
+              href="#budget"
+              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+            >
+              预估 {budgetFormatter.format(budget.total)} · 人均 {budgetFormatter.format(Math.round(budget.total / (budget.people || 1)))}
+            </a>
+          )}
           <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
             {plan.days.length} 日行程
           </span>
@@ -509,20 +538,16 @@ export default function PlanDetailPage() {
             </Link>
           </div>
 
-          {/* 中间：章节胶囊 Tab 切换（独占居中 flex-1，严格垂直居中放置） */}
+          {/* 中间：章节胶囊 Tab 切换（独占居中 flex-1，全端吸顶渲染） */}
           <div className="flex flex-1 min-w-0 items-center justify-center">
             <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar py-1">
               {(
                 [
                   ["overview", "概览"],
-                  ...plan.days.map(
-                    (d) =>
-                      [`day-${d.day}`, `第 ${d.day} 天`] as [string, string],
-                  ),
+                  ...(result.plans[0]?.transport ? [["transport", "交通"]] : []),
+                  ...plan.days.map((d) => [`day-${d.day}`, `第 ${d.day} 天`]),
                   ["budget", "预算"],
-                  ...(result.must_include?.length
-                    ? ([["must-include", "必去"]] as [string, string][])
-                    : []),
+                  ...(result.must_include?.length ? [["must-include", "必去"]] : []),
                 ] as [string, string][]
               ).map(([id, label]) => (
                 <button
@@ -580,7 +605,19 @@ export default function PlanDetailPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-3xl space-y-24 px-5 py-10 pb-36 sm:px-8 sm:py-14">
+      <div className="mx-auto max-w-6xl px-4 sm:px-8 py-10 pb-36 sm:py-14 flex flex-col xl:flex-row items-start justify-center gap-8 min-w-0">
+        <main className="w-full max-w-3xl space-y-24 shrink-0 min-w-0 order-1 xl:order-2">
+          {result.weather && (
+            <section className="reveal-up xl:hidden">
+              <WeatherStrip data={result.weather} />
+            </section>
+          )}
+
+          {result.plans[0]?.transport && (
+            <section id="transport" className="reveal-up scroll-mt-24">
+              <TransportCard data={result.plans[0].transport} />
+            </section>
+          )}
         {plan.days.map((day, dayIndex) => {
           const weatherLabel = dayWeatherLabel(day.day, weatherDays);
           return (
@@ -865,6 +902,17 @@ export default function PlanDetailPage() {
           </section>
         )}
       </main>
+
+        {/* 行程脊柱 (PC ≥1280px) 放置在 DOM 顺序后方，但在视觉上呈现在正文左侧并固定跟随滑动 */}
+        <div className="order-2 xl:order-1 shrink-0 xl:sticky xl:top-24">
+          <TripSpine
+            days={plan.days}
+            weather={result.weather}
+            activeDay={activeDayNumber}
+            onDayClick={(dayNum) => scrollTo(`day-${dayNum}`)}
+          />
+        </div>
+      </div>
 
       {/* 地图 FAB */}
       <div className="fixed bottom-8 right-5 z-50 flex flex-col items-end gap-3 sm:right-8">
