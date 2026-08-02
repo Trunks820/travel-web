@@ -10,6 +10,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [retrying, setRetrying] = useState(false);
 
+  const isDemo =
+    location.search.includes("job_id=demo") ||
+    location.pathname.startsWith("/demo");
+  if (isDemo) {
+    return <>{children}</>;
+  }
+
   if (!bootstrapped) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3">

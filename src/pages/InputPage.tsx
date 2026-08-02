@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { MultiCitySelect } from '../components/input/MultiCitySelect';
 import { DateRangeInput } from '../components/input/DateRangeInput';
-import { BudgetSlider } from '../components/input/BudgetSlider';
 import { MorePreferences } from '../components/input/MorePreferences';
 import { useRotatingBackground, cityNameOfImage } from '../components/input/RotatingBackground';
 import { submitTrip, ApiRequestError } from '../services/api';
@@ -189,7 +188,6 @@ export default function InputPage() {
   const [pace, setPace] = useState(
     storedPrefs?.includes('轻松') ? 20 : storedPrefs?.includes('紧凑') ? 80 : 60,
   );
-  const [budget, setBudget] = useState(stored?.budget ?? 5000);
   const [notes, setNotes] = useState(stored?.notes ?? '');
 
   const [mustInclude, setMustInclude] = useState<MustIncludeItem[]>(stored?.must_include ?? []);
@@ -311,7 +309,6 @@ export default function InputPage() {
       preferences: [...preferences, paceTag],
       avoid: [],
       notes: notes.trim(),
-      budget,
       ...(mustInclude.length > 0 && { must_include: mustInclude }),
       ...(commuteMode !== 'driving' && { commute_mode: commuteMode }),
       ...(dailyStart && { daily_start: dailyStart }),
@@ -351,10 +348,17 @@ export default function InputPage() {
       return;
     }
 
-    // 额度为 0 拦截（避免写入待发 Pending）
-    if ((quota?.remaining ?? 3) <= 0) {
-      setSubmitError('公测免费额度已耗尽 (0/3)，无法创建新行程');
-      return;
+    // 额度校验与拦截（避免写入待发 Pending）
+    if (authStatus === 'authenticated') {
+      if (!quota) {
+        setSubmitError('额度读取中，请稍后重试');
+        return;
+      }
+      if (quota.remaining <= 0) {
+        const limitSuffix = typeof quota.limit === 'number' ? ` (0/${quota.limit})` : '';
+        setSubmitError(`公测免费额度已耗尽${limitSuffix}，无法创建新行程`);
+        return;
+      }
     }
 
     // 活动任务拦截（避免写入待发 Pending）
@@ -615,24 +619,6 @@ export default function InputPage() {
               </div>
             </div>
 
-            <div>
-              <div className="mb-3 flex items-center">
-                <label className="text-sm font-bold text-gray-700" id="budget-label">
-                  预算范围
-                </label>
-                <span className="ml-3 text-xs font-normal text-gray-400">不含往返大交通</span>
-              </div>
-              <div className="px-2">
-                <BudgetSlider
-                  min={1000}
-                  max={12000}
-                  value={budget}
-                  onChange={setBudget}
-                  labelId="budget-label"
-                />
-              </div>
-            </div>
-
             <MorePreferences
               city={cities[0] ?? ''}
               mustInclude={mustInclude}
@@ -672,7 +658,11 @@ export default function InputPage() {
               </div>
               <button
                 type="submit"
-                disabled={submitting || (authStatus === 'authenticated' && ((quota?.remaining ?? 3) <= 0 || !!activeTrip))}
+                disabled={
+                  submitting ||
+                  (authStatus === 'authenticated' &&
+                    (!quota || quota.remaining <= 0 || !!activeTrip))
+                }
                 aria-busy={submitting}
                 className={submitBtnClass}
               >
@@ -683,8 +673,12 @@ export default function InputPage() {
                   </>
                 ) : activeTrip ? (
                   '行程规划中...'
-                ) : authStatus === 'authenticated' && (quota?.remaining ?? 3) <= 0 ? (
-                  '公测额度已耗尽 (0/3)'
+                ) : authStatus === 'authenticated' && !quota ? (
+                  '额度读取中...'
+                ) : authStatus === 'authenticated' && quota && quota.remaining <= 0 ? (
+                  typeof quota.limit === 'number'
+                    ? `公测额度已耗尽 (0/${quota.limit})`
+                    : '公测额度已耗尽'
                 ) : (
                   '帮我排行程'
                 )}
@@ -714,7 +708,11 @@ export default function InputPage() {
         </div>
         <button
           type="button"
-          disabled={submitting || (authStatus === 'authenticated' && ((quota?.remaining ?? 3) <= 0 || !!activeTrip))}
+          disabled={
+            submitting ||
+            (authStatus === 'authenticated' &&
+              (!quota || quota.remaining <= 0 || !!activeTrip))
+          }
           aria-busy={submitting}
           onClick={handleSubmit}
           className={submitBtnClass}
@@ -726,8 +724,12 @@ export default function InputPage() {
             </>
           ) : activeTrip ? (
             '行程规划中...'
-          ) : authStatus === 'authenticated' && (quota?.remaining ?? 3) <= 0 ? (
-            '公测额度已耗尽 (0/3)'
+          ) : authStatus === 'authenticated' && !quota ? (
+            '额度读取中...'
+          ) : authStatus === 'authenticated' && quota && quota.remaining <= 0 ? (
+            typeof quota.limit === 'number'
+              ? `公测额度已耗尽 (0/${quota.limit})`
+              : '公测额度已耗尽'
           ) : (
             '帮我排行程'
           )}

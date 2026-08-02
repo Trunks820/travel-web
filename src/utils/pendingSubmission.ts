@@ -20,7 +20,6 @@ export function generateFingerprint(formData: TripFormData): string {
         }
       : null,
     avoid: formData.avoid ? formData.avoid.map((s) => s.trim()) : [],
-    budget: formData.budget,
     commute_mode: formData.commute_mode ?? "driving",
     daily_end: formData.daily_end ?? "",
     daily_start: formData.daily_start ?? "",

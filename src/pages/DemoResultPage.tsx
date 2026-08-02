@@ -9,6 +9,15 @@ const MOCK_RESULT: TripResult = {
   result_id: 999,
   city: { name: "重庆" },
   request: { days: 3, people_count: 1, preferences: ["美食", "citywalk"], avoid: ["太累"] },
+  weather: {
+    status: "ok",
+    city: "重庆",
+    days: [
+      { day: 1, date: "2026-08-05", weather_text: "晴", temp_min_c: 28, temp_max_c: 39, wind_text: "东南风 2级", icon_code: "sun", reminders: ["天气较热，请准备防晒"] },
+      { day: 2, date: "2026-08-06", weather_text: "多云", temp_min_c: 27, temp_max_c: 37, wind_text: "微风 1级", icon_code: "cloud", reminders: [] },
+      { day: 3, date: "2026-08-07", weather_text: "雷阵雨", temp_min_c: 25, temp_max_c: 32, wind_text: "北风 3级", icon_code: "rain", reminders: ["第3天有阵雨，出行请携带雨伞"] }
+    ]
+  },
   plans: [
     {
       plan_id: "plan_a",
@@ -16,6 +25,41 @@ const MOCK_RESULT: TripResult = {
       summary: "经典地标与老街体验，融合渝中老城风情",
       tags: ["轻松", "经典", "citywalk"],
       pace: { level: "RELAXED", commute_status: "WITHIN_LIMIT", total_commute_minutes: 65 },
+      transport: {
+        from_city: "成都",
+        to_city: "重庆",
+        query_date: "2026-08-05",
+        source: "realtime",
+        modes: [
+          {
+            mode: "train",
+            min_duration_minutes: 90,
+            price_range: "¥154-168",
+            price_source: "realtime",
+            daily_count: 45,
+            data_source: "realtime",
+            availability_status: "available_at_query",
+            availability_checked_at: "2026-08-02T10:00:00Z",
+            options: [
+              { type: "train", no: "G8501", departure_time: "08:00", arrival_time: "09:30", duration_minutes: 90, price: "154", departure_station: "成都东", arrival_station: "重庆北", airline: null },
+              { type: "train", no: "G8503", departure_time: "09:15", arrival_time: "10:45", duration_minutes: 90, price: "154", departure_station: "成都东", arrival_station: "重庆北", airline: null }
+            ]
+          },
+          {
+            mode: "flight",
+            min_duration_minutes: 60,
+            price_range: "¥450(参考价)",
+            price_source: "static_reference",
+            daily_count: 8,
+            data_source: "static_fallback",
+            availability_status: "unknown",
+            availability_checked_at: null,
+            options: [
+              { type: "flight", no: "CA4101", departure_time: "11:00", arrival_time: "12:00", duration_minutes: 60, price: null, departure_station: "T2", arrival_station: "T3", airline: "国航" }
+            ]
+          }
+        ]
+      },
       days: [
         {
           day: 1, title: "渝中老城漫步",
@@ -138,7 +182,7 @@ export default function DemoResultPage() {
       return;
     }
     setResult("999", "demo", MOCK_RESULT);
-    navigate("/result/999?job_id=demo", { replace: true });
+    navigate("/plan/999/plan_a?job_id=demo", { replace: true });
   }, [setResult, navigate, fixtureKey]);
 
   return null;

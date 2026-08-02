@@ -30,8 +30,8 @@ export interface TripFormData {
   preferences: string[];
   avoid: string[];
   notes: string;
-  /** 人均预算上限（元），来自首页预算滑块 */
-  budget: number;
+  /** 人均预算上限（元），旧版本表单控件（已废弃/可选） */
+  budget?: number;
   /** v0.8.9 更多偏好（选填，不传走后端默认） */
   must_include?: MustIncludeItem[];
   /** v0.8.10 市内出行方式（walking 已从合法选项移除） */
@@ -51,5 +51,4 @@ export const DEFAULT_FORM: TripFormData = {
   preferences: [],
   avoid: [],
   notes: "",
-  budget: 5000,
 };
