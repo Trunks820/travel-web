@@ -21,6 +21,37 @@ import {
 import type { RequestedCommuteMode, MustIncludeItem } from '../types/form';
 import type { TripFormData } from '../types/form';
 
+const PINYIN_MAP: Record<string, string> = {
+  '杭州': 'HANGZHOU',
+  '北京': 'BEIJING',
+  '上海': 'SHANGHAI',
+  '重庆': 'CHONGQING',
+  '成都': 'CHENGDU',
+  '西安': 'XI\'AN',
+  '南京': 'NANJING',
+  '长沙': 'CHANGSHA',
+  '青岛': 'QINGDAO',
+  '桂林': 'GUILIN',
+  '京都': 'KYOTO',
+  '东京': 'TOKYO',
+  '三亚': 'SANYA',
+};
+
+const EPITHET_MAP: Record<string, string> = {
+  杭州: '烟雨江南 · 西子湖畔',
+  北京: '千年古都 · 皇家气韵',
+  上海: '摩登海派 · 璀璨江景',
+  重庆: '立体山城 · 赛博夜景',
+  成都: '天府之国 · 慢享生活',
+  西安: '十三朝古都 · 丝路起点',
+  南京: '六朝古都 · 金陵风雅',
+  长沙: '星城烟火 · 时尚长歌',
+  青岛: '红瓦绿树 · 碧海蓝天',
+  桂林: '山水甲天下 · 漓江美景',
+  京都: '关西古都 · 禅意风雅',
+  东京: '都市繁华 · 潮流前线',
+  三亚: '热带海岛 · 椰风海韵',
+};
 
 const PACE_TAGS = ['轻松', '适中', '紧凑'];
 
@@ -36,9 +67,6 @@ const PREFERENCE_OPTIONS = [
 ];
 
 
-/** 细密低对比噪点，叠在米色上像特种纸 */
-const PAPER_NOISE_SVG =
-  "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E\")";
 
 function PreferenceBtn({
   label,
@@ -54,10 +82,10 @@ function PreferenceBtn({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+      className={`rounded-2xl px-4 py-2.5 text-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
         active
-          ? 'border-primary-500 bg-primary-50 font-medium text-primary-700'
-          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+          ? 'bg-primary-500 font-bold text-white shadow-md shadow-primary-500/20 scale-105'
+          : 'bg-gray-100/60 text-gray-600 hover:bg-gray-200/80 hover:scale-[1.02]'
       }`}
     >
       {label}
@@ -127,6 +155,10 @@ function useImageAmbientColor(imageUrl: string | undefined, alpha = 0.12): strin
 
   return color;
 }
+
+/** 细密低对比噪点，叠在米色上像特种纸 */
+const PAPER_NOISE_SVG =
+  "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E\")";
 
 /**
  * PC 右栏 hybrid 表面：路书纸 + 轻噪点 + 左缘环境光
@@ -422,7 +454,7 @@ export default function InputPage() {
   };
 
   const submitBtnClass =
-    'flex w-full items-center justify-center rounded-2xl bg-accent-500 py-4 font-bold text-white shadow-lg shadow-accent-200 transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2';
+    'flex w-full items-center justify-center rounded-2xl bg-accent-500 py-4 font-bold text-white shadow-xl shadow-accent-500/20 transition-all duration-300 hover:bg-accent-600 hover:scale-[1.02] hover:shadow-2xl active:scale-95 disabled:scale-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2';
 
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -443,6 +475,7 @@ export default function InputPage() {
     );
   }, []);
 
+
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-sand-50 font-body text-gray-800 lg:flex-row">
       {/* 左栏 / 手机顶部图 */}
@@ -460,23 +493,29 @@ export default function InputPage() {
             aria-hidden="true"
           />
         )}
-        <div className="absolute inset-0 bg-black/25" aria-hidden="true" />
+        <div className="absolute inset-0 bg-black/30" aria-hidden="true" />
         <div
           className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/40 to-transparent lg:hidden"
           aria-hidden="true"
         />
 
-        <div className="absolute left-5 top-4 text-white lg:left-12 lg:top-12">
-          <p className="font-display text-xl font-bold tracking-[0.16em] lg:text-3xl lg:tracking-[0.18em]">
+        <div className="absolute left-6 top-6 text-white lg:left-12 lg:top-12 z-20">
+          <p className="font-display text-xl font-bold tracking-[0.16em] drop-shadow-md lg:text-2xl lg:tracking-[0.18em]">
             YUNTU
           </p>
-          <p className="mt-1 text-xs text-white/85 lg:mt-2 lg:text-sm">在路上，才是正经事</p>
-          <p className="mt-3 text-sm font-medium tracking-wide text-white/95 lg:hidden">{displayCity}</p>
         </div>
 
-        <div className="absolute bottom-12 left-12 hidden items-center gap-4 text-white/85 lg:flex">
-          <div className="h-px w-8 bg-white/60" aria-hidden="true" />
-          <span className="text-sm tracking-widest">{displayCity}</span>
+        {/* 杂志排版：大号拼音水印 + 城市标语 */}
+        <div className="absolute bottom-10 left-6 z-20 text-white lg:bottom-16 lg:left-12 pointer-events-none">
+          <h2 className="font-display text-5xl font-black tracking-tighter opacity-90 drop-shadow-lg sm:text-6xl lg:text-7xl lg:leading-tight">
+            {PINYIN_MAP[displayCity] || 'DESTINATION'}
+          </h2>
+          <div className="mt-2 flex items-center gap-4 lg:mt-6">
+            <div className="h-px w-8 bg-white/60 lg:w-16" />
+            <p className="font-serif text-sm font-light tracking-widest drop-shadow-md lg:text-lg">
+              {displayCity} <span className="mx-2 opacity-60">/</span> {EPITHET_MAP[displayCity] || '探索未知的下一个目的地'}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -524,7 +563,7 @@ export default function InputPage() {
                 value={fromCity}
                 onChange={(e) => setFromCity(e.target.value)}
                 maxLength={20}
-                className="h-11 w-full rounded-xl border border-gray-100 bg-gray-50 px-4 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="h-14 w-full rounded-2xl bg-gray-100/60 px-5 text-sm placeholder:text-gray-400 shadow-inner transition-all duration-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 focus:shadow-md"
                 placeholder="你从哪座城市出发？"
               />
             </div>
@@ -557,7 +596,7 @@ export default function InputPage() {
                   onClick={() => setPeople((p) => Math.max(1, p - 1))}
                   disabled={people <= 1}
                   aria-label="减少人数"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100/60 text-gray-700 transition-all duration-300 hover:bg-gray-200/80 hover:scale-[1.05] disabled:scale-100 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
                 >
                   <i className="fas fa-minus text-xs" aria-hidden="true" />
                 </button>
@@ -569,7 +608,7 @@ export default function InputPage() {
                   onClick={() => setPeople((p) => Math.min(10, p + 1))}
                   disabled={people >= 10}
                   aria-label="增加人数"
-                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 text-gray-600 transition-colors hover:border-primary-300 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100/60 text-gray-700 transition-all duration-300 hover:bg-gray-200/80 hover:scale-[1.05] disabled:scale-100 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
                 >
                   <i className="fas fa-plus text-xs" aria-hidden="true" />
                 </button>
@@ -642,7 +681,7 @@ export default function InputPage() {
                 id="trip-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="min-h-[60px] w-full resize-none rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="min-h-[80px] w-full resize-none rounded-2xl bg-gray-100/60 px-5 py-4 text-sm placeholder:text-gray-400 shadow-inner transition-all duration-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-300 focus:shadow-md"
                 placeholder="选填，补充你的出行说明"
                 rows={2}
               />

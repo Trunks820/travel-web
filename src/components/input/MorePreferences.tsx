@@ -59,7 +59,7 @@ function TimeOptionalInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={ariaLabel}
-        className={`w-full rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500 ${
+        className={`w-full rounded-xl bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-primary-300 transition-all ${
           value ? "text-gray-800" : "text-transparent caret-transparent"
         }`}
       />
@@ -68,7 +68,7 @@ function TimeOptionalInput({
           type="button"
           tabIndex={-1}
           onClick={openPicker}
-          className="absolute inset-0 z-[1] flex items-center justify-center rounded-lg bg-gray-50 text-sm text-gray-400 hover:bg-gray-100/80"
+          className="absolute inset-0 z-[1] flex items-center justify-center rounded-xl bg-white text-sm text-gray-400 shadow-inner hover:bg-gray-50 transition-all"
         >
           {emptyLabel}
         </button>
@@ -193,7 +193,7 @@ export function MorePreferences({
           disabled={full}
           placeholder={full ? `最多 ${MAX_MUST_INCLUDE} 个` : "输入地点名，回车添加"}
           aria-label="输入必去地点"
-          className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-2xl bg-white px-4 py-3 text-sm placeholder:text-gray-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-primary-300 disabled:cursor-not-allowed disabled:opacity-60 transition-all duration-300"
         />
 
         {hotPlaces.length > 0 && (
@@ -231,10 +231,10 @@ export function MorePreferences({
                 role="radio"
                 aria-checked={active}
                 onClick={() => onCommuteModeChange(value)}
-                className={`flex flex-1 items-center justify-center rounded-lg border px-2 py-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                className={`flex flex-1 items-center justify-center rounded-2xl px-2 py-3 text-xs font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
                   active
-                    ? "border-primary-400 bg-primary-50 font-medium text-primary-600"
-                    : "border-gray-100 bg-white text-gray-600 hover:border-gray-300"
+                    ? "bg-primary-500 text-white shadow-md shadow-primary-500/20 scale-[1.02]"
+                    : "bg-white text-gray-600 shadow-sm hover:bg-gray-50 hover:scale-[1.01]"
                 }`}
               >
                 {label}
@@ -337,7 +337,7 @@ export function MorePreferences({
           onChange={(e) => onAccommodationNameChange?.(e.target.value)}
           placeholder="如：解放碑威斯汀酒店 / 观音桥"
           aria-label="输入住宿地点"
-          className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="w-full rounded-2xl bg-white px-4 py-3 text-sm placeholder:text-gray-400 shadow-inner focus:outline-none focus:ring-2 focus:ring-primary-300 transition-all duration-300"
         />
       </div>
     </div>
@@ -346,12 +346,12 @@ export function MorePreferences({
   if (embedded) return body;
 
   return (
-    <div ref={rootRef} className="rounded-xl border border-gray-100">
+    <div ref={rootRef} className="rounded-3xl bg-gray-100/40 border border-transparent transition-all duration-300 hover:bg-gray-100/60">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+        className="flex w-full items-center justify-between rounded-3xl px-5 py-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
       >
         <span className="flex min-w-0 items-center font-bold text-gray-700">
           更多偏好

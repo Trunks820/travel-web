@@ -62,10 +62,10 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
         {value.map((city, idx) => (
           <div
             key={city}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm ${
+            className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-medium shadow-sm transition-all duration-300 ${
               idx === 0
-                ? 'bg-primary-500 text-white'
-                : 'bg-primary-50 text-gray-700 border border-primary-100'
+                ? 'bg-primary-500 text-white shadow-primary-500/20 scale-[1.02]'
+                : 'bg-gray-100/60 text-gray-700 hover:bg-gray-200/80'
             }`}
           >
             <span>{city}</span>
@@ -90,10 +90,10 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
               aria-expanded={pickerOpen}
               aria-haspopup="listbox"
               aria-invalid={!!error}
-              className={`flex items-center px-4 py-2 rounded-lg text-sm border border-dashed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+              className={`flex items-center px-5 py-2.5 rounded-2xl text-sm transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
                 error
-                  ? 'border-red-500 text-red-600 hover:border-red-600'
-                  : 'border-gray-300 text-gray-500 hover:border-primary-500 hover:text-primary-500'
+                  ? 'bg-red-50 text-red-600'
+                  : 'bg-gray-100/60 text-gray-500 hover:bg-gray-200/80 hover:text-gray-900 hover:scale-[1.02]'
               }`}
             >
               {multiCity ? '+ 添加城市' : value.length > 0 ? '更换城市' : '+ 选择城市'}
@@ -101,7 +101,7 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
             {pickerOpen && (
               <div
                 role="listbox"
-                className="absolute top-full left-0 mt-2 z-30 w-64 bg-white rounded-xl border border-gray-100 shadow-card p-3"
+                className="absolute top-full left-0 mt-3 z-30 w-72 bg-white/95 backdrop-blur-3xl rounded-3xl border border-white/40 shadow-[0_8px_30px_rgba(0,0,0,0.12)] p-4"
               >
                 <p className="text-xs text-gray-400 mb-2">当前支持以下城市：</p>
                 <div className="grid grid-cols-3 gap-1.5">
@@ -113,7 +113,7 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
                       aria-selected={false}
                       onClick={() => addCity(city)}
                       onMouseEnter={() => prefetchCity(city)}
-                      className="rounded-lg px-2 py-1.5 text-sm text-gray-600 hover:bg-primary-50 hover:text-primary-600 transition-colors text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                      className="rounded-xl px-2 py-2 text-sm text-gray-600 hover:bg-gray-100/80 hover:text-gray-900 transition-colors text-center focus-visible:outline-none"
                     >
                       {city}
                     </button>
@@ -134,7 +134,7 @@ export function MultiCitySelect({ value, onChange, multiCity = true, error }: Mu
             type="button"
             onClick={() => addCity(city)}
             onMouseEnter={() => prefetchCity(city)}
-            className="rounded-md bg-gray-50 border border-gray-100 px-2.5 py-1 text-xs text-gray-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+            className="rounded-xl bg-gray-100/60 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-200/80 hover:text-gray-900 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 hover:scale-105"
           >
             {city}
           </button>

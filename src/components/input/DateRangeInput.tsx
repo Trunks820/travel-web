@@ -167,8 +167,8 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
           onClick={() => (open ? setOpen(false) : openPanel())}
           aria-haspopup="dialog"
           aria-expanded={open}
-          className={`flex w-full items-center rounded-xl border bg-gray-50 px-3 py-2.5 text-left transition-colors sm:px-4 ${
-            open ? "border-primary-400 ring-2 ring-primary-300" : "border-gray-100 hover:border-primary-300"
+          className={`flex w-full items-center rounded-2xl bg-gray-100/60 px-4 py-3.5 text-left transition-all duration-300 sm:px-5 ${
+            open ? "bg-white shadow-md ring-2 ring-primary-300" : "hover:bg-gray-200/80 shadow-inner"
           }`}
         >
           <i className="far fa-calendar text-primary-500" aria-hidden="true" />
@@ -185,7 +185,7 @@ export function DateRangeInput({ startDate, endDate, onStartChange, onEndChange 
           <div
             role="dialog"
             aria-label="选择旅行日期"
-            className="absolute left-0 top-full z-40 mt-2 w-[300px] rounded-2xl border border-gray-100 bg-white p-4 shadow-card"
+            className="absolute left-0 top-full z-40 mt-3 w-[300px] rounded-3xl border border-white/40 bg-white/95 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur-3xl"
           >
             {/* 月份切换 */}
             <div className="mb-3 flex items-center justify-between">
