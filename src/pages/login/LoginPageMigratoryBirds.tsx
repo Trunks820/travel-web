@@ -207,7 +207,7 @@ export default function LoginPageMigratoryBirds() {
             style={{
               backgroundImage: `url('${item.img}')`,
               opacity: idx === playlistIndex ? 1 : 0,
-              transform: `scale(1.05) translateX(${cameraX * 0.25}px)`,
+              transform: `scale(1.2) translateX(${Math.max(-60, Math.min(60, cameraX * 0.1))}px)`,
               willChange: 'transform, opacity',
             }}
           />
