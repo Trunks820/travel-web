@@ -1,7 +1,11 @@
 # Travel Web
 
-**Date**: 2026-06-12  
-**Status**: v1.0-web MVP Complete / 视觉优化中
+**Original Date**: 2026-06-12
+**Current Status (2026-08-01)**: v0.1 Core Live / v0.1.1 Display Name Live UAT Accepted / Dynamic Quota Display Repair Pending / v0.2 Implementation Pending
+
+当前版本与实施状态以 [`roadmap.md`](./roadmap.md) 和
+[`api-contract.md`](./api-contract.md) 为准；历史设计稿与差距分析只用于追溯，
+不能直接作为新的实施范围。
 
 ---
 
@@ -34,10 +38,11 @@
 |------|------|
 | [product-scope.md](./product-scope.md) | 产品范围、页面定义、Non-Goals |
 | [api-contract.md](./api-contract.md) | 前后端 API 合同（字段级详情） |
-| [tech-design.md](./tech-design.md) | 技术设计、项目结构、响应式、地图、会话 |
+| [tech-design.md](./tech-design.md) | 技术设计与代码导航快照；实施前仍须核对当前源码 |
 | [deployment.md](./deployment.md) | 部署方案（生产 + 开发环境） |
 | [roadmap.md](./roadmap.md) | 全版本开发路线图（Milestone 级） |
-| [design-gap-analysis.md](./design-gap-analysis.md) | V1 设计稿差距分析 & 三阶段实施路线（A/B/C） |
+| [design-gap-analysis.md](./design-gap-analysis.md) | 2026-06-12 V1 设计差距历史快照；不是当前实施路线 |
+| [v0.9.3-transport-and-detail-layout.md](./v0.9.3-transport-and-detail-layout.md) | 大交通推荐卡 + 详情页信息层重构（行程脊柱/天气细带/预算入 Hero）实施方案 |
 
 ## 设计稿
 
@@ -51,7 +56,7 @@ V1 目标设计稿存放于 `mockups/` 目录：
 
 ---
 
-## Quick Start (Phase 1 完成后)
+## Quick Start
 
 ```bash
 # 安装依赖

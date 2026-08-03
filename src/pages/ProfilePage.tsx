@@ -347,19 +347,19 @@ export default function ProfilePage() {
             <div className="grid grid-cols-3 gap-3 text-center sm:gap-4">
               <div className="rounded-2xl border border-sand-100 bg-sand-50 p-4">
                 <p className="text-2xl font-bold text-gray-800">
-                  {quota?.limit ?? 3}
+                  {quota ? quota.limit : "-"}
                 </p>
                 <p className="mt-1 text-xs text-gray-500">总额度</p>
               </div>
               <div className="rounded-2xl border border-sand-100 bg-sand-50 p-4">
                 <p className="text-2xl font-bold text-primary-600">
-                  {quota?.consumed ?? 0}
+                  {quota ? quota.consumed : "-"}
                 </p>
                 <p className="mt-1 text-xs text-gray-500">已使用</p>
               </div>
               <div className="rounded-2xl border border-sand-100 bg-sand-50 p-4">
                 <p className="text-2xl font-bold text-accent-500">
-                  {quota?.remaining ?? 3}
+                  {quota ? quota.remaining : "-"}
                 </p>
                 <p className="mt-1 text-xs text-gray-500">剩余可用</p>
               </div>

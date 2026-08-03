@@ -1,6 +1,13 @@
 # API Contract
 
-Status: **v0.1 Documentation Repair Complete / Implementation Pending**
+Status (2026-08-01):
+
+- **v0.1 core contract: Implemented / Real BFF Integrated**
+- **v0.1.1 Display Name: Implemented / Owner Live UAT Accepted**
+- **v0.2 Linux.do and feedback extension: Documentation Only / Implementation Pending**
+
+Deployment state must still be reverified for each release; this document does
+not turn a repository implementation into permanent production evidence.
 
 > ⚠️ **规范声明**：本文档为 `travel-web` 与 BFF (`travel-web-api`) 对接的唯一权威接口契约。所有浏览器发起的 API 请求均通过同源 `/api` 由 BFF 代理与鉴权。
 
@@ -96,6 +103,8 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 - **字段说明**:
   - `user.display_name`: 必填字符串。仅作为可修改的视觉展示名称，绝非登录身份、邮箱、User ID、权限或行程所有权标识。
   - `user.display_name_change_available_at`: RFC 3339 时间戳字符串或 `null`。若非 `null` 且晚于当前时间，表示尚处于修改冷却期。
+  - `quota.limit` 与 `quota.remaining` 均为服务端权威值。前端必须显示服务端返回的
+    `remaining / limit`，不得假定公测上限恒为 `3`。
 - **Unauthenticated**: `401 AUTH_REQUIRED`（未登录）。
 
 ### 2.4 PATCH `/api/me/profile` — 修改 Display Name
@@ -126,18 +135,26 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
   - `422 DISPLAY_NAME_RESERVED`: 该名称为系统保留名称
   - `429 DISPLAY_NAME_CHANGE_COOLDOWN`: 处于修改冷却期中
 
-### 2.4 POST `/api/auth/logout` — 主动退出登录
+### 2.5 POST `/api/auth/logout` — 主动退出登录
 
 - **说明**: 销毁服务端 Session 并清除 Cookie，支持幂等调用。
 - **Response 200**: `{"ok": true}`
 
-### 2.5 POST `/api/me/closure/send-code` — 发送注销二次验证码
+### 2.6 POST `/api/me/closure/send-code` — 发送注销二次验证码
 
 - **说明**: 向当前已验证身份的邮箱发送独立 6 位注销验证码。
+- **Response 200**:
+  ```json
+  {
+    "ok": true,
+    "challenge_id": "otp_opaque",
+    "resend_after_seconds": 60
+  }
+  ```
 
-### 2.6 POST `/api/me/closure/confirm` — 确认注销账号
+### 2.7 POST `/api/me/closure/confirm` — 确认注销账号
 
-- **Request Body**: `{"code": "123456"}`
+- **Request Body**: `{"challenge_id": "otp_opaque", "code": "123456"}`
 - **冲突阻断**: 若当前账号有活动中的行程任务（`SUBMITTING` / `PENDING` / `RUNNING`），BFF 返回 `409 ACTIVE_TRIP_IN_PROGRESS`，阻断注销。
 - **注销效果**: 成功后删除登录身份与 Session，去标识化切断与历史行程的所有权关联（保留匿名内容及质量数据）。
 
@@ -256,7 +273,10 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 
 ---
 
-## 6. v0.2 Linux.do OAuth 扩展与质量反馈
+## 6. v0.2 Linux.do OAuth 扩展与质量反馈（规划契约）
+
+本节是 v0.2 目标契约，不是当前实现或联调证据。开始实现前仍需按对应版本
+文档重新验收。
 
 ### 6.1 Linux.do OAuth 路由
 
@@ -298,6 +318,9 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 
 ## 7. 稳定错误代码汇总 (Stable Error Codes)
 
+下表同时收录当前 v0.1/v0.1.1 错误码与第 6 节规划中的 v0.2 错误码；OAuth、
+身份关联和反馈相关条目不得据此宣称已经实现。
+
 | HTTP | Code                                                | 场景与含义                                         |
 | ---- | --------------------------------------------------- | -------------------------------------------------- |
 | 400  | `BAD_REQUEST`                                       | 请求格式不合法                                     |
@@ -315,7 +338,7 @@ Status: **v0.1 Documentation Repair Complete / Implementation Pending**
 | 422  | `VALIDATION_ERROR` / `CITY_NOT_SUPPORTED`           | 参数校验失败或城市不支持                           |
 | 422  | `DISPLAY_NAME_INVALID`                              | 显示名称格式不合法                                 |
 | 422  | `DISPLAY_NAME_RESERVED`                             | 系统保留名称                                       |
-| 429  | `QUOTA_EXHAUSTED`                                   | 公测额度已耗尽 (0/3)                               |
+| 429  | `QUOTA_EXHAUSTED`                                   | 公测额度已耗尽；具体额度上限读取服务端 `quota.limit` |
 | 429  | `DISPLAY_NAME_CHANGE_COOLDOWN`                      | 显示名称修改仍处于冷却期                           |
 | 502  | `OAUTH_PROVIDER_ERROR` / `GENERATION_SERVICE_ERROR` | 第三方或下游服务异常                               |
 | 503  | `GENERATION_SERVICE_UNAVAILABLE`                    | 生成服务暂不可用                                   |

@@ -37,7 +37,6 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
     );
   }
 
-  const remaining = quota?.remaining ?? 3;
   const isReserved = (quota?.reserved ?? 0) > 0 || !!activeTrip;
 
   const handleLogout = async () => {
@@ -60,7 +59,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
           className={`shadow-xs hidden items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors sm:flex ${
             isReserved
               ? "border border-accent-200 bg-accent-50 text-accent-700"
-              : remaining > 0
+              : quota && quota.remaining > 0
                 ? "border border-primary-100 bg-primary-50 text-primary-700"
                 : "border border-amber-200 bg-amber-50 text-amber-700"
           }`}
@@ -71,7 +70,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
             <span>⚡</span>
           )}
           <span>
-            额度 {remaining}/3
+            {quota ? `额度 ${quota.remaining}/${quota.limit}` : "额度读取中"}
             {isReserved && (
               <button
                 onClick={() =>

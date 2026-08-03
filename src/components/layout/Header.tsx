@@ -15,7 +15,6 @@ export default function Header() {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const remaining = quota?.remaining ?? 3;
   const handleLogout = async () => {
     await logout();
     navigate("/", { replace: true });
@@ -68,7 +67,7 @@ export default function Header() {
         <div className="flex items-center lg:hidden">
           {status === "authenticated" && (
             <div className="mr-3 flex items-center gap-1 rounded-full border border-primary-100 bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700">
-              ⚡ {remaining}/3
+              ⚡ {quota ? `${quota.remaining}/${quota.limit}` : "额度读取中"}
             </div>
           )}
           <button

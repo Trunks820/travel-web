@@ -1,6 +1,6 @@
 # Frontend Roadmap
 
-> Status: **Frontend Documentation Repair Complete / Implementation Pending**
+> Status (2026-08-01): **v0.1 Core Implemented / v0.1.1 Display Name Live UAT Accepted / Dynamic Quota Display Repair Pending / v0.2 Implementation Pending**
 
 ---
 
@@ -8,7 +8,7 @@
 
 云途（YunTu）前端仅聚焦于以下两个**已承诺**的产品版本：
 
-1. **v0.1 Controlled Public Beta**（受控公测）：邀请码 + 邮箱验证码登录、3 次公测生成额度、7 天历史行程、PDF 导出、账号注销。
+1. **v0.1 Controlled Public Beta**（受控公测）：邀请码 + 邮箱验证码登录、服务端权威公测额度、7 天历史行程、PDF 导出、账号注销。
 2. **v0.2 Linux.do Growth Validation**（增长验证）：Linux.do OAuth2 快捷登录（L1 免邀请码）、显式账号关联、行程质量反馈、不支持城市需求收集。
 
 > 🚨 **清理与过时方案声明 (Historical Cleanup)**：
@@ -30,7 +30,7 @@
 |---|---|---|
 | **独立登录** | `/login` | 邮箱验证码登录/邀请码注册 Tab 切换；OTP 成功校验后触发模式纠偏；支持安全 `returnTo` 恢复。 |
 | **受保护路由** | `/planning/*`, `/result/*`, `/plan/*`, `/history`, `/profile` | 前端路由守卫 + BFF 双重鉴权；未登录重定向至 `/login`。 |
-| **额度管控** | Header `⚡ 额度 N/3` 胶囊 | 实时显示 3/2/1/0 额度；`RESERVED` 预占时按钮禁用并旋转 Spinner；额度为 0 时禁用提交。 |
+| **额度管控** | Header `⚡ 额度 remaining/limit` 胶囊 | `remaining` 与 `limit` 都读取 `GET /api/me`；`RESERVED` 预占时按钮禁用并旋转 Spinner；额度为 0 时禁用提交。不得硬编码 `/3`。 |
 | **失败重试** | `/planning/:jobId` | 失败/超时/拒绝时展示 `✓ 本次失败未扣除额度（已自动退还）`，提供 `[ 再试一次 ]` 同参原地重试。 |
 | **历史行程** | `/history` | 呈现近 7 天卡片流；标注 `7天后自动归档`；失败卡片提供 `retry_input.trip_request` 一键重试。 |
 | **PDF 导出** | 详情页 `[ PDF ]` 按钮 | 校验用户所有权；未登录/非本人拦截；继承 `useArtifact` 的生成中/成功/失败状态。 |
@@ -66,10 +66,11 @@
 
 | 前端 Milestone | 需要的 BFF API | 状态 |
 |---|---|---|
-| v0.1 Auth | `POST /api/auth/email/send-code`, `POST /api/auth/email/verify`, `POST /api/auth/logout` | 待联调 |
-| v0.1 Quota & Me | `GET /api/me` | 待联调 |
-| v0.1 Submit | `POST /api/trip/async` (仅 `trip_request` + `request_id`) | 待联调 |
-| v0.1 History | `GET /api/me/trips` (带 `retry_input`) | 待联调 |
-| v0.1 Closure | `POST /api/me/closure/send-code`, `POST /api/me/closure/confirm` | 待联调 |
-| v0.2 OAuth | `GET /api/auth/oauth/linux-do/start`, `/callback`, `GET /api/me/identities` | 待联调 |
-| v0.2 Feedback | `POST /api/trip/results/{id}/feedback` | 待联调 |
+| v0.1 Auth | `POST /api/auth/email/send-code`, `POST /api/auth/email/verify`, `POST /api/auth/logout` | 已实现并接入真实 BFF |
+| v0.1 Quota & Me | `GET /api/me` | API 已实现；前端动态 `limit` 展示修复待完成 |
+| v0.1 Submit | `POST /api/trip/async` (仅 `trip_request` + `request_id`) | 已实现并接入真实 BFF |
+| v0.1 History | `GET /api/me/trips` (带 `retry_input`) | 已实现并接入真实 BFF |
+| v0.1 Closure | `POST /api/me/closure/send-code`, `POST /api/me/closure/confirm` | 已实现；破坏性线上注销 UAT 不作为常规验收步骤 |
+| v0.1.1 Display Name | `PATCH /api/me/profile` | 已实现；Owner 正式用户 Live UAT 已通过 |
+| v0.2 OAuth | `GET /api/auth/oauth/linux-do/start`, `/callback`, `GET /api/me/identities` | Documentation Only / Implementation Pending |
+| v0.2 Feedback | `POST /api/trip/results/{id}/feedback` | Documentation Only / Implementation Pending |
