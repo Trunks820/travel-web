@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { sendEmailCode, verifyEmailCode, ApiRequestError } from "@/services/api";
 import { useAuthStore, broadcastAuthEvent } from "@/stores/authStore";
@@ -26,6 +26,35 @@ const ALL_CITY_PLAYLIST: Array<{ city: string; pinyin: string; epithet: string; 
   { city: '桂林', pinyin: 'GUILIN', epithet: '山水甲天下 · 漓江美景', img: '/city/guilin/theodor-lundqvist-WHhbYArwFt8-unsplash.jpg' },
 ];
 
+/* ---------- 模式独立的验证码挑战状态 ---------- */
+
+/** 发送验证码时的快照，用于提交时校验一致性 */
+interface ChallengeSnapshot {
+  challengeId: string;
+  email: string;
+  invitationCode: string | null; // 仅注册模式有值
+  resendAvailableAt: number;     // 绝对时间戳 ms
+}
+
+/** 每个模式的完整状态 */
+interface ModeState {
+  challenge: ChallengeSnapshot | null;
+  code: string;
+}
+
+function createEmptyModeStates(): Record<AuthMode, ModeState> {
+  return {
+    login: { challenge: null, code: "" },
+    register: { challenge: null, code: "" },
+  };
+}
+
+/** 从 resendAvailableAt 计算剩余秒数 */
+function calcCountdown(resendAvailableAt: number | undefined): number {
+  if (!resendAvailableAt) return 0;
+  return Math.max(0, Math.ceil((resendAvailableAt - Date.now()) / 1000));
+}
+
 export default function LoginPageMigratoryBirds() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -37,9 +66,13 @@ export default function LoginPageMigratoryBirds() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [invitationCode, setInvitationCode] = useState("");
-  const [code, setCode] = useState("");
 
-  const [challengeId, setChallengeId] = useState<string | null>(null);
+  // 模式独立的验证码挑战状态（内存，不持久化）
+  const modeStatesRef = useRef<Record<AuthMode, ModeState>>(createEmptyModeStates());
+
+  // 当前模式的渲染状态（从 modeStatesRef 同步）
+  const [currentChallenge, setCurrentChallenge] = useState<ChallengeSnapshot | null>(null);
+  const [currentCode, setCurrentCode] = useState("");
   const [countdown, setCountdown] = useState(0);
 
   const [sending, setSending] = useState(false);
@@ -73,23 +106,108 @@ export default function LoginPageMigratoryBirds() {
     }
   }, [authStatus, navigate, returnTo]);
 
+  // 基于绝对时间戳的倒计时，同一邮箱跨模式共享发送冷却
   useEffect(() => {
-    if (countdown <= 0) return;
+    const trimmedEmail = email.trim();
+    // 查找同一邮箱在所有模式中最晚的 resendAvailableAt
+    let latestResendAt = 0;
+    for (const m of ["login", "register"] as AuthMode[]) {
+      const ch = modeStatesRef.current[m].challenge;
+      if (ch && ch.email === trimmedEmail && ch.resendAvailableAt > latestResendAt) {
+        latestResendAt = ch.resendAvailableAt;
+      }
+    }
+    // currentChallenge 可能比 ref 更新（刚发送完码还未同步到 ref）
+    if (currentChallenge && currentChallenge.email === trimmedEmail && currentChallenge.resendAvailableAt > latestResendAt) {
+      latestResendAt = currentChallenge.resendAvailableAt;
+    }
+
+    if (!latestResendAt || calcCountdown(latestResendAt) <= 0) {
+      setCountdown(0);
+      return;
+    }
+    setCountdown(calcCountdown(latestResendAt));
     const timer = setInterval(() => {
-      setCountdown((c) => Math.max(0, c - 1));
+      const remaining = calcCountdown(latestResendAt);
+      setCountdown(remaining);
+      if (remaining <= 0) clearInterval(timer);
     }, 1000);
     return () => clearInterval(timer);
-  }, [countdown]);
+  }, [currentChallenge?.resendAvailableAt, email, mode]);
+
+  /** 将当前 UI 状态同步回 modeStatesRef */
+  const saveCurrentModeState = useCallback(() => {
+    modeStatesRef.current[mode] = {
+      challenge: currentChallenge,
+      code: currentCode,
+    };
+  }, [mode, currentChallenge, currentCode]);
+
+  /** 从 modeStatesRef 恢复目标模式的状态到 UI */
+  const restoreModeState = useCallback((targetMode: AuthMode) => {
+    const state = modeStatesRef.current[targetMode];
+    setCurrentChallenge(state.challenge);
+    setCurrentCode(state.code);
+  }, []);
+
+  /** 使指定模式的 challenge 失效 */
+  const invalidateChallenge = useCallback((targetMode: AuthMode) => {
+    modeStatesRef.current[targetMode] = {
+      ...modeStatesRef.current[targetMode],
+      challenge: null,
+      code: "",
+    };
+    // 如果失效的是当前模式，同步到 UI
+    if (targetMode === mode) {
+      setCurrentChallenge(null);
+      setCurrentCode("");
+    }
+  }, [mode]);
 
   const handleTabSwitch = (targetMode: AuthMode) => {
     if (targetMode === mode) return;
+    // 保存当前模式的状态
+    saveCurrentModeState();
+    // 切换模式
     setMode(targetMode);
+    // 从目标模式恢复状态
+    restoreModeState(targetMode);
+    // 清除临时错误/提示（不清除验证码挑战）
     setOtpError(null);
     setInfoNotice(null);
     setEmailError(null);
     setInvitationError(null);
-    setChallengeId(null);
-    setCountdown(0);
+  };
+
+  const handleEmailChange = (newEmail: string) => {
+    setEmail(newEmail);
+    const trimmed = newEmail.trim();
+    // 邮箱变化时，使所有与旧邮箱绑定的挑战失效
+    for (const m of ["login", "register"] as AuthMode[]) {
+      const ch = modeStatesRef.current[m].challenge;
+      if (ch && ch.email !== trimmed) {
+        invalidateChallenge(m);
+      }
+    }
+  };
+
+  const handleInvitationCodeChange = (newCode: string) => {
+    setInvitationCode(newCode);
+    const trimmed = newCode.trim();
+    // 邀请码变化时，仅使注册挑战失效
+    const regChallenge = modeStatesRef.current.register.challenge;
+    if (regChallenge && regChallenge.invitationCode !== trimmed) {
+      invalidateChallenge("register");
+    }
+  };
+
+  const handleCodeChange = (newCode: string) => {
+    const sanitized = newCode.replace(/\D/g, "");
+    setCurrentCode(sanitized);
+    modeStatesRef.current[mode] = {
+      ...modeStatesRef.current[mode],
+      code: sanitized,
+    };
   };
 
   const handleSendCode = async () => {
@@ -111,35 +229,64 @@ export default function LoginPageMigratoryBirds() {
       return;
     }
 
+    // 捕获请求发起时的模式，防止切换标签后响应写入错误模式
+    const requestMode = mode;
+    const requestEmail = cleanEmail;
+    const requestInvCode = mode === "register" ? invitationCode.trim() : null;
+
     setSending(true);
     try {
       const res = await sendEmailCode(
-        mode,
-        cleanEmail,
-        mode === "register" ? invitationCode.trim() : null,
+        requestMode,
+        requestEmail,
+        requestMode === "register" ? requestInvCode : null,
       );
-      setChallengeId(res.challenge_id);
-      setCountdown(res.resend_after_seconds || 60);
-      if (import.meta.env.VITE_USE_MOCK === "true") {
-        setCode("123456");
-        setInfoNotice("验证码已发送（测试环境自动回填：123456）");
-      } else {
-        setCode("");
-        setInfoNotice("验证码已发送至你的邮箱，请在 10 分钟内查收。");
-      }
-      setTimeout(() => otpInputRef.current?.focus(), 100);
-    } catch (err: unknown) {
-      if (err instanceof ApiRequestError) {
-        if (err.code === "INVITATION_INVALID" || err.code === "INVITATION_EXHAUSTED") {
-          setInvitationError(err.message || "邀请码无效或已超限");
-          invitationInputRef.current?.focus();
-        } else if (err.code === "INVALID_EMAIL" || err.code === "EMAIL_FORMAT_INVALID") {
-          setEmailError(err.message || "邮箱格式不正确");
+
+      const snapshot: ChallengeSnapshot = {
+        challengeId: res.challenge_id,
+        email: requestEmail,
+        invitationCode: requestInvCode,
+        resendAvailableAt: Date.now() + (res.resend_after_seconds || 60) * 1000,
+      };
+
+      // 写入发起请求时的模式（而非当前模式）
+      modeStatesRef.current[requestMode] = {
+        ...modeStatesRef.current[requestMode],
+        challenge: snapshot,
+      };
+
+      // 仅当请求发起时的模式仍是当前模式时，更新 UI 渲染状态
+      if (requestMode === mode) {
+        setCurrentChallenge(snapshot);
+        if (import.meta.env.VITE_USE_MOCK === "true") {
+          const mockCode = "123456";
+          setCurrentCode(mockCode);
+          modeStatesRef.current[requestMode].code = mockCode;
+          setInfoNotice("验证码已发送（测试环境自动回填：123456）");
         } else {
-          setOtpError(err.message || "验证码发送失败");
+          setCurrentCode("");
+          modeStatesRef.current[requestMode].code = "";
+          setInfoNotice("验证码已发送至你的邮箱，请在 10 分钟内查收。");
         }
-      } else {
-        setOtpError("发送失败，请检查网络设置");
+        setTimeout(() => otpInputRef.current?.focus(), 100);
+      }
+      // 如果已经切换了标签，challenge 已存储到 modeStatesRef 中，
+      // 切回时会自动恢复
+    } catch (err: unknown) {
+      // 仅当请求模式仍为当前模式时显示错误
+      if (requestMode === mode) {
+        if (err instanceof ApiRequestError) {
+          if (err.code === "INVITATION_INVALID" || err.code === "INVITATION_EXHAUSTED") {
+            setInvitationError(err.message || "邀请码无效或已超限");
+            invitationInputRef.current?.focus();
+          } else if (err.code === "INVALID_EMAIL" || err.code === "EMAIL_FORMAT_INVALID") {
+            setEmailError(err.message || "邮箱格式不正确");
+          } else {
+            setOtpError(err.message || "验证码发送失败");
+          }
+        } else {
+          setOtpError("发送失败，请检查网络设置");
+        }
       }
     } finally {
       setSending(false);
@@ -152,12 +299,25 @@ export default function LoginPageMigratoryBirds() {
     setOtpError(null);
     setInfoNotice(null);
 
-    if (!challengeId) {
+    if (!currentChallenge) {
       setOtpError("请先获取邮箱验证码");
       return;
     }
 
-    const cleanCode = code.trim();
+    // 校验当前状态与发送验证码时的快照一致
+    const cleanEmail = email.trim();
+    if (currentChallenge.email !== cleanEmail) {
+      setOtpError("邮箱已变更，请重新获取验证码");
+      invalidateChallenge(mode);
+      return;
+    }
+    if (mode === "register" && currentChallenge.invitationCode !== invitationCode.trim()) {
+      setOtpError("邀请码已变更，请重新获取验证码");
+      invalidateChallenge("register");
+      return;
+    }
+
+    const cleanCode = currentCode.trim();
     if (!cleanCode || cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
       setOtpError("请输入 6 位数字验证码");
       otpInputRef.current?.focus();
@@ -166,7 +326,7 @@ export default function LoginPageMigratoryBirds() {
 
     setVerifying(true);
     try {
-      await verifyEmailCode(challengeId, cleanCode);
+      await verifyEmailCode(currentChallenge.challengeId, cleanCode);
       await bootstrap();
       broadcastAuthEvent("LOGIN");
       navigate(returnTo, { replace: true });
@@ -174,17 +334,16 @@ export default function LoginPageMigratoryBirds() {
       if (err instanceof ApiRequestError) {
         if (err.status === 409 && err.code === "REGISTRATION_REQUIRED") {
           setMode("register");
-          setChallengeId(null);
-          setCountdown(0);
+          invalidateChallenge("login");
           setInfoNotice("该邮箱尚未注册，已自动切至注册模式。");
         } else if (err.status === 409 && err.code === "LOGIN_REQUIRED") {
           setMode("login");
-          setChallengeId(null);
-          setCountdown(0);
+          invalidateChallenge("register");
           setInfoNotice("该邮箱已注册，已自动切至登录模式。");
         } else if (err.code === "OTP_INVALID" || err.code === "OTP_EXPIRED") {
           setOtpError(err.message || "验证码错误或已失效");
-          setCode("");
+          setCurrentCode("");
+          modeStatesRef.current[mode].code = "";
         } else {
           setOtpError(err.message || "验证失败");
         }
@@ -330,7 +489,7 @@ export default function LoginPageMigratoryBirds() {
                     ref={invitationInputRef}
                     type="text"
                     value={invitationCode}
-                    onChange={(e) => setInvitationCode(e.target.value)}
+                    onChange={(e) => handleInvitationCodeChange(e.target.value)}
                     placeholder="输入公测邀请码"
                     className={`h-12 w-full rounded-xl border border-[#e0d9cd] bg-[#f0ebe1] px-4 font-mono text-sm tracking-wider text-[#2c241c] shadow-inner transition-all placeholder:text-[#b0a394] focus:bg-white focus:border-[#2c241c] focus:outline-none ${
                       invitationError ? "border-red-400" : ""
@@ -348,7 +507,7 @@ export default function LoginPageMigratoryBirds() {
                   id="user-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => handleEmailChange(e.target.value)}
                   placeholder="name@example.com"
                   className={`h-12 w-full rounded-xl border border-[#e0d9cd] bg-[#f0ebe1] px-4 text-sm text-[#2c241c] shadow-inner transition-all placeholder:text-[#b0a394] focus:bg-white focus:border-[#2c241c] focus:outline-none ${
                     emailError ? "border-red-400" : ""
@@ -367,8 +526,8 @@ export default function LoginPageMigratoryBirds() {
                     ref={otpInputRef}
                     type="text"
                     maxLength={6}
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    value={currentCode}
+                    onChange={(e) => handleCodeChange(e.target.value)}
                     placeholder="6位数字"
                     className={`h-12 flex-1 rounded-xl border border-[#e0d9cd] bg-[#f0ebe1] px-4 font-mono text-sm tracking-widest text-[#2c241c] shadow-inner transition-all placeholder:text-[#b0a394] focus:bg-[#faf8f5] focus:border-[#2c241c] focus:outline-none ${
                       otpError ? "border-red-400" : ""
