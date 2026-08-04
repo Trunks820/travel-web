@@ -73,8 +73,8 @@ export function CostEstimateCard({
 
   if (!costEstimate || scenarios.length === 0) {
     return (
-      <div className="bg-white py-6 scroll-mt-24">
-        <h2 className="font-display text-3xl font-extrabold text-gray-900 tracking-tight mb-4">
+      <div className="rounded-2xl border border-primary-100 bg-white p-6 sm:p-8 shadow-soft space-y-4 scroll-mt-24">
+        <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
           预算参考
         </h2>
         <div className="flex items-center gap-2 py-4 text-sm text-gray-400">
@@ -92,10 +92,10 @@ export function CostEstimateCard({
   const peakAmount = selectedScenario?.total_range?.max_cny;
 
   return (
-    <div className="bg-white py-6 scroll-mt-24">
+    <div className="rounded-2xl border border-primary-100 bg-white p-6 sm:p-8 shadow-soft space-y-6 scroll-mt-24">
       {/* 1. 顶栏：标题 + Segmented Control 场景切换器 */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <h2 className="font-display text-3xl font-bold tracking-tight text-gray-900">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
           预算参考
         </h2>
 
@@ -139,8 +139,8 @@ export function CostEstimateCard({
         )}
       </div>
 
-      {/* 2. 主数字区：完全复刻参考图的 3 行结构（小灰字 -> 48px大数字 -> 辅助说明） */}
-      <div className="mb-8">
+      {/* 2. 主数字区：与交通卡统一美观结构 */}
+      <div>
         {/* 行1：场景与预估范围状态 */}
         <div className="text-xs font-normal text-gray-400 mb-1">
           {isUnselected ? (
@@ -158,7 +158,7 @@ export function CostEstimateCard({
           )}
         </div>
 
-        {/* 行2：大数字 (符号小灰字 + 48px 纤细大数字) */}
+        {/* 行2：精致大数字 (符号小灰字 + 48px 纤细大数字) */}
         <div>
           {statusInfo.status === "unselected" ? (
             <div className="py-2 text-base font-bold text-gray-600">
@@ -283,7 +283,7 @@ export function CostEstimateCard({
       )}
 
       {/* 4. 页脚：极简提示文字 (复刻参考图底部小字) */}
-      <div className="mt-8 pt-4 text-xs font-normal text-gray-400">
+      <div className="pt-2 text-xs font-normal text-gray-400 border-t border-gray-100/80">
         <p>{costEstimate.notice || "费用为规划参考，实际花费以出行行为准"}</p>
       </div>
     </div>
