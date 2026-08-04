@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTripStore } from "@/stores/tripStore";
-import { V0812_FIXTURES } from "@/fixtures/v0812";
+import { V0812_FIXTURES, DEFAULT_COST_ESTIMATE } from "@/fixtures/v0812";
 import type { TripResult } from "@/types/trip";
 
 const MOCK_RESULT: TripResult = {
@@ -25,6 +25,7 @@ const MOCK_RESULT: TripResult = {
       summary: "经典地标与老街体验，融合渝中老城风情",
       tags: ["轻松", "经典", "citywalk"],
       pace: { level: "RELAXED", commute_status: "WITHIN_LIMIT", total_commute_minutes: 65 },
+      cost_estimate: DEFAULT_COST_ESTIMATE,
       transport: {
         from_city: "成都",
         to_city: "重庆",
@@ -112,6 +113,7 @@ const MOCK_RESULT: TripResult = {
       summary: "以火锅、小面和江湖菜串联重庆味觉地图",
       tags: ["美食", "地道", "慢节奏"],
       pace: { level: "RELAXED", commute_status: "WITHIN_LIMIT", total_commute_minutes: 55 },
+      cost_estimate: DEFAULT_COST_ESTIMATE,
       days: [
         {
           day: 1, title: "火锅与夜景",

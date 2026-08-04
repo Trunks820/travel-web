@@ -17,7 +17,9 @@ import { AccommodationTimelineNode } from "@/components/detail/AccommodationCard
 import { ShareDialog } from "@/components/share/ShareDialog";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
-import { mockBudget } from "@/services/mockBudget";
+import { CostEstimateCard } from "@/components/detail/CostEstimateCard";
+import { MustIncludeNotice } from "@/components/detail/MustIncludeNotice";
+import { getScenarioCostStatus, type CostScenarioSummary } from "@/types/cost";
 import { useArtifact } from "@/hooks/useArtifact";
 import { saveBlob } from "@/utils/download";
 import { showToast } from "@/stores/toastStore";
@@ -163,7 +165,7 @@ export default function PlanDetailPage() {
 
   const matched =
     storeResult &&
-    storeResult.resultId === resultId &&
+    String(storeResult.resultId) === String(resultId) &&
     storeResult.jobId === (jobId ?? "");
   const result = matched ? storeResult.data : fetchedResult;
 
@@ -171,7 +173,9 @@ export default function PlanDetailPage() {
     setError(null);
     const cached = useTripStore.getState().result;
     const hit =
-      cached && cached.resultId === resultId && cached.jobId === (jobId ?? "");
+      cached &&
+      String(cached.resultId) === String(resultId) &&
+      cached.jobId === (jobId ?? "");
     if (hit) {
       setFetchedResult(cached.data);
       setLoading(false);
@@ -220,19 +224,29 @@ export default function PlanDetailPage() {
     (p) => p.plan_id === planId,
   );
   const people = result?.request.people_count ?? 1;
-  const budget = useMemo(
-    () => (plan ? mockBudget(plan, people) : null),
-    [plan, people],
-  );
-  const budgetFormatter = useMemo(
-    () =>
-      new Intl.NumberFormat("zh-CN", {
-        style: "currency",
-        currency: "CNY",
-        maximumFractionDigits: 0,
-      }),
-    [],
-  );
+
+  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null);
+
+  const costEstimate = plan?.cost_estimate;
+  const scenarios = useMemo(() => costEstimate?.scenarios ?? [], [costEstimate]);
+  const scenarioIds = scenarios.map((s) => s.scenario_id).join(",");
+
+  // 单场景或 without_intercity 场景时自动选定，双大交通场景时保持 null 离散选择状态
+  useEffect(() => {
+    if (scenarios.length === 1 && scenarios[0]?.scenario_id) {
+      setActiveScenarioId(scenarios[0].scenario_id);
+    } else if (scenarios.length > 1) {
+      setActiveScenarioId(null);
+    }
+  }, [plan?.plan_id, scenarioIds, scenarios]);
+
+  const activeScenario: CostScenarioSummary | undefined = scenarios.find(
+    (s) => s.scenario_id === activeScenarioId,
+  ) ?? (scenarios.length === 1 ? scenarios[0] : undefined);
+
+  const isDualMode = scenarios.length > 1;
+  const isUnselected = isDualMode && !activeScenarioId;
+  const heroCostStatus = getScenarioCostStatus(activeScenario, isUnselected);
   const city = result?.city.name ?? "";
 
   const activeDayNumber = useMemo(() => {
@@ -347,10 +361,8 @@ export default function PlanDetailPage() {
 
     const sectionIds = [
       "overview",
-      ...(result?.plans[0]?.transport ? ["transport"] : []),
       ...plan.days.map((d) => `day-${d.day}`),
-      "budget",
-      ...(result?.must_include?.length ? ["must-include"] : []),
+      "cost-estimate",
     ];
 
     let ticking = false;
@@ -391,7 +403,7 @@ export default function PlanDetailPage() {
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
-  }, [plan, result?.must_include?.length, result?.plans[0]?.transport]);
+  }, [plan]);
 
   function scrollTo(id: string) {
     setActiveTab(id);
@@ -416,7 +428,7 @@ export default function PlanDetailPage() {
 
   if (loading) return <DetailSkeleton />;
 
-  if (error || !result || !plan || !budget) {
+  if (error || !result || !plan) {
     const kind = error?.kind ?? "generic";
     const icon =
       kind === "notfound" ? "🔍" : kind === "unsupported" ? "🕰️" : "📋";
@@ -496,19 +508,34 @@ export default function PlanDetailPage() {
               节奏 {PACE_LABEL[plan.pace.level] ?? plan.pace.level}
             </span>
           )}
-          {budget && (
-            <a
-              href="#budget"
-              className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
-            >
-              预估 {budgetFormatter.format(budget.total)} · 人均 {budgetFormatter.format(Math.round(budget.total / (budget.people || 1)))}
-            </a>
-          )}
+          <a
+            href="#cost-estimate"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+              e.preventDefault();
+              scrollTo("cost-estimate");
+            }}
+            className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 flex xl:hidden items-center gap-1.5"
+          >
+            <span>
+              {activeScenario?.label
+                ? `${activeScenario.label} · ${heroCostStatus.costText}`
+                : heroCostStatus.costText}
+            </span>
+            {heroCostStatus.costBadge && (
+              <span className="rounded bg-amber-100 px-1.5 py-0.2 text-[10px] font-bold text-amber-800">
+                {heroCostStatus.costBadge}
+              </span>
+            )}
+          </a>
           <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-500">
             {plan.days.length} 日行程
           </span>
         </div>
       </header>
+
+      {/* 必去地点异常提醒 banner */}
+      <MustIncludeNotice items={result.must_include} />
 
       {/* 第二层：随屏吸顶工具栏（GSAP 物理弹性驱动 back.out(1.4) 缓动滑出） */}
       <div className="sticky top-0 z-40 border-b border-gray-100 bg-sand-50/95 shadow-sm shadow-gray-900/5 backdrop-blur-xl">
@@ -544,10 +571,8 @@ export default function PlanDetailPage() {
               {(
                 [
                   ["overview", "概览"],
-                  ...(result.plans[0]?.transport ? [["transport", "交通"]] : []),
                   ...plan.days.map((d) => [`day-${d.day}`, `第 ${d.day} 天`]),
-                  ["budget", "预算"],
-                  ...(result.must_include?.length ? [["must-include", "必去"]] : []),
+                  ["cost-estimate", "出行费用"],
                 ] as [string, string][]
               ).map(([id, label]) => (
                 <button
@@ -613,11 +638,7 @@ export default function PlanDetailPage() {
             </section>
           )}
 
-          {result.plans[0]?.transport && (
-            <section id="transport" className="reveal-up scroll-mt-24">
-              <TransportCard data={result.plans[0].transport} />
-            </section>
-          )}
+
         {plan.days.map((day, dayIndex) => {
           const weatherLabel = dayWeatherLabel(day.day, weatherDays);
           return (
@@ -688,6 +709,9 @@ export default function PlanDetailPage() {
                   const timeLabel = placeTimeLabel(place);
                   const isLast = placeIndex === day.places.length - 1;
                   const anchor = isAnchorRole(place.role);
+                  const scheduledMustInclude = result.must_include?.find(
+                    (mi) => mi.status === "scheduled" && mi.place_id != null && mi.place_id === place.place_id,
+                  );
 
                   return (
                     <div key={place.place_id} className="relative reveal-up">
@@ -728,6 +752,11 @@ export default function PlanDetailPage() {
                                 <h3 className="truncate text-lg font-bold text-gray-900 transition-colors group-hover:text-primary-700">
                                   {place.name}
                                 </h3>
+                                {scheduledMustInclude && (
+                                  <span className="shrink-0 rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                    你的必去
+                                  </span>
+                                )}
                                 {place.optional && (
                                   <span className="shrink-0 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
                                     可选
@@ -804,103 +833,34 @@ export default function PlanDetailPage() {
           );
         })}
 
-        {/* 预算 */}
+        {/* 出行与费用 附录区 */}
         <section
-          id="budget"
-          className="scroll-mt-24 border-t border-primary-100/50 pt-6 reveal-up"
+          id="cost-estimate"
+          className="scroll-mt-24 border-t border-primary-100/50 pt-8 reveal-up space-y-8"
         >
-          <h2 className="font-display mb-8 text-3xl font-bold text-gray-900">
-            预算参考
-          </h2>
-          <div className="pl-1 sm:pl-2">
-            <p className="mb-2 text-[11px] uppercase tracking-widest text-gray-400">
-              估算合计 · {budget.people} 人
-            </p>
-            <div className="mb-3 font-display text-5xl font-light tabular-nums tracking-tight text-gray-900 sm:text-6xl">
-              <span className="mr-1 text-3xl text-gray-400">¥</span>
-              {budget.total.toLocaleString()}
-            </div>
-            <p className="mb-10 text-xs tabular-nums text-gray-500">
-              参考总预算 ¥ {budget.budgetCap.toLocaleString()} · 约占{" "}
-              {budget.usedPercent}%
-            </p>
-            <div className="space-y-5">
-              {budget.breakdown.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-4 border-b border-gray-200/60 pb-4 text-sm last:border-0"
-                >
-                  <i
-                    className={`fa-solid ${item.icon} w-5 text-center text-primary-300/80`}
-                    aria-hidden="true"
-                  />
-                  <span className="w-16 tracking-wide text-gray-500">
-                    {item.label}
-                  </span>
-                  <div className="mx-2 h-1 flex-1 overflow-hidden rounded-full bg-gray-100/80">
-                    <div
-                      className="h-1 rounded-full bg-primary-400"
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                  <span className="w-20 text-right font-mono text-gray-800">
-                    ¥ {item.amount.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-8 text-[11px] uppercase tracking-wide text-gray-400">
-              预算为估算参考，实际花费以出行为准
-            </p>
-          </div>
-        </section>
-
-        {/* 必去落实 */}
-        {result.must_include && result.must_include.length > 0 && (
-          <section
-            id="must-include"
-            className="scroll-mt-24 border-t border-primary-100/50 pb-8 pt-6 reveal-up"
-          >
-            <h2 className="font-display mb-6 text-3xl font-bold text-gray-900">
-              必去地点落实
+          <div className="border-b border-gray-100 pb-3">
+            <span className="text-xs font-bold uppercase tracking-widest text-primary-600">
+              TRAVEL & COST APPENDIX
+            </span>
+            <h2 className="font-display text-3xl font-bold text-gray-900">
+              出行与费用
             </h2>
-            <ul className="space-y-4 pl-1 sm:pl-2">
-              {result.must_include.map((item) => {
-                const ok = item.status === "scheduled";
-                const badge =
-                  item.status === "scheduled"
-                    ? "已排入"
-                    : item.status === "cross_city"
-                      ? "跨城"
-                      : "未排入";
-                return (
-                  <li
-                    key={item.name}
-                    className="flex items-start gap-4 border-b border-gray-200/60 pb-4 last:border-0"
-                  >
-                    <span
-                      className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
-                        ok
-                          ? "bg-primary-50 text-primary-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {badge}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-gray-900">{item.name}</p>
-                      {"reason" in item && item.reason && (
-                        <p className="mt-1 text-sm text-gray-500">
-                          {item.reason}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
+          </div>
+
+          {/* 大交通推荐卡片（放在费用模块前面） */}
+          {plan.transport && (
+            <div className="space-y-2">
+              <TransportCard data={plan.transport} />
+            </div>
+          )}
+
+          {/* 完整费用模块 */}
+          <CostEstimateCard
+            costEstimate={plan.cost_estimate}
+            activeScenarioId={activeScenarioId}
+            onScenarioSelect={setActiveScenarioId}
+          />
+        </section>
       </main>
 
         {/* 行程脊柱 (PC ≥1280px) 放置在 DOM 顺序后方，但在视觉上呈现在正文左侧并固定跟随滑动 */}
@@ -908,8 +868,11 @@ export default function PlanDetailPage() {
           <TripSpine
             days={plan.days}
             weather={result.weather}
+            costEstimate={plan.cost_estimate}
+            activeScenarioId={activeScenarioId}
             activeDay={activeDayNumber}
             onDayClick={(dayNum) => scrollTo(`day-${dayNum}`)}
+            onCostClick={() => scrollTo("cost-estimate")}
           />
         </div>
       </div>
@@ -1031,6 +994,12 @@ export default function PlanDetailPage() {
 
       <PlaceDetailModal
         place={detailPlace}
+        isMustInclude={Boolean(
+          detailPlace &&
+            result?.must_include?.some(
+              (mi) => mi.status === "scheduled" && mi.place_id != null && mi.place_id === detailPlace.place_id,
+            ),
+        )}
         onClose={() => setDetailPlace(null)}
       />
       {resultId && (

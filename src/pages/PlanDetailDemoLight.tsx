@@ -1,17 +1,18 @@
 /**
  * 详情页杂志阅读 demo（云途化）
  * - 单栏 Day 叙事 + sticky 日导航 + 地图浮层
- * - 数据：v0812 重庆 fixture + mockBudget + 本城封面图
+ * - 数据：v0812 重庆 fixture + CostEstimateCard + 本城封面图
  * 访问：/demo/detail-light
  * 不改正式 PlanDetailPage
  */
-import { useEffect, useMemo, useState, lazy, Suspense, useRef } from "react";
+import { useEffect, useState, lazy, Suspense, useRef } from "react";
 import { Link } from "react-router-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { V0812_FIXTURES } from "@/fixtures/v0812";
 import { getCityPhotoUrls } from "@/components/input/RotatingBackground";
-import { mockBudget } from "@/services/mockBudget";
+import { CostEstimateCard } from "@/components/detail/CostEstimateCard";
+import { MustIncludeNotice } from "@/components/detail/MustIncludeNotice";
 import { PlaceDetailModal } from "@/components/detail/PlaceDetailModal";
 import { ShareDialog } from "@/components/share/ShareDialog";
 import { useArtifact } from "@/hooks/useArtifact";
@@ -83,6 +84,7 @@ export default function PlanDetailDemoLight() {
   const [activePlaceId, setActivePlaceId] = useState<number | null>(null);
   const [detailPlace, setDetailPlace] = useState<TripPlace | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null);
 
   const pdf = useArtifact(recordId, "pdf");
   const weatherDays =
@@ -157,7 +159,6 @@ export default function PlanDetailDemoLight() {
     }
   }, [pdf.phase, pdf.error]);
 
-  const budget = useMemo(() => mockBudget(plan, people), []);
   const dayForMap: TripDay =
     plan.days.find((d) => d.day === mapDay) ?? plan.days[0];
 
@@ -200,7 +201,7 @@ export default function PlanDetailDemoLight() {
       { rootMargin: "-120px 0px -50% 0px", threshold: 0 }
     );
 
-    const ids = ["overview", ...plan.days.map((d) => `day-${d.day}`), "budget", "must-include"];
+    const ids = ["overview", ...plan.days.map((d) => `day-${d.day}`), "cost-estimate"];
     ids.forEach((id) => {
       const el = document.getElementById(id);
       if (el) observer.observe(el);
@@ -291,25 +292,14 @@ export default function PlanDetailDemoLight() {
             ))}
             <button
               type="button"
-              onClick={() => scrollTo("budget")}
+              onClick={() => scrollTo("cost-estimate")}
               className={`text-[11px] font-bold uppercase tracking-widest transition-all duration-300 rounded-full px-4 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
-                activeTab === "budget"
+                activeTab === "cost-estimate"
                   ? "bg-gray-900 text-white shadow-md"
                   : "text-gray-400 hover:text-gray-800 hover:bg-gray-200/50"
               }`}
             >
-              BUDGET
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollTo("must-include")}
-              className={`text-[11px] font-bold uppercase tracking-widest transition-all duration-300 rounded-full px-4 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
-                activeTab === "must-include"
-                  ? "bg-gray-900 text-white shadow-md"
-                  : "text-gray-400 hover:text-gray-800 hover:bg-gray-200/50"
-              }`}
-            >
-              MUST-GO
+              COST
             </button>
           </div>
           
@@ -457,90 +447,16 @@ export default function PlanDetailDemoLight() {
           </section>
         ))}
 
-        {/* 预算：接 mockBudget */}
-        <section id="budget" className="scroll-mt-24 pt-6 border-t border-primary-100/50 reveal-up">
-          <h2 className="font-display mb-8 text-3xl font-bold text-gray-900">预算参考</h2>
-          <div className="pl-1 sm:pl-2">
-            <p className="mb-2 text-[11px] uppercase tracking-widest text-gray-400">
-              估算合计 · {budget.people} 人
-            </p>
-            <div className="mb-3 font-display text-5xl font-light tabular-nums tracking-tight text-gray-900 sm:text-6xl">
-              <span className="text-3xl text-gray-400 mr-1">¥</span>
-              {budget.total.toLocaleString()}
-            </div>
-            <p className="mb-10 text-xs text-gray-500 tabular-nums">
-              参考总预算 ¥ {budget.budgetCap.toLocaleString()} · 约占{" "}
-              {budget.usedPercent}%
-            </p>
-            <div className="space-y-5">
-              {budget.breakdown.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center gap-4 border-b border-gray-200/60 pb-4 text-sm last:border-0"
-                >
-                  <i
-                    className={`fa-solid ${item.icon} w-5 text-center text-primary-300/80`}
-                    aria-hidden="true"
-                  />
-                  <span className="w-16 text-gray-500 tracking-wide">{item.label}</span>
-                  <div className="mx-2 h-1 flex-1 overflow-hidden rounded-full bg-gray-100/80">
-                    <div
-                      className="h-1 rounded-full bg-primary-400"
-                      style={{ width: `${item.percentage}%` }}
-                    />
-                  </div>
-                  <span className="w-20 text-right font-mono text-gray-800">
-                    ¥ {item.amount.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-8 text-[11px] tracking-wide text-gray-400 uppercase">
-              预算为估算参考，实际花费以出行为准
-            </p>
-          </div>
+        {/* 费用与必去通知 */}
+        <section id="cost-estimate" className="scroll-mt-24 pt-6 border-t border-primary-100/50 reveal-up">
+          <CostEstimateCard
+            costEstimate={plan.cost_estimate}
+            activeScenarioId={activeScenarioId}
+            onScenarioSelect={setActiveScenarioId}
+          />
         </section>
-
-        {/* 必去落实 */}
-        {result.must_include && result.must_include.length > 0 && (
-          <section id="must-include" className="scroll-mt-24 pb-8 pt-6 border-t border-primary-100/50 reveal-up">
-            <h2 className="font-display mb-6 text-3xl font-bold text-gray-900">
-              必去地点落实
-            </h2>
-            <ul className="space-y-4 pl-1 sm:pl-2">
-              {result.must_include.map((item) => {
-                const ok = item.status === "scheduled";
-                const badge =
-                  item.status === "scheduled"
-                    ? "已排入"
-                    : item.status === "cross_city"
-                      ? "跨城"
-                      : "未排入";
-                return (
-                  <li
-                    key={item.name}
-                    className="flex items-start gap-4 border-b border-gray-200/60 pb-4 last:border-0"
-                  >
-                    <span
-                      className={`mt-0.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
-                        ok
-                          ? "bg-primary-50 text-primary-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {badge}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-gray-900">{item.name}</p>
-                      {"reason" in item && item.reason && (
-                        <p className="mt-1 text-sm text-gray-500">{item.reason}</p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+        {result.must_include && (
+          <MustIncludeNotice items={result.must_include} />
         )}
       </main>
 
@@ -658,7 +574,16 @@ export default function PlanDetailDemoLight() {
       </div>
 
       {/* 地点详情（与正式页同一弹层） */}
-      <PlaceDetailModal place={detailPlace} onClose={() => setDetailPlace(null)} />
+      <PlaceDetailModal
+        place={detailPlace}
+        isMustInclude={Boolean(
+          detailPlace &&
+            result.must_include?.some(
+              (mi) => mi.status === "scheduled" && mi.place_id != null && mi.place_id === detailPlace.place_id,
+            ),
+        )}
+        onClose={() => setDetailPlace(null)}
+      />
 
       {/* 分享 AI 图 */}
       <ShareDialog

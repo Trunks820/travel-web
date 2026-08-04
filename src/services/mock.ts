@@ -259,6 +259,47 @@ const MOCK_RESULT: TripResult = {
       summary: "经典地标与老街体验，融合渝中老城风情",
       tags: ["轻松", "经典", "citywalk"],
       pace: { level: "RELAXED", commute_status: "WITHIN_LIMIT", total_commute_minutes: 65 },
+      cost_estimate: {
+        snapshot_version: "1",
+        completeness: "complete",
+        currency: "CNY",
+        estimated_at: "2026-08-04T00:00:00Z",
+        scenarios: [
+          {
+            scenario_id: "train_round_trip",
+            intercity_mode: "train",
+            label: "高铁往返方案",
+            total_scope: "full_trip",
+            total_range: { min_cny: 1200, max_cny: 1800 },
+            categories: [
+              { category: "intercity_transport", coverage: "priced", range: { min_cny: 300, max_cny: 340 }, price_basis: "sourced", basis_label: "实时车次方案" },
+              { category: "accommodation", coverage: "priced", range: { min_cny: 400, max_cny: 700 }, price_basis: "reference", basis_label: "解放碑舒适型酒店" },
+              { category: "local_transport", coverage: "priced", range: { min_cny: 100, max_cny: 160 }, price_basis: "reference", basis_label: "市内公共交通与打车" },
+              { category: "admission", coverage: "priced", range: { min_cny: 100, max_cny: 200 }, price_basis: "sourced", basis_label: "行程景点门票" },
+              { category: "meals", coverage: "priced", range: { min_cny: 300, max_cny: 400 }, price_basis: "reference", basis_label: "餐饮消费参考" },
+            ],
+            missing_categories: [],
+          },
+          {
+            scenario_id: "flight_round_trip",
+            intercity_mode: "flight",
+            label: "机票往返方案",
+            total_scope: "full_trip",
+            total_range: { min_cny: 1800, max_cny: 2400 },
+            categories: [
+              { category: "intercity_transport", coverage: "priced", range: { min_cny: 900, max_cny: 940 }, price_basis: "reference", basis_label: "机票参考价" },
+              { category: "accommodation", coverage: "priced", range: { min_cny: 400, max_cny: 700 }, price_basis: "reference", basis_label: "解放碑舒适型酒店" },
+              { category: "local_transport", coverage: "priced", range: { min_cny: 100, max_cny: 160 }, price_basis: "reference", basis_label: "市内公共交通与打车" },
+              { category: "admission", coverage: "priced", range: { min_cny: 100, max_cny: 200 }, price_basis: "sourced", basis_label: "行程景点门票" },
+              { category: "meals", coverage: "priced", range: { min_cny: 300, max_cny: 400 }, price_basis: "reference", basis_label: "餐饮消费参考" },
+            ],
+            missing_categories: [],
+          },
+        ],
+        assumptions: [{ code: "two_travellers_per_room", label: "每间房两位旅客" }],
+        exclusions: [{ code: "cycling_cost_not_included", label: "骑行费用暂未计入" }],
+        notice: "费用为规划参考，实际支付金额请以预订或现场结算为准",
+      },
       /**
        * v0.9.3 大交通推荐 Mock 数据
        * 默认：双模式 [train, flight]

@@ -72,7 +72,7 @@ export const YuntuTopoCanvas: React.FC<YuntuTopoCanvasProps> = ({ interactive = 
           const angle = (a / steps) * Math.PI * 2;
           
           // 原生等高线波动
-          let r = baseRadius + Math.sin(angle * 4 + time * 2 + i * 0.3) * 12 + Math.cos(angle * 2 - time) * 8;
+          const r = baseRadius + Math.sin(angle * 4 + time * 2 + i * 0.3) * 12 + Math.cos(angle * 2 - time) * 8;
 
           // 算 3D 点在平面上的坐标
           let px = centerX + r * Math.cos(angle);

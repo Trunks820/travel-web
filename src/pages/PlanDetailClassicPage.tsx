@@ -7,12 +7,11 @@ import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { Timeline } from "@/components/detail/Timeline";
 import { PlaceDetailModal } from "@/components/detail/PlaceDetailModal";
-import { BudgetCard } from "@/components/detail/BudgetCard";
+import { CostEstimateCard } from "@/components/detail/CostEstimateCard";
 import { WeatherCard } from "@/components/detail/WeatherCard";
-import { MustIncludeCard } from "@/components/detail/MustIncludeCard";
+import { MustIncludeNotice } from "@/components/detail/MustIncludeNotice";
 import { ShareDialog } from "@/components/share/ShareDialog";
 import { V0812_FIXTURES } from "@/fixtures/v0812";
-import { mockBudget } from "@/services/mockBudget";
 import { useArtifact } from "@/hooks/useArtifact";
 import { saveBlob } from "@/utils/download";
 import { showToast } from "@/stores/toastStore";
@@ -38,11 +37,11 @@ export default function PlanDetailClassicPage() {
     "itinerary",
   );
   const pdf = useArtifact(recordId, "pdf");
+  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(null);
 
   const currentDay =
     plan.days.find((d) => d.day === selectedDay) ?? plan.days[0];
   const people = result.request.people_count ?? 1;
-  const budget = useMemo(() => mockBudget(plan, people), [people]);
   const weather = result.weather ?? null;
   const timePrefText = timePreferencesLabel(
     result.schema_version,
@@ -172,10 +171,14 @@ export default function PlanDetailClassicPage() {
             mobileTab === "overview" ? "flex" : "hidden"
           }`}
         >
-          <BudgetCard data={budget} />
-          {result.must_include && result.must_include.length > 0 && (
-            <MustIncludeCard items={result.must_include} />
-          )}
+        <CostEstimateCard
+          costEstimate={plan.cost_estimate}
+          activeScenarioId={activeScenarioId}
+          onScenarioSelect={setActiveScenarioId}
+        />
+        {result.must_include && (
+          <MustIncludeNotice items={result.must_include} />
+        )}
           {weather && (
             <WeatherCard data={weather} activeDay={selectedDay} />
           )}
@@ -297,6 +300,12 @@ export default function PlanDetailClassicPage() {
 
       <PlaceDetailModal
         place={detailPlace}
+        isMustInclude={Boolean(
+          detailPlace &&
+            result?.must_include?.some(
+              (mi) => mi.status === "scheduled" && mi.place_id != null && mi.place_id === detailPlace.place_id,
+            ),
+        )}
         onClose={() => setDetailPlace(null)}
       />
       <ShareDialog

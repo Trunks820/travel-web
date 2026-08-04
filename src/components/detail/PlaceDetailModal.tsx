@@ -5,10 +5,11 @@ import { fetchPlaceDetail } from "@/services/api";
 
 interface PlaceDetailModalProps {
   place: TripPlace | null;
+  isMustInclude?: boolean;
   onClose: () => void;
 }
 
-export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
+export function PlaceDetailModal({ place, isMustInclude, onClose }: PlaceDetailModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -120,6 +121,11 @@ export function PlaceDetailModal({ place, onClose }: PlaceDetailModalProps) {
                     <span className="rounded-full border border-gray-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">
                       {typeLabel}
                     </span>
+                    {isMustInclude && (
+                      <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                        你的必去
+                      </span>
+                    )}
                     {detail?.district && (
                       <span className="text-xs font-medium text-gray-400">· {detail.district}</span>
                     )}

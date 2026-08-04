@@ -1,4 +1,5 @@
-/** API response types matching api-contract.md */
+import type { CostEstimateSummary } from "./cost";
+export type { CostEstimateSummary };
 
 export type PaceLevel = "RELAXED" | "MODERATE" | "INTENSIVE";
 export type CommuteStatus = "WITHIN_LIMIT" | "OVER_LIMIT";
@@ -174,6 +175,7 @@ export interface TripPlan {
   };
   accommodation?: AccommodationInfo | null;
   transport?: TripTransport | null;
+  cost_estimate: CostEstimateSummary;
   days: TripDay[];
 }
 

@@ -19,7 +19,7 @@ interface MorePreferencesProps {
 }
 
 const COMMUTE_OPTIONS: { value: RequestedCommuteMode; label: string }[] = [
-  { value: "driving", label: "自驾/打车" },
+  { value: "driving", label: "打车" },
   { value: "transit", label: "公共交通" },
   { value: "cycling", label: "骑行优先" },
 ];
