@@ -11,9 +11,9 @@ import {
 } from "@/fixtures/v0.9.4-fixtures";
 import type { CostEstimateSummary } from "@/types/cost";
 
-describe("v0.9.4 P6 Acceptance - CostEstimateCard & Status Mapping Tests", () => {
-  test("[Req-1] Dual mode (train + flight) initializes unselected with status text and NO aggregate amount", () => {
-    render(
+describe("v0.9.4 P6 Acceptance - CostEstimateCard Visual & Contract Refactor Tests", () => {
+  test("[Req-1] Dual mode (train + flight) initializes unselected with status text and NO monetary amount in DOM", () => {
+    const { container } = render(
       <CostEstimateCard
         costEstimate={COST_ESTIMATE_COMPLETE}
         activeScenarioId={null}
@@ -22,11 +22,13 @@ describe("v0.9.4 P6 Acceptance - CostEstimateCard & Status Mapping Tests", () =>
 
     // Displays status text in main banner
     expect(screen.getByText("选择交通方式查看预估")).toBeInTheDocument();
-    expect(screen.getByText("点击上方大交通场景切换高铁或机票预估方案")).toBeInTheDocument();
 
     // Renders both scenario radio options
     expect(screen.getByText("高铁往返方案")).toBeInTheDocument();
     expect(screen.getByText("机票往返方案")).toBeInTheDocument();
+
+    // Assert NO monetary amounts (no '¥' symbol or price figures) exist anywhere in DOM when unselected
+    expect(container.textContent).not.toContain("¥");
   });
 
   test("[Req-2] Toggle between complete (train full_trip) and partial (flight estimated_subset) scenario updates status copy dynamically", () => {
@@ -45,11 +47,12 @@ describe("v0.9.4 P6 Acceptance - CostEstimateCard & Status Mapping Tests", () =>
       />,
     );
 
-    // train: full_trip -> "预估 ¥1,200–¥1,800"
-    expect(screen.getAllByText("预估 ¥1,200–¥1,800").length).toBeGreaterThan(0);
+    // train: full_trip -> "完整预估" + "1,800"
+    expect(screen.getByText("完整预估")).toBeInTheDocument();
+    expect(screen.getAllByText("1,800").length).toBeGreaterThan(0);
     expect(screen.queryByText("部分费用待确认")).not.toBeInTheDocument();
 
-    // rerender as flight: estimated_subset -> "已估 ¥1,800–¥2,400" + badge
+    // rerender as flight: estimated_subset -> "部分预估" + "2,400" + badge
     rerender(
       <CostEstimateCard
         costEstimate={mixedScenarioEstimate}
@@ -57,7 +60,8 @@ describe("v0.9.4 P6 Acceptance - CostEstimateCard & Status Mapping Tests", () =>
       />,
     );
 
-    expect(screen.getByText("已估 ¥1,800–¥2,400")).toBeInTheDocument();
+    expect(screen.getByText("部分预估")).toBeInTheDocument();
+    expect(screen.getAllByText("2,400").length).toBeGreaterThan(0);
     expect(screen.getByText("部分费用待确认")).toBeInTheDocument();
   });
 
@@ -69,8 +73,8 @@ describe("v0.9.4 P6 Acceptance - CostEstimateCard & Status Mapping Tests", () =>
       />,
     );
 
-    expect(screen.getByText("来源与参考混合")).toBeInTheDocument();
-    expect(screen.getByText("按规则计为 ¥0")).toBeInTheDocument();
+    expect(screen.getAllByText("来源与参考混合").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("按规则计为 ¥0").length).toBeGreaterThan(0);
   });
 
   test("[Req-4] Sole without_intercity or single scenario automatically triggers onScenarioSelect to activate", () => {
@@ -106,7 +110,7 @@ describe("v0.9.4 P6 Acceptance - CostEstimateCard & Status Mapping Tests", () =>
     expect(handleSelect).toHaveBeenCalledWith("flight_round_trip");
   });
 
-  test("[Req-6] Exclusion items render warning copy ('骑行费用暂未计入')", () => {
+  test("[Req-6] CostEstimateCard header renders '预算参考' title", () => {
     render(
       <CostEstimateCard
         costEstimate={COST_ESTIMATE_COMPLETE}
@@ -114,7 +118,43 @@ describe("v0.9.4 P6 Acceptance - CostEstimateCard & Status Mapping Tests", () =>
       />,
     );
 
-    expect(screen.getAllByText("骑行费用暂未计入").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("预算参考").length).toBeGreaterThan(0);
+  });
+
+  test("[Req-7] Unavailable state renders '费用暂不可估算' and NO ¥0", () => {
+    const { container } = render(
+      <CostEstimateCard
+        costEstimate={COST_ESTIMATE_UNAVAILABLE}
+        activeScenarioId="without_intercity"
+      />,
+    );
+
+    expect(screen.getAllByText("费用暂不可估算").length).toBeGreaterThan(0);
+    expect(container.textContent).not.toContain("¥0");
+  });
+
+  test("[Req-8] Missing categories render '待确认' and do NOT show ¥0", () => {
+    const { container } = render(
+      <CostEstimateCard
+        costEstimate={COST_ESTIMATE_PARTIAL}
+        activeScenarioId="without_intercity"
+      />,
+    );
+
+    expect(screen.getAllByText("待确认").length).toBeGreaterThan(0);
+    expect(container.textContent).not.toContain("¥0");
+  });
+
+  test("[Req-9] Forbidden strings do NOT exist in rendered output", () => {
+    const { container } = render(
+      <CostEstimateCard
+        costEstimate={COST_ESTIMATE_COMPLETE}
+        activeScenarioId="train_round_trip"
+      />,
+    );
+
+    const forbiddenPattern = /mockBudget|budgetCap|usedPercent|参考总预算|约占 85%|人均总额|其他/;
+    expect(container.textContent).not.toMatch(forbiddenPattern);
   });
 });
 
@@ -144,11 +184,11 @@ describe("v0.9.4 P6 Acceptance - TripSpine Compact Cost Summary Tests", () => {
       />,
     );
 
-    expect(screen.getByText("预估 ¥1,200–¥1,800")).toBeInTheDocument();
+    expect(screen.getByText("预估 ¥ 1,800")).toBeInTheDocument();
     expect(screen.getByText("高铁往返方案")).toBeInTheDocument();
   });
 
-  test("[Spine-3] Partial state in spine shows '已估 ¥900–¥1,460' and '部分费用待确认'", () => {
+  test("[Spine-3] Partial state in spine shows '已估 ¥ 1,460' and '部分费用待确认'", () => {
     render(
       <TripSpine
         days={dummyDays}
@@ -158,7 +198,7 @@ describe("v0.9.4 P6 Acceptance - TripSpine Compact Cost Summary Tests", () => {
       />,
     );
 
-    expect(screen.getByText("已估 ¥900–¥1,460")).toBeInTheDocument();
+    expect(screen.getByText("已估 ¥ 1,460")).toBeInTheDocument();
     expect(screen.getByText("部分费用待确认")).toBeInTheDocument();
   });
 

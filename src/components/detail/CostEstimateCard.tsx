@@ -1,10 +1,8 @@
 import { useEffect, useMemo } from "react";
 import {
-  formatMoneyRange,
   getScenarioCostStatus,
   type CostEstimateSummary,
   type CostScenarioSummary,
-  type CostCategorySummary,
   type CostCategoryKey,
 } from "@/types/cost";
 
@@ -14,12 +12,20 @@ interface CostEstimateCardProps {
   onScenarioSelect?: (scenarioId: string) => void;
 }
 
-const CATEGORY_META: Record<CostCategoryKey, { label: string; icon: string }> = {
-  intercity_transport: { label: "大交通", icon: "fa-plane-departure" },
-  accommodation: { label: "住宿", icon: "fa-hotel" },
-  local_transport: { label: "市内交通", icon: "fa-taxi" },
-  admission: { label: "门票", icon: "fa-ticket" },
-  meals: { label: "餐饮", icon: "fa-utensils" },
+const ALL_CATEGORIES: CostCategoryKey[] = [
+  "intercity_transport",
+  "accommodation",
+  "local_transport",
+  "admission",
+  "meals",
+];
+
+const CATEGORY_META: Record<CostCategoryKey, { label: string; defaultIcon: string }> = {
+  intercity_transport: { label: "交通", defaultIcon: "fa-plane" },
+  accommodation: { label: "住宿", defaultIcon: "fa-hotel" },
+  local_transport: { label: "市内交通", defaultIcon: "fa-bus" },
+  admission: { label: "景点门票", defaultIcon: "fa-ticket" },
+  meals: { label: "餐饮", defaultIcon: "fa-utensils" },
 };
 
 function formatEstimatedAt(isoString?: string): string | null {
@@ -44,6 +50,20 @@ export function CostEstimateCard({
   const scenarios = useMemo(() => costEstimate?.scenarios ?? [], [costEstimate]);
   const scenarioIds = scenarios.map((s) => s.scenario_id).join(",");
 
+  const isDualMode = scenarios.length > 1;
+  const selectedScenario: CostScenarioSummary | undefined = scenarios.find(
+    (s) => s.scenario_id === activeScenarioId,
+  );
+
+  // 动态金额条比例计算（以当前场景最高 max_cny 为 100% 基准）
+  const maxCategoryMaxCny = useMemo(() => {
+    if (!selectedScenario) return 1;
+    const maxVals = selectedScenario.categories
+      .map((c) => (c.coverage === "priced" ? c.range?.max_cny ?? 0 : 0))
+      .filter((v) => v > 0);
+    return maxVals.length > 0 ? Math.max(...maxVals) : 1;
+  }, [selectedScenario]);
+
   // 只有一个可用场景时自动激活
   useEffect(() => {
     if (scenarios.length === 1 && !activeScenarioId && onScenarioSelect) {
@@ -53,75 +73,41 @@ export function CostEstimateCard({
 
   if (!costEstimate || scenarios.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-soft scroll-mt-24">
-        <h2 className="font-display mb-3 text-xl font-bold text-gray-900">行程消费预估</h2>
-        <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-500">
-          <i className="fa-solid fa-circle-info text-gray-400" aria-hidden="true" />
+      <div className="bg-white py-6 scroll-mt-24">
+        <h2 className="font-display text-3xl font-extrabold text-gray-900 tracking-tight mb-4">
+          预算参考
+        </h2>
+        <div className="flex items-center gap-2 py-4 text-sm text-gray-400">
+          <i className="fa-solid fa-circle-info text-gray-300" aria-hidden="true" />
           <span>费用暂不可估算</span>
         </div>
       </div>
     );
   }
 
-  const isDualMode = scenarios.length > 1;
-  const selectedScenario: CostScenarioSummary | undefined = scenarios.find(
-    (s) => s.scenario_id === activeScenarioId,
-  );
-
-  // 选中的场景未选定（双场景初始未选状态）
   const isUnselected = isDualMode && !selectedScenario;
   const statusInfo = getScenarioCostStatus(selectedScenario, isUnselected);
   const estimatedAtText = formatEstimatedAt(costEstimate.estimated_at);
 
-  // 包含骑行排除说明
-  const hasCyclingExclusion = costEstimate.exclusions?.some(
-    (e) => e.code === "cycling_cost_not_included" || e.label?.includes("骑行"),
-  );
+  const peakAmount = selectedScenario?.total_range?.max_cny;
 
   return (
-    <div className="rounded-2xl border border-gray-200/80 bg-white p-6 shadow-soft space-y-6">
-      {/* 模块大标题 & 估计时间 */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="font-display text-2xl font-bold text-gray-900">行程消费预估</h2>
-            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-              全团预估
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-gray-400">
-            服务端权威精算 · 不设虚假预算上限
-          </p>
-        </div>
-        {estimatedAtText && (
-          <span className="text-[11px] text-gray-400 tabular-nums">
-            预估于 {estimatedAtText}
-          </span>
-        )}
-      </div>
+    <div className="bg-white py-6 scroll-mt-24">
+      {/* 1. 顶栏：标题 + Segmented Control 场景切换器 */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <h2 className="font-display text-3xl font-bold tracking-tight text-gray-900">
+          预算参考
+        </h2>
 
-      {/* 大交通场景控制器（仅在包含多个交通场景时露出） */}
-      {isDualMode && (
-        <div className="rounded-xl bg-sand-50/80 p-4 border border-sand-200/60 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
-              <i className="fa-solid fa-route text-primary-600 text-xs" aria-hidden="true" />
-              <span>选择大交通出行场景</span>
-            </span>
-            {isUnselected && (
-              <span className="text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                请选择交通方式查看预估
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="大交通出行场景选择">
+        {/* 双场景 Segmented Control */}
+        {isDualMode && (
+          <div
+            className="inline-flex items-center gap-1 rounded-xl bg-gray-100/90 p-1 border border-gray-200/50 shrink-0 self-start sm:self-auto"
+            role="radiogroup"
+            aria-label="大交通出行场景选择"
+          >
             {scenarios.map((sc) => {
               const active = sc.scenario_id === activeScenarioId;
-              const isTrain = sc.intercity_mode === "train";
-              const isFlight = sc.intercity_mode === "flight";
-              const icon = isFlight ? "✈️" : isTrain ? "🚄" : "🚗";
-              const scRangeStr = formatMoneyRange(sc.total_range);
-
               return (
                 <button
                   key={sc.scenario_id}
@@ -129,165 +115,176 @@ export function CostEstimateCard({
                   role="radio"
                   aria-checked={active}
                   onClick={() => onScenarioSelect?.(sc.scenario_id)}
-                  className={`flex flex-col items-start gap-1 rounded-xl p-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 ${
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                      e.preventDefault();
+                      const currentIdx = scenarios.findIndex((s) => s.scenario_id === sc.scenario_id);
+                      const nextIdx = e.key === "ArrowRight"
+                        ? (currentIdx + 1) % scenarios.length
+                        : (currentIdx - 1 + scenarios.length) % scenarios.length;
+                      onScenarioSelect?.(scenarios[nextIdx].scenario_id);
+                    }
+                  }}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 ${
                     active
-                      ? "bg-primary-600 text-white shadow-md shadow-primary-600/20 scale-[1.01]"
-                      : "bg-white text-gray-800 border border-gray-200/80 hover:border-primary-300 hover:bg-primary-50/30"
+                      ? "bg-white text-gray-900 shadow-xs"
+                      : "text-gray-500 hover:text-gray-800"
                   }`}
                 >
-                  <div className="flex w-full items-center justify-between font-bold text-xs">
-                    <span className="flex items-center gap-1.5">
-                      <span aria-hidden="true">{icon}</span>
-                      <span>{sc.label}</span>
-                    </span>
-                    {active && (
-                      <i className="fa-solid fa-circle-check text-white text-xs" aria-hidden="true" />
-                    )}
-                  </div>
-                  <div className={`text-[11px] tabular-nums font-semibold ${active ? "text-primary-100" : "text-gray-500"}`}>
-                    {sc.total_scope === "unavailable"
-                      ? "费用不可估算"
-                      : scRangeStr
-                      ? `预估 ${scRangeStr}`
-                      : "待确认"}
-                  </div>
+                  {sc.label}
                 </button>
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* 当前场景金额与状态大牌 */}
-      <div className="rounded-xl bg-gradient-to-br from-sand-100/60 via-sand-50/40 to-white p-5 border border-sand-200/50">
-        {statusInfo.status === "unselected" ? (
-          <div className="py-2 text-center space-y-1">
-            <p className="text-base font-bold text-gray-700">{statusInfo.costText}</p>
-            <p className="text-xs text-gray-500">点击上方大交通场景切换高铁或机票预估方案</p>
-          </div>
-        ) : statusInfo.status === "unavailable" ? (
-          <div className="py-2 space-y-1">
-            <p className="text-xl font-bold text-gray-800">{statusInfo.costText}</p>
-            <p className="text-xs text-gray-500">缺少有效价格来源，行程内容仍可正常阅读参考</p>
-          </div>
-        ) : (
-          <div>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-xs font-bold tracking-wider text-gray-500 uppercase">
-                {selectedScenario?.label ?? "全团总消费"}
+      {/* 2. 主数字区：完全复刻参考图的 3 行结构（小灰字 -> 48px大数字 -> 辅助说明） */}
+      <div className="mb-8">
+        {/* 行1：场景与预估范围状态 */}
+        <div className="text-xs font-normal text-gray-400 mb-1">
+          {isUnselected ? (
+            <span>选择大交通出行方案以查看预估</span>
+          ) : selectedScenario ? (
+            <>
+              <span>{selectedScenario.label}</span>
+              <span className="mx-1 text-gray-300">·</span>
+              <span className={selectedScenario.total_scope === "full_trip" ? "text-teal-600 font-medium" : "text-amber-600 font-medium"}>
+                {selectedScenario.total_scope === "full_trip" ? "完整预估" : "部分预估"}
+              </span>
+            </>
+          ) : (
+            <span>缺少有效价格来源</span>
+          )}
+        </div>
+
+        {/* 行2：大数字 (符号小灰字 + 48px 纤细大数字) */}
+        <div>
+          {statusInfo.status === "unselected" ? (
+            <div className="py-2 text-base font-bold text-gray-600">
+              选择交通方式查看预估
+            </div>
+          ) : statusInfo.status === "unavailable" ? (
+            <div className="py-2 text-xl font-bold text-gray-800">
+              费用暂不可估算
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-baseline gap-1 my-1">
+              <span className="text-xl sm:text-2xl font-light text-gray-400 mr-1.5 select-none">
+                ¥
+              </span>
+              <span className="font-display text-4xl sm:text-5xl font-light tracking-tight text-gray-900 tabular-nums whitespace-nowrap">
+                {peakAmount != null ? peakAmount.toLocaleString() : "0"}
               </span>
               {statusInfo.costBadge && (
-                <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200/80">
+                <span className="ml-3 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-700">
                   {statusInfo.costBadge}
                 </span>
               )}
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="font-display text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl tabular-nums">
-                {statusInfo.costText}
-              </span>
-            </div>
+          )}
+        </div>
+
+        {/* 行3：预估日期或补充说明 */}
+        {estimatedAtText && (
+          <div className="text-xs font-normal text-gray-400 mt-1">
+            预估于 {estimatedAtText}
           </div>
         )}
       </div>
 
-      {/* 5 分类费用明细 */}
+      {/* 3. 五类横向明细：像素级复刻参考图（直投 Icon -> 标签 -> 细线条 -> 右侧金额） */}
       {selectedScenario && (
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
-            费用明细构成
-          </h3>
-          <div className="divide-y divide-gray-100 rounded-xl border border-gray-100 bg-white">
-            {selectedScenario.categories.map((cat: CostCategorySummary) => {
-              const meta = CATEGORY_META[cat.category] ?? { label: cat.category, icon: "fa-circle-dollar-to-slot" };
-              const isPriced = cat.coverage === "priced" && cat.range;
-              const rangeStr = formatMoneyRange(cat.range);
+        <div className="pt-2 divide-y divide-gray-100/80">
+          {ALL_CATEGORIES.map((catKey) => {
+            const cat = selectedScenario.categories.find((c) => c.category === catKey);
+            const meta = CATEGORY_META[catKey];
+            const isTrain = selectedScenario.intercity_mode === "train";
+            const iconClass =
+              catKey === "intercity_transport"
+                ? isTrain ? "fa-train" : "fa-plane"
+                : meta.defaultIcon;
 
-              const priceBasisText =
-                cat.price_basis === "sourced"
-                  ? "来源查价"
-                  : cat.price_basis === "reference"
-                    ? "参考估算"
-                    : cat.price_basis === "mixed"
-                      ? "来源与参考混合"
-                      : cat.price_basis === "policy_zero"
-                        ? "按规则计为 ¥0"
-                        : null;
+            const isPolicyZero = cat?.price_basis === "policy_zero";
+            const isPriced = cat?.coverage === "priced" && cat.range && !isPolicyZero;
+            const amountVal = isPriced && cat.range ? cat.range.max_cny : null;
 
-              return (
-                <div
-                  key={cat.category}
-                  className="flex items-center justify-between gap-3 p-3.5 text-xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
-                      <i className={`fa-solid ${meta.icon}`} aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="font-bold text-gray-800">{meta.label}</div>
-                      <div className="text-[11px] text-gray-600 truncate">{cat.basis_label}</div>
-                    </div>
-                  </div>
+            // 4px 细进度条相对比例计算
+            const barPercent = isPriced && cat.range
+              ? Math.min(100, Math.max(6, Math.round((cat.range.max_cny / maxCategoryMaxCny) * 100)))
+              : 0;
 
-                  <div className="text-right shrink-0">
-                    {isPriced ? (
-                      <div className="font-bold text-gray-900 tabular-nums text-sm">
-                        {rangeStr}
-                      </div>
-                    ) : (
-                      <span className="rounded bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500">
-                        {cat.basis_label || "未计入"}
-                      </span>
-                    )}
-                    {priceBasisText && (
-                      <div className="text-[10px] text-gray-600">
-                        {priceBasisText}
-                      </div>
-                    )}
-                  </div>
+            const priceBasisText =
+              cat?.price_basis === "sourced"
+                ? "来源查价"
+                : cat?.price_basis === "reference"
+                  ? "参考估算"
+                  : cat?.price_basis === "mixed"
+                    ? "来源与参考混合"
+                    : cat?.price_basis === "policy_zero"
+                      ? "按规则计为 ¥0"
+                      : null;
+
+            return (
+              <div
+                key={catKey}
+                className="py-3.5 flex items-center justify-between gap-4 sm:gap-8"
+              >
+                {/* 左侧：青色直投图标 + 分类 Label */}
+                <div className="flex items-center gap-3 shrink-0 w-28 sm:w-32">
+                  <i
+                    className={`fa-solid ${iconClass} text-teal-600 text-base w-5 text-center shrink-0`}
+                    aria-hidden="true"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    {meta.label}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* 中间：4px 细线条进度条 */}
+                <div className="flex-1 mx-2 sm:mx-6">
+                  {isPriced ? (
+                    <div className="h-1 w-full rounded-full bg-gray-100/80 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-teal-600 transition-all duration-300"
+                        style={{ width: `${barPercent}%` }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-1 w-full rounded-full border border-dashed border-gray-200 bg-gray-50/50" />
+                  )}
+                </div>
+
+                {/* 右侧：金额 (复刻参考图单行右对齐) */}
+                <div className="text-right shrink-0 min-w-[80px]">
+                  {isPriced && amountVal != null ? (
+                    <div className="text-sm font-medium text-gray-800 tabular-nums">
+                      ¥ {amountVal.toLocaleString()}
+                    </div>
+                  ) : isPolicyZero ? (
+                    <div className="text-sm font-medium text-gray-800 tabular-nums">
+                      ¥ 0
+                    </div>
+                  ) : (
+                    <span className="inline-block rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-400">
+                      待确认
+                    </span>
+                  )}
+                  {priceBasisText && (
+                    <div className="text-[10px] text-gray-400 mt-0.5 hidden sm:block">
+                      {priceBasisText}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* 假设与排除说明 & 免责 */}
-      <div className="space-y-2 border-t border-gray-100 pt-4 text-xs text-gray-500">
-        {hasCyclingExclusion && (
-          <div className="flex items-center gap-1.5 font-medium text-amber-700">
-            <i className="fa-solid fa-circle-exclamation text-amber-500" aria-hidden="true" />
-            <span>骑行费用暂未计入</span>
-          </div>
-        )}
-
-        {costEstimate.assumptions?.length > 0 && (
-          <div className="space-y-1">
-            <div className="font-medium text-gray-600">计算假设：</div>
-            <ul className="list-disc list-inside space-y-0.5 text-[11px]">
-              {costEstimate.assumptions.map((a) => (
-                <li key={a.code}>{a.label}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {costEstimate.exclusions?.length > 0 && (
-          <div className="space-y-1 pt-1">
-            <div className="font-medium text-gray-600">不含项目：</div>
-            <ul className="list-disc list-inside space-y-0.5 text-[11px]">
-              {costEstimate.exclusions.map((e) => (
-                <li key={e.code}>{e.label}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {costEstimate.notice && (
-          <p className="border-t border-gray-50 pt-2 text-[11px] text-gray-400 leading-relaxed">
-            {costEstimate.notice}
-          </p>
-        )}
+      {/* 4. 页脚：极简提示文字 (复刻参考图底部小字) */}
+      <div className="mt-8 pt-4 text-xs font-normal text-gray-400">
+        <p>{costEstimate.notice || "费用为规划参考，实际花费以出行行为准"}</p>
       </div>
     </div>
   );

@@ -88,9 +88,15 @@ export interface ScenarioCostStatus {
   showAmount: boolean;
 }
 
+export function formatMoneyPeak(range?: CostMoneyRange | null): string {
+  if (!range) return "";
+  return `¥ ${range.max_cny.toLocaleString()}`;
+}
+
 /**
  * 统一场景消费状态计算函数
  * 页面 Hero、TripSpine、CostEstimateCard 统一根据当前 activeScenario.total_scope 映射
+ * 顶部总额取 max_cny 峰值单数字展示，符合高颜值单数字与预算上限视觉层级
  */
 export function getScenarioCostStatus(
   scenario?: CostScenarioSummary | null,
@@ -117,7 +123,7 @@ export function getScenarioCostStatus(
   if (scenario.total_scope === "full_trip") {
     return {
       status: "complete",
-      costText: `预估 ${formatMoneyRange(scenario.total_range)}`,
+      costText: `预估 ${formatMoneyPeak(scenario.total_range)}`,
       costBadge: null,
       showAmount: true,
     };
@@ -125,7 +131,7 @@ export function getScenarioCostStatus(
 
   return {
     status: "partial",
-    costText: `已估 ${formatMoneyRange(scenario.total_range)}`,
+    costText: `已估 ${formatMoneyPeak(scenario.total_range)}`,
     costBadge: "部分费用待确认",
     showAmount: true,
   };
