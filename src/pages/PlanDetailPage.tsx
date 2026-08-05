@@ -19,6 +19,7 @@ import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
 import { CostEstimateCard } from "@/components/detail/CostEstimateCard";
 import { MustIncludeNotice } from "@/components/detail/MustIncludeNotice";
+import { SafeDeliveryNotice } from "@/components/result/SafeDeliveryNotice";
 import { getScenarioCostStatus, type CostScenarioSummary } from "@/types/cost";
 import { useArtifact } from "@/hooks/useArtifact";
 import { saveBlob } from "@/utils/download";
@@ -861,6 +862,8 @@ export default function PlanDetailPage() {
             onScenarioSelect={setActiveScenarioId}
           />
         </section>
+
+        <SafeDeliveryNotice result={result} jobId={jobId} />
       </main>
 
         {/* 行程脊柱 (PC ≥1280px) 放置在 DOM 顺序后方，但在视觉上呈现在正文左侧并固定跟随滑动 */}

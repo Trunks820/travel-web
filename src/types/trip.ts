@@ -235,6 +235,10 @@ export interface TripWeather {
 
 export interface TripResult {
   schema_version: string;
+  /** Schema 2.1：公开交付形态。历史 Schema 2.0 结果可能缺省，按 normal 处理。 */
+  published_variant?: "normal" | "safe";
+  /** Schema 2.1：公开交付状态。历史 Schema 2.0 结果可能缺省，按 NORMAL 处理。 */
+  delivery_status?: "NORMAL" | "DEGRADED";
   result_id: number;
   city: { name: string };
   request: {

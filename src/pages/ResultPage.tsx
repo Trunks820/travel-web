@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PlanSummaryCard } from "@/components/result/PlanSummaryCard";
 import { DetailSkeleton } from "@/components/skeleton/DetailSkeleton";
 import { ShareDialog } from "@/components/share/ShareDialog";
+import { SafeDeliveryNotice } from "@/components/result/SafeDeliveryNotice";
 import { useTripStore } from "@/stores/tripStore";
 import { fetchResult, ApiRequestError } from "@/services/api";
 import { cityImageList } from "@/components/input/RotatingBackground";
@@ -181,6 +182,10 @@ export default function ResultPage() {
               onClick={() => navigate(`/plan/${resultId}/${plan.plan_id}${queryString}`)}
             />
           ))}
+        </div>
+
+        <div className="mx-auto mt-10 max-w-4xl">
+          <SafeDeliveryNotice result={result} jobId={jobId} />
         </div>
 
         {/* 手写签名收尾 */}
